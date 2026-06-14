@@ -5,9 +5,6 @@
 part of 'declaration_builders.dart';
 
 abstract class ExtensionTypeDeclarationBuilder implements DeclarationBuilder {
-  /// The type of the underlying representation.
-  DartType get declaredRepresentationType;
-
   /// The type builder of the underlying representation.
   TypeBuilder? get declaredRepresentationTypeBuilder;
 
@@ -27,8 +24,9 @@ abstract class ExtensionTypeDeclarationBuilder implements DeclarationBuilder {
   /// Computes the inherent nullability of this extension type.
   ///
   /// An extension type is non-nullable if it implements a non-nullable type.
-  Nullability computeNullability(
-      {Map<ExtensionTypeDeclarationBuilder, TraversalState>? traversalState});
+  Nullability computeNullability({
+    Map<ExtensionTypeDeclarationBuilder, TraversalState>? traversalState,
+  });
 }
 
 abstract class ExtensionTypeDeclarationBuilderImpl
@@ -37,26 +35,37 @@ abstract class ExtensionTypeDeclarationBuilderImpl
     implements ExtensionTypeDeclarationBuilder {
   @override
   DartType buildAliasedTypeWithBuiltArguments(
-      LibraryBuilder library,
-      Nullability nullability,
-      List<DartType> arguments,
-      TypeUse typeUse,
-      Uri fileUri,
-      int charOffset,
-      {required bool hasExplicitTypeArguments}) {
-    ExtensionType type =
-        new ExtensionType(extensionTypeDeclaration, nullability, arguments);
+    LibraryBuilder library,
+    Nullability nullability,
+    List<DartType> arguments,
+    TypeUse typeUse,
+    Uri fileUri,
+    int charOffset, {
+    required bool hasExplicitTypeArguments,
+  }) {
+    ExtensionType type = new ExtensionType(
+      extensionTypeDeclaration,
+      nullability,
+      arguments,
+    );
     if (typeParametersCount != 0 && library is SourceLibraryBuilder) {
-      library.registerBoundsCheck(type, fileUri, charOffset, typeUse,
-          inferred: !hasExplicitTypeArguments);
+      library.registerBoundsCheck(
+        type,
+        fileUri,
+        charOffset,
+        typeUse,
+        inferred: !hasExplicitTypeArguments,
+      );
     }
     return type;
   }
 
   @override
-  Nullability computeNullabilityWithArguments(List<TypeBuilder>? typeArguments,
-      {required Map<TypeParameterBuilder, TraversalState>
-          typeParametersTraversalState}) {
+  Nullability computeNullabilityWithArguments(
+    List<TypeBuilder>? typeArguments, {
+    required Map<TypeParameterBuilder, TraversalState>
+    typeParametersTraversalState,
+  }) {
     return computeNullability();
   }
 }

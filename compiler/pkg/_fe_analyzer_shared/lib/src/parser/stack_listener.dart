@@ -4,16 +4,9 @@
 
 library _fe_analyzer_shared.stack_listener;
 
-import '../messages/codes.dart'
-    show
-        Code,
-        LocatedMessage,
-        Message,
-        codeBuiltInIdentifierInDeclaration,
-        codeCatchSyntaxExtraParameters,
-        codeNativeClauseShouldBeAnnotation,
-        templateInternalProblemStackNotEmpty,
-        templateInternalProblemUnhandled;
+import 'package:_fe_analyzer_shared/src/messages/diagnostic.dart' as diag;
+
+import '../messages/codes.dart' show Code, LocatedMessage, Message;
 
 import '../scanner/scanner.dart' show Token;
 
@@ -94,6 +87,9 @@ class NullValues {
   static const NullValue Pattern = const NullValue("Pattern");
   static const NullValue PatternList = const NullValue("PatternList");
   static const NullValue Prefix = const NullValue("Prefix");
+  static const NullValue PrimaryConstructor = const NullValue(
+    "PrimaryConstructor",
+  );
   static const NullValue RecordTypeFieldList = const NullValue(
     "RecordTypeFieldList",
   );
@@ -152,7 +148,6 @@ abstract class StackListener extends Listener with StackChecker {
   @override
   Object? lookupStack(int index) => stack[index];
 
-  @override
   Uri get uri;
 
   /// Returns `true` if the current file is part of a `dart:` library.
@@ -167,7 +162,10 @@ abstract class StackListener extends Listener with StackChecker {
   void push(Object? node) {
     if (node == null) {
       internalProblem(
-        templateInternalProblemUnhandled.withArguments("null", "push"),
+        diag.internalProblemUnhandled.withArguments(
+          what: "null",
+          where: "push",
+        ),
         /* charOffset = */ -1,
         uri,
       );
@@ -179,7 +177,7 @@ abstract class StackListener extends Listener with StackChecker {
     if (tokenOrNull == null) stack.push(nullValue);
   }
 
-  Object? peek() => stack.isNotEmpty ? stack.last : null;
+  Object? peek([NullValue? nullValue]) => stack.peek(nullValue);
 
   Object? pop([NullValue? nullValue]) {
     return stack.pop(nullValue);
@@ -210,7 +208,10 @@ abstract class StackListener extends Listener with StackChecker {
   void logEvent(String name) {
     printEvent(name);
     internalProblem(
-      templateInternalProblemUnhandled.withArguments(name, "$runtimeType"),
+      diag.internalProblemUnhandled.withArguments(
+        what: name,
+        where: "$runtimeType",
+      ),
       /* charOffset = */ -1,
       uri,
     );
@@ -230,9 +231,9 @@ abstract class StackListener extends Listener with StackChecker {
   void checkEmpty(int charOffset) {
     if (stack.isNotEmpty) {
       internalProblem(
-        templateInternalProblemStackNotEmpty.withArguments(
-          "${runtimeType}",
-          stack.values.join("\n  "),
+        diag.internalProblemStackNotEmpty.withArguments(
+          typeName: "${runtimeType}",
+          stackContents: stack.values.join("\n  "),
         ),
         charOffset,
         uri,
@@ -250,6 +251,27 @@ abstract class StackListener extends Listener with StackChecker {
   void endCompilationUnit(int count, Token token) {
     debugEvent("CompilationUnit");
     checkEmpty(token.charOffset);
+  }
+
+  @override
+  void handleImplicitFormalParameters(Token token) {
+    debugEvent("ImplicitFormalParameters");
+    push(NullValues.FormalParameters);
+  }
+
+  @override
+  void endAnonymousMethodInvocation(
+    Token beginToken,
+    Token? functionDefinition,
+    Token endToken, {
+    required bool isExpression,
+  }) {
+    debugEvent("AnonymousMethodInvocation");
+    // Pop the nodes. A concrete listener should transform
+    // the block and push a representation of the anonymous
+    // method.
+    pop(); // Function body.
+    pop(); // Formal parameter list.
   }
 
   @override
@@ -379,9 +401,9 @@ abstract class StackListener extends Listener with StackChecker {
       push(unescapeString(token.lexeme, token, this));
     } else {
       internalProblem(
-        templateInternalProblemUnhandled.withArguments(
-          "string interpolation",
-          "endLiteralString",
+        diag.internalProblemUnhandled.withArguments(
+          what: "string interpolation",
+          where: "endLiteralString",
         ),
         endToken.charOffset,
         uri,
@@ -433,15 +455,15 @@ abstract class StackListener extends Listener with StackChecker {
     );
   }
 
-  bool isIgnoredError(Code<dynamic> code, Token token) {
-    if (code == codeNativeClauseShouldBeAnnotation) {
+  bool isIgnoredError(Code code, Token token) {
+    if (code == diag.nativeClauseShouldBeAnnotation) {
       // TODO(danrubel): Ignore this error until we deprecate `native`
       // support.
       return true;
-    } else if (code == codeCatchSyntaxExtraParameters) {
+    } else if (code == diag.catchSyntaxExtraParameters) {
       // Ignored. This error is handled by the BodyBuilder.
       return true;
-    } else if (code == codeBuiltInIdentifierInDeclaration) {
+    } else if (code == diag.builtInIdentifierInDeclaration) {
       if (isDartLibrary) return true;
       return false;
     } else {
@@ -477,6 +499,9 @@ abstract class Stack {
   /// Returns `null` if a [ParserRecovery] value is found, or [list] otherwise.
   List<T>? popNonNullableList<T>(int count, List<T> list);
 
+  /// Pops [count] elements from the stack and puts it into the returned list.
+  List<T> popNonNullableNewList<T>(int count);
+
   void push(Object value);
 
   /// Will return `null` instead of [NullValue].
@@ -485,6 +510,8 @@ abstract class Stack {
   bool get isNotEmpty;
 
   List<Object?> get values;
+
+  Object? peek(NullValue? nullValue);
 
   Object? pop(NullValue? nullValue);
 
@@ -523,6 +550,22 @@ class StackImpl implements Stack {
     array[arrayLength++] = value;
     if (array.length == arrayLength) {
       _grow();
+    }
+  }
+
+  @override
+  Object? peek(NullValue? nullValue) {
+    if (isNotEmpty) {
+      Object? value = last;
+      if (value is! NullValue) {
+        return value;
+      } else if (nullValue == null || value == nullValue) {
+        return null;
+      } else {
+        return value;
+      }
+    } else {
+      return null;
     }
   }
 
@@ -589,6 +632,22 @@ class StackImpl implements Stack {
   }
 
   @override
+  List<T> popNonNullableNewList<T>(int count) {
+    assert(arrayLength >= count);
+    final List<Object?> array = this.array;
+    final int length = arrayLength;
+    final int startIndex = length - count;
+    List<T> result = new List.generate(count, ((index) {
+      int arrayIndex = startIndex + index;
+      final Object? value = array[arrayIndex];
+      array[arrayIndex] = null;
+      return value as T;
+    }));
+    arrayLength -= count;
+    return result;
+  }
+
+  @override
   List<Object?> get values {
     final int length = arrayLength;
     final List<Object?> list = new List<Object?>.filled(
@@ -637,6 +696,11 @@ class DebugStack implements Stack {
   int get length => realStack.length;
 
   @override
+  Object? peek(NullValue? nullValue) {
+    return realStack.peek(nullValue);
+  }
+
+  @override
   Object? pop(NullValue? nullValue) {
     Object? result = realStack.pop(nullValue);
     latestStacktraces.clear();
@@ -657,6 +721,14 @@ class DebugStack implements Stack {
   @override
   List<T>? popNonNullableList<T>(int count, List<T> list) {
     List<T>? result = realStack.popNonNullableList(count, list);
+    latestStacktraces.length = count;
+    stackTraceStack.popList(count, latestStacktraces, /* nullValue = */ null);
+    return result;
+  }
+
+  @override
+  List<T> popNonNullableNewList<T>(int count) {
+    List<T> result = realStack.popNonNullableNewList(count);
     latestStacktraces.length = count;
     stackTraceStack.popList(count, latestStacktraces, /* nullValue = */ null);
     return result;

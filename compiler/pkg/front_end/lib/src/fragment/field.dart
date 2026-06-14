@@ -14,8 +14,8 @@ class FieldFragment implements Fragment {
 
   final int endOffset;
 
-  Token? _initializerToken;
-  Token? _constInitializerToken;
+  Token? _initializerTokenForTopLevelInference;
+  Token? _initializerTokenForOutline;
 
   final List<MetadataBuilder>? metadata;
 
@@ -33,8 +33,11 @@ class FieldFragment implements Fragment {
   FieldFragmentDeclaration? _declaration;
 
   @override
-  late final UriOffsetLength uriOffset =
-      new UriOffsetLength(fileUri, nameOffset, name.length);
+  late final UriOffsetLength uriOffset = new UriOffsetLength(
+    fileUri,
+    nameOffset,
+    name.length,
+  );
 
   FieldFragment({
     required this.name,
@@ -42,7 +45,6 @@ class FieldFragment implements Fragment {
     required this.nameOffset,
     required this.endOffset,
     required Token? initializerToken,
-    required Token? constInitializerToken,
     required this.metadata,
     required this.type,
     required this.isTopLevel,
@@ -50,8 +52,8 @@ class FieldFragment implements Fragment {
     required this.enclosingScope,
     required this.enclosingDeclaration,
     required this.enclosingCompilationUnit,
-  })  : _initializerToken = initializerToken,
-        _constInitializerToken = constInitializerToken;
+  }) : _initializerTokenForTopLevelInference = initializerToken,
+       _initializerTokenForOutline = initializerToken;
 
   @override
   SourcePropertyBuilder get builder {
@@ -70,22 +72,26 @@ class FieldFragment implements Fragment {
   ///
   /// This can only be called once and will hand over the responsibility of
   /// the token to the caller.
-  Token? get constInitializerToken {
-    Token? result = _constInitializerToken;
+  Token? takeInitializerTokenForOutline() {
+    Token? result = _initializerTokenForOutline;
     // Ensure that we don't hold onto the token.
-    _constInitializerToken = null;
+    _initializerTokenForOutline = null;
     return result;
   }
 
   FieldFragmentDeclaration get declaration {
     assert(
-        _declaration != null, "Declaration has not been computed for $this.");
+      _declaration != null,
+      "Declaration has not been computed for $this.",
+    );
     return _declaration!;
   }
 
   void set declaration(FieldFragmentDeclaration value) {
-    assert(_declaration == null,
-        "Declaration has already been computed for $this.");
+    assert(
+      _declaration == null,
+      "Declaration has already been computed for $this.",
+    );
     _declaration = value;
   }
 
@@ -107,10 +113,10 @@ class FieldFragment implements Fragment {
   ///
   /// This can only be called once and will hand over the responsibility of
   /// the token to the caller.
-  Token? get initializerToken {
-    Token? result = _initializerToken;
-    // Ensure that we don't hold onto the token.
-    _initializerToken = null;
+  Token? takeInitializerTokenForTopLevelInference() {
+    Token? result = _initializerTokenForTopLevelInference;
+    // Ensure that we don't hold on to the token.
+    _initializerTokenForTopLevelInference = null;
     return result;
   }
 

@@ -7,6 +7,8 @@ import 'dart:convert';
 import 'dart:io' as io;
 import 'dart:math' show max, min;
 
+import 'package:_js_interop_checks/src/js_interop.dart'
+    show getDartJSInteropJSName, hasDartJSInteropAnnotation;
 import 'package:_js_interop_checks/src/transformations/js_util_optimizer.dart'
     show ExtensionIndex;
 import 'package:front_end/src/api_unstable/ddc.dart';
@@ -74,7 +76,12 @@ abstract class Compiler {
 }
 
 class ProgramCompiler extends ComputeOnceConstantVisitor<js_ast.Expression>
-    with OnceConstantVisitorDefaultMixin<js_ast.Expression>
+    with
+        OnceConstantVisitorDefaultMixin<js_ast.Expression>,
+        StatementVisitorInternalNodeMixin<js_ast.Statement>,
+        StatementVisitorExperimentExclusionMixin<js_ast.Statement>,
+        ExpressionVisitorInternalNodeMixin<js_ast.Expression>,
+        ExpressionVisitorExperimentExclusionMixin<js_ast.Expression>
     implements
         StatementVisitor<js_ast.Statement>,
         ExpressionVisitor<js_ast.Expression>,
@@ -1531,13 +1538,13 @@ class ProgramCompiler extends ComputeOnceConstantVisitor<js_ast.Expression>
             _usesMixinNew(mixin.classNode)
                 ? _runtimeCall('mixinNew')
                 : _constructorName(''),
-            [if (mixinRti != null) mixinRti],
+            [?mixinRti],
           ]);
         }
 
         var name = ctor.name.text;
         var ctorBody = [
-          if (mixinCtor != null) mixinCtor,
+          ?mixinCtor,
           if (name != '' || hasUnnamedSuper)
             _emitSuperConstructorCall(
               ctor,
@@ -2272,10 +2279,7 @@ class ProgramCompiler extends ComputeOnceConstantVisitor<js_ast.Expression>
         var initializer = js.statement('#.#.call(this, #);', [
           className,
           _constructorName(init.target.name.text),
-          [
-            if (rtiParam != null) rtiParam,
-            ..._emitArgumentList(init.arguments, types: false),
-          ],
+          [?rtiParam, ..._emitArgumentList(init.arguments, types: false)],
         ]);
         jsInitializers.add(initializer);
       }
@@ -2304,10 +2308,7 @@ class ProgramCompiler extends ComputeOnceConstantVisitor<js_ast.Expression>
       var rti = _requiresRtiForInstantiation(ctor.enclosingClass)
           ? js_ast.LiteralNull()
           : null;
-      args = [
-        if (rti != null) rti,
-        ..._emitArgumentList(superInit.arguments, types: true),
-      ];
+      args = [?rti, ..._emitArgumentList(superInit.arguments, types: true)];
 
       _currentTypeEnvironment = savedTypeEnvironment;
     }
@@ -2374,12 +2375,8 @@ class ProgramCompiler extends ComputeOnceConstantVisitor<js_ast.Expression>
           : _getSymbol(virtualField);
       var jsInit = _visitInitializer(initializer, f.annotations);
       body.add(
-        jsInit
-            .toAssignExpression(
-              js.call('this.#', [access])
-                ..sourceInformation = _nodeStart(hoverInfo),
-            )
-            .toStatement(),
+        jsInit.toAssignExpression(js.call('this.#', [access])).toStatement()
+          ..sourceInformation = _nodeStart(hoverInfo),
       );
     }
 
@@ -2739,12 +2736,25 @@ class ProgramCompiler extends ComputeOnceConstantVisitor<js_ast.Expression>
             )
             as FunctionType;
     var function = member.function;
-
     var body = <js_ast.Statement>[];
-    var typeParameters = superMethodType.typeParameters;
-    _emitCovarianceBoundsCheck(typeParameters, body);
-
+    var typeParameters = function.typeParameters;
+    var superTypeParameters = superMethodType.typeParameters;
     var typeFormals = _emitTypeFormals(typeParameters);
+    for (var i = 0; i < typeParameters.length; i++) {
+      var typeParameter = typeParameters[i];
+      var superBound = superTypeParameters[i].bound;
+      if (typeParameter.isCovariantByClass && !_types.isTop(superBound)) {
+        body.add(
+          js.statement('#.checkTypeBound(#, #, #, #)', [
+            _emitLibraryName(_rtiLibrary),
+            typeFormals[i],
+            _emitType(superBound),
+            _propertyName(typeParameter.name!),
+            js.string(member.name.text),
+          ]),
+        );
+      }
+    }
     var jsParams = List<js_ast.Parameter>.from(typeFormals);
     var positionalParameters = function.positionalParameters;
     for (var i = 0, n = positionalParameters.length; i < n; i++) {
@@ -3151,9 +3161,9 @@ class ProgramCompiler extends ComputeOnceConstantVisitor<js_ast.Expression>
     return body;
   }
 
-  js_ast.PropertyAccess _emitTopLevelName(NamedNode n, {String suffix = ''}) {
+  js_ast.PropertyAccess _emitTopLevelName(NamedNode n) {
     return _emitJSInterop(n) ??
-        _emitTopLevelNameNoExternalInterop(n, suffix: suffix);
+        _emitTopLevelNameNoExternalInterop(n, suffix: '');
   }
 
   /// Like [_emitMemberName], but for declaration sites.
@@ -4402,41 +4412,19 @@ class ProgramCompiler extends ComputeOnceConstantVisitor<js_ast.Expression>
       : js.call('# in #', [propertyName, _namedArgumentTemp]);
 
   void _emitCovarianceBoundsCheck(
-    List</* TypeParameter | StructuralParameter */ Object> typeFormals,
+    List<TypeParameter> typeFormals,
     List<js_ast.Statement> body,
   ) {
-    assert(
-      typeFormals is List<TypeParameter> ||
-          typeFormals is List<StructuralParameter>,
-    );
     for (var t in typeFormals) {
-      bool? isCovariantByClass;
-      DartType bound;
-      String name;
-      DartType typeParameterType;
-      if (t is TypeParameter) {
-        isCovariantByClass = t.isCovariantByClass;
-        bound = t.bound.extensionTypeErasure;
-        name = t.name!;
-        typeParameterType = TypeParameterType(t, Nullability.undetermined);
-      } else {
-        t as StructuralParameter;
-        bound = t.bound.extensionTypeErasure;
-        name = t.name!;
-        typeParameterType = StructuralParameterType(
-          t,
-          Nullability.undetermined,
-        );
-      }
-
-      if (isCovariantByClass != null &&
-          isCovariantByClass &&
-          !_types.isTop(bound)) {
+      var bound = t.bound.extensionTypeErasure;
+      if (t.isCovariantByClass && !_types.isTop(bound)) {
+        // TODO(nshahan): Ensure we have a name for the method and then
+        // just call the `checkTypeBound()` in the rti library directly.
         body.add(
           _runtimeStatement('checkTypeBound(#, #, #)', [
-            _emitType(typeParameterType),
+            _emitType(TypeParameterType(t, Nullability.undetermined)),
             _emitType(bound),
-            _propertyName(name),
+            _propertyName(t.name!),
           ]),
         );
       }
@@ -5575,8 +5563,7 @@ class ProgramCompiler extends ComputeOnceConstantVisitor<js_ast.Expression>
       return jsReceiver;
     }
     var memberName = node.name.text;
-    if (_isObjectGetter(memberName) &&
-        _shouldCallObjectMemberHelper(receiver)) {
+    if (member.isCoreObjectGetter && _shouldCallObjectMemberHelper(receiver)) {
       // The names of the static helper methods in the runtime must match the
       // names of the Object instance getters.
       return _runtimeCall('#(#)', [memberName, jsReceiver]);
@@ -5623,7 +5610,7 @@ class ProgramCompiler extends ComputeOnceConstantVisitor<js_ast.Expression>
       return jsReceiver;
     }
     var memberName = node.name.text;
-    if (_isObjectMethodTearoff(memberName) &&
+    if (member.isToStringOrNoSuchMethod &&
         _shouldCallObjectMemberHelper(receiver)) {
       // The names of the static helper methods in the runtime must start with
       // the names of the Object instance methods.
@@ -5906,10 +5893,86 @@ class ProgramCompiler extends ComputeOnceConstantVisitor<js_ast.Expression>
 
   @override
   js_ast.Expression visitInstanceInvocation(InstanceInvocation node) {
-    var invocation = _emitInstanceInvocation(node);
+    var target = node.interfaceTarget;
+    if (target.isPrimitiveOperator) {
+      return _emitPrimitiveOperatorInvocation(node);
+    }
+    var receiver = node.receiver;
+    var jsReceiver = _visitExpression(receiver);
+    var jsArguments = _emitArgumentList(node.arguments, target: target);
+    if (node.isNativeListInvariantAddInvocation(_coreTypes.listClass)) {
+      return js.call('#.push(#)', [jsReceiver, jsArguments]);
+    }
+    var name = node.name.text;
+    if (name == 'call') {
+      var directCallInvocation = _emitDirectInstanceCallInvocation(node);
+      if (directCallInvocation != null) {
+        return directCallInvocation;
+      }
+    }
+    if (target.isToStringOrNoSuchMethodWithDefaultSignature &&
+        _shouldCallObjectMemberHelper(receiver)) {
+      // Handle Object methods when the receiver could potentially be `null` or
+      // JavaScript interop values with static helper methods.
+      // The names of the static helper methods in the runtime must match the
+      // names of the Object instance members.
+      return _runtimeCall('#(#, #)', [name, jsReceiver, jsArguments]);
+    }
+    // Otherwise generate this as a normal typed method call.
+    var jsName = _emitMemberName(name, member: target);
+    var invocation = js.call('#.#(#)', [jsReceiver, jsName, jsArguments]);
     return _isNullCheckableJsInterop(node.interfaceTarget)
         ? _wrapWithJsInteropNullCheck(invocation)
         : invocation;
+  }
+
+  /// Returns a direct invocation to support a `call()` method invocation when
+  /// the receiver is considered directly callable, otherwise returns
+  /// `null`.
+  ///
+  /// For example if `fn` is statically typed as a function type, then
+  /// `fn.call()` would be considered directly callable and compiled as `fn()`.
+  js_ast.Expression? _emitDirectInstanceCallInvocation(
+    InstanceInvocation node,
+  ) {
+    // Erasing the extension types here to support existing callable behavior
+    // on the old style JS interop types that are callable. This should be
+    // safe as it is a compile time error to try to dynamically invoke a call
+    // method that is inherited from an extension type.
+    var receiverType = node.receiver
+        .getStaticType(_staticTypeContext)
+        .extensionTypeErasure;
+    if (!_isDirectCallable(receiverType)) return null;
+    // Handle call methods on function types as function calls.
+    var invocation = js_ast.Call(
+      _visitExpression(node.receiver),
+      _emitArgumentList(node.arguments, target: node.interfaceTarget),
+    );
+    return _isNullCheckableJsInterop(node.interfaceTarget)
+        ? _wrapWithJsInteropNullCheck(invocation)
+        : invocation;
+  }
+
+  /// Returns an invocation of a primitive operator.
+  ///
+  /// See [ProcedureHelpers.isPrimitiveOperator].
+  js_ast.Expression _emitPrimitiveOperatorInvocation(InstanceInvocation node) {
+    var receiver = node.receiver;
+    var target = node.interfaceTarget;
+    var arguments = node.arguments;
+    assert(arguments.types.isEmpty && arguments.named.isEmpty);
+    // JavaScript interop does not support overloading of these operators.
+    return switch (arguments.positional.length) {
+      0 => _emitUnaryOperator(receiver, target, node),
+      1 => _emitBinaryOperator(receiver, target, arguments.positional[0], node),
+      // Should always be a compile time error but here for exhaustiveness.
+      _ => throw UnsupportedError(
+        'Invalid number of positional arguments.\n'
+        'Found: ${arguments.positional.length}\n'
+        'Operator: ${node.name.text} '
+        '${node.location}',
+      ),
+    };
   }
 
   @override
@@ -6009,92 +6072,6 @@ class ProgramCompiler extends ComputeOnceConstantVisitor<js_ast.Expression>
       node.expression,
       NullLiteral(),
     ], negated: false);
-  }
-
-  js_ast.Expression _emitInstanceInvocation(InstanceInvocation node) {
-    /// Returns `true` when [node] represents an invocation of `List.add()` that
-    /// can be optimized.
-    ///
-    /// The optimized add operation can skip checks for a growable or modifiable
-    /// list and the element type is known to be invariant so it can skip the
-    /// type check.
-    bool isNativeListInvariantAdd(InstanceInvocation node) {
-      if (node.isInvariant && node.name.text == 'add') {
-        // The call to add is marked as invariant, so the type check on the
-        // parameter to add is not needed.
-        var receiver = node.receiver;
-        if (receiver is VariableGet &&
-            receiver.variable.isFinal &&
-            !receiver.variable.isLate) {
-          // The receiver is a final variable, so it only contains the
-          // initializer value. Also, avoid late variables in case the CFE
-          // lowering of late variables is changed in the future.
-          var initializer = receiver.variable.initializer;
-          if (initializer is ListLiteral) {
-            // The initializer is a list literal, so we know the list can be
-            // grown, modified, and is represented by a JavaScript Array.
-            return true;
-          }
-          if (initializer is StaticInvocation &&
-              initializer.target.enclosingClass == _coreTypes.listClass &&
-              initializer.target.name.text == 'of' &&
-              initializer.arguments.named.isEmpty) {
-            // The initializer is a `List.of()` call from the dart:core library
-            // and the growable named argument has not been passed (it defaults
-            // to true).
-            return true;
-          }
-        }
-      }
-      return false;
-    }
-
-    var name = node.name.text;
-    var receiver = node.receiver;
-    var arguments = node.arguments;
-    var target = node.interfaceTarget;
-    if (isOperatorMethodName(name) && arguments.named.isEmpty) {
-      var argLength = arguments.positional.length;
-      if (argLength == 0) {
-        return _emitUnaryOperator(receiver, target, node);
-      } else if (argLength == 1) {
-        return _emitBinaryOperator(
-          receiver,
-          target,
-          arguments.positional[0],
-          node,
-        );
-      }
-    }
-    var jsReceiver = _visitExpression(receiver);
-    var args = _emitArgumentList(arguments, target: target);
-    if (isNativeListInvariantAdd(node)) {
-      return js.call('#.push(#)', [jsReceiver, args]);
-    }
-    if (name == 'call') {
-      // Erasing the extension types here to support existing callable behavior
-      // on the old style JS interop types that are callable. This should be
-      // safe as it is a compile time error to try to dynamically invoke a call
-      // method that is inherited from an extension type.
-      var receiverType = receiver
-          .getStaticType(_staticTypeContext)
-          .extensionTypeErasure;
-      if (_isDirectCallable(receiverType)) {
-        // Handle call methods on function types as function calls.
-        return js_ast.Call(jsReceiver, args);
-      }
-    }
-    if (_isObjectMethodCall(name, arguments) &&
-        _shouldCallObjectMemberHelper(receiver)) {
-      // Handle Object methods that are supported by `null` and possibly
-      // JavaScript interop values with static helper methods.
-      // The names of the static helper methods in the runtime must match the
-      // names of the Object instance members.
-      return _runtimeCall('#(#, #)', [name, jsReceiver, args]);
-    }
-    // Otherwise generate this as a normal typed method call.
-    var jsName = _emitMemberName(name, member: target);
-    return js.call('#.#(#)', [jsReceiver, jsName, args]);
   }
 
   /// Returns an invocation of the runtime helpers `dcall`, `dgcall`, `dsend`,
@@ -6946,14 +6923,21 @@ class ProgramCompiler extends ComputeOnceConstantVisitor<js_ast.Expression>
       // JS interop checks assert that only external extension type constructors
       // and factories have named parameters.
       assert(target.function.positionalParameters.isEmpty);
-      return _emitObjectLiteral(
-        Arguments(
-          node.arguments.positional,
-          types: node.arguments.types,
-          named: node.arguments.named,
-        ),
-        target,
-      );
+      var namedProperties = <String, Expression>{};
+      for (var named in node.arguments.named) {
+        var name = named.name;
+        for (var parameter in target.function.namedParameters) {
+          if (parameter.name == named.name) {
+            var customName = getDartJSInteropJSName(parameter);
+            if (customName.isNotEmpty) {
+              name = customName;
+            }
+            break;
+          }
+        }
+        namedProperties[name] = named.value;
+      }
+      return _emitObjectLiteral(namedProperties, isDartJsInterop: true);
     }
     if (target == _coreTypes.identicalProcedure) {
       return _emitCoreIdenticalCall(node.arguments.positional);
@@ -7121,10 +7105,10 @@ class ProgramCompiler extends ComputeOnceConstantVisitor<js_ast.Expression>
     return _emitTopLevelName(target);
   }
 
-  /// Returns all parts of [arguments] flattened into a list so they can be
-  /// passed in the calling convention for calls with no runtime checks.
+  /// Returns all parts of [node] flattened into a list so they can be passed in
+  /// the calling convention for calls with no runtime checks.
   ///
-  /// When [types] is `false` any type arguments present in [arguments] will be
+  /// When [types] is `false` any type arguments present in [node] will be
   /// omitted.
   ///
   /// Passing [target] when applicable allows for detection of an annotation to
@@ -7146,13 +7130,13 @@ class ProgramCompiler extends ComputeOnceConstantVisitor<js_ast.Expression>
     );
     return [
       if (types && typeArguments != null) ...typeArguments,
-      if (positionalArguments != null) ...positionalArguments,
+      ...?positionalArguments,
       if (namedArguments != null) js_ast.ObjectInitializer([...namedArguments]),
     ];
   }
 
-  /// Returns all [arguments] but kept in separate packets so they can be
-  /// further processed.
+  /// Returns all arguments from [node] but kept in separate packets so they can
+  /// be further processed.
   ///
   /// Facilitates passing arguments in the calling convention used by runtime
   /// helpers that check arguments.
@@ -7179,9 +7163,14 @@ class ProgramCompiler extends ComputeOnceConstantVisitor<js_ast.Expression>
               else
                 _visitExpression(arg),
           ];
+    // Named arguments with JS interop are only allowed in object literal
+    // constructors. Invocations to those are always transformed by
+    // `_emitObjectLiteral` and therefore we should never expect to see a JS
+    // interop invocation with named arguments here.
+    if (node.named.isNotEmpty) assert(!isJSInterop);
     var namedArguments = node.named.isEmpty
         ? null
-        : [for (var arg in node.named) _emitNamedExpression(arg, isJSInterop)];
+        : [for (var arg in node.named) _emitNamedExpression(arg)];
 
     return (
       typeArguments: typeArguments,
@@ -7190,13 +7179,8 @@ class ProgramCompiler extends ComputeOnceConstantVisitor<js_ast.Expression>
     );
   }
 
-  js_ast.Property _emitNamedExpression(
-    NamedExpression arg, [
-    bool isJsInterop = false,
-  ]) {
-    var value = isJsInterop ? _assertInterop(arg.value) : arg.value;
-    return js_ast.Property(_propertyName(arg.name), _visitExpression(value));
-  }
+  js_ast.Property _emitNamedExpression(NamedExpression arg) =>
+      js_ast.Property(_propertyName(arg.name), _visitExpression(arg.value));
 
   /// Emits code for the `JS(...)` macro.
   js_ast.Node _emitInlineJSCode(StaticInvocation node) {
@@ -7422,7 +7406,15 @@ class ProgramCompiler extends ComputeOnceConstantVisitor<js_ast.Expression>
     var ctor = node.target;
     var ctorClass = ctor.enclosingClass;
     var args = node.arguments;
-    if (isJSAnonymousType(ctorClass)) return _emitObjectLiteral(args, ctor);
+    if (isJSAnonymousType(ctorClass)) {
+      var namedProperties = {
+        for (final named in node.arguments.named) named.name: named.value,
+      };
+      return _emitObjectLiteral(
+        namedProperties,
+        isDartJsInterop: hasDartJSInteropAnnotation(ctorClass),
+      );
+    }
     // JS interop constructor calls do not provide an RTI at the call site.
     var shouldProvideRti =
         !isJSInteropMember(ctor) && _requiresRtiForInstantiation(ctorClass);
@@ -7433,7 +7425,7 @@ class ProgramCompiler extends ComputeOnceConstantVisitor<js_ast.Expression>
           )
         : null;
     var result = js_ast.New(_emitConstructorName(node.constructedType, ctor), [
-      if (rti != null) rti,
+      ?rti,
       ..._emitArgumentList(args, types: false, target: ctor),
     ]);
     return node.isConst ? _canonicalizeConstObject(result) : result;
@@ -7502,7 +7494,7 @@ class ProgramCompiler extends ComputeOnceConstantVisitor<js_ast.Expression>
         ? _emitType(type, emitJSInteropGenericClassTypeParametersAsAny: false)
         : null;
     var result = js_ast.Call(_emitConstructorName(type, ctor), [
-      if (rti != null) rti,
+      ?rti,
       ..._emitArgumentList(args, types: false),
     ]);
     return node.isConst ? _canonicalizeConstObject(result) : result;
@@ -7510,7 +7502,15 @@ class ProgramCompiler extends ComputeOnceConstantVisitor<js_ast.Expression>
 
   js_ast.Expression _emitJSInteropNew(Member ctor, Arguments args) {
     var ctorClass = ctor.enclosingClass!;
-    if (isJSAnonymousType(ctorClass)) return _emitObjectLiteral(args, ctor);
+    if (isJSAnonymousType(ctorClass)) {
+      var namedProperties = {
+        for (final named in args.named) named.name: named.value,
+      };
+      return _emitObjectLiteral(
+        namedProperties,
+        isDartJsInterop: hasDartJSInteropAnnotation(ctorClass),
+      );
+    }
     // JS interop constructor calls do not require an RTI at the call site.
     return js_ast.New(
       _emitConstructorName(_coreTypes.nonNullableRawType(ctorClass), ctor),
@@ -7538,11 +7538,34 @@ class ProgramCompiler extends ComputeOnceConstantVisitor<js_ast.Expression>
     return InterfaceType(c, Nullability.nonNullable, typeArgs);
   }
 
-  js_ast.Expression _emitObjectLiteral(Arguments node, Member ctor) {
-    var args = _emitArgumentList(node, types: false, target: ctor);
-    if (args.isEmpty) return js.call('{}');
-    assert(args.single is js_ast.ObjectInitializer);
-    return args.single;
+  /// Given a mapping [namedProperties] between names and their associated
+  /// expressions, returns an object literal with the same names mapped to the
+  /// transformed expressions.
+  ///
+  /// This is used for object literal constructors in JS interop.
+  ///
+  /// If [isDartJsInterop] is true, it implies that this is an object literal
+  /// constructor using `dart:js_interop`. If false, this method wraps the
+  /// expressions with an [_assertInterop] call.
+  js_ast.Expression _emitObjectLiteral(
+    Map<String, Expression> namedProperties, {
+    required bool isDartJsInterop,
+  }) {
+    if (namedProperties.isEmpty) return js.call('{}');
+    var properties = <js_ast.Property>[];
+    for (var name in namedProperties.keys) {
+      // `assertInterop` is not needed for `dart:js_interop`. It statically
+      // disallows `Function`s from being passed unless they were explicitly
+      // passed as an opaque reference, in which case, we shouldn't require the
+      // user to wrap them anyways.
+      var value = isDartJsInterop
+          ? namedProperties[name]!
+          : _assertInterop(namedProperties[name]!);
+      properties.add(
+        js_ast.Property(_propertyName(name), _visitExpression(value)),
+      );
+    }
+    return js_ast.ObjectInitializer([...properties]);
   }
 
   @override
@@ -7643,36 +7666,6 @@ class ProgramCompiler extends ComputeOnceConstantVisitor<js_ast.Expression>
     }
     if (parts.isEmpty) return js.string('');
     return js_ast.Expression.binary(parts, '+');
-  }
-
-  @override
-  js_ast.Expression visitListConcatenation(ListConcatenation node) {
-    // Only occurs inside unevaluated constants.
-    throw UnsupportedError('List concatenation');
-  }
-
-  @override
-  js_ast.Expression visitSetConcatenation(SetConcatenation node) {
-    // Only occurs inside unevaluated constants.
-    throw UnsupportedError('Set concatenation');
-  }
-
-  @override
-  js_ast.Expression visitMapConcatenation(MapConcatenation node) {
-    // Only occurs inside unevaluated constants.
-    throw UnsupportedError('Map concatenation');
-  }
-
-  @override
-  js_ast.Expression visitInstanceCreation(InstanceCreation node) {
-    // Only occurs inside unevaluated constants.
-    throw UnsupportedError('Instance creation');
-  }
-
-  @override
-  js_ast.Expression visitFileUriExpression(FileUriExpression node) {
-    // Only occurs inside unevaluated constants.
-    throw UnsupportedError('File URI expression');
   }
 
   @override
@@ -8498,50 +8491,14 @@ class ProgramCompiler extends ComputeOnceConstantVisitor<js_ast.Expression>
       js_ast.Comment(
         'Generated by DDC, the Dart Development Compiler (to JavaScript).',
       ),
-      js_ast.Comment('Version: ${io.Platform.version}'),
+      if (const bool.fromEnvironment('dart.library.io'))
+        js_ast.Comment('Version: ${io.Platform.version}'),
       js_ast.Comment('Module: ${_options.moduleName}'),
       js_ast.Comment('Flags: ${headerOptions.join(', ')}'),
       if (enabledExperiments.isNotEmpty)
         js_ast.Comment('Experiments: ${enabledExperiments.join(', ')}'),
     ];
     return header;
-  }
-
-  @override
-  js_ast.Statement visitIfCaseStatement(IfCaseStatement node) {
-    // This node is internal to the front end and removed by the constant
-    // evaluator.
-    throw UnsupportedError('ProgramCompiler.visitIfCaseStatement');
-  }
-
-  @override
-  js_ast.Expression visitPatternAssignment(PatternAssignment node) {
-    // This node is internal to the front end and removed by the constant
-    // evaluator.
-    throw UnsupportedError('ProgramCompiler.visitPatternAssignment');
-  }
-
-  @override
-  js_ast.Statement visitPatternSwitchStatement(PatternSwitchStatement node) {
-    // This node is internal to the front end and removed by the constant
-    // evaluator.
-    throw UnsupportedError('ProgramCompiler.visitPatternSwitchStatement');
-  }
-
-  @override
-  js_ast.Statement visitPatternVariableDeclaration(
-    PatternVariableDeclaration node,
-  ) {
-    // This node is internal to the front end and removed by the constant
-    // evaluator.
-    throw UnsupportedError('ProgramCompiler.visitPatternVariableDeclaration');
-  }
-
-  @override
-  js_ast.Expression visitSwitchExpression(SwitchExpression node) {
-    // This node is internal to the front end and removed by the constant
-    // evaluator.
-    throw UnsupportedError('ProgramCompiler.visitSwitchExpression');
   }
 
   @override
@@ -9302,24 +9259,6 @@ bool _isObjectMember(String name) {
     case 'runtimeType':
     case '==':
       return true;
-  }
-  return false;
-}
-
-bool _isObjectGetter(String name) =>
-    name == 'hashCode' || name == 'runtimeType';
-
-bool _isObjectMethodTearoff(String name) =>
-    // "==" isn't in here because there is no syntax to tear it off.
-    name == 'toString' || name == 'noSuchMethod';
-
-bool _isObjectMethodCall(String name, Arguments args) {
-  if (name == 'toString') {
-    return args.positional.isEmpty && args.named.isEmpty && args.types.isEmpty;
-  } else if (name == 'noSuchMethod') {
-    return args.positional.length == 1 &&
-        args.named.isEmpty &&
-        args.types.isEmpty;
   }
   return false;
 }

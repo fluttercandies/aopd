@@ -2,11 +2,14 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
+import 'package:_fe_analyzer_shared/src/parser/formal_parameter_kind.dart';
+import 'package:front_end/src/codes/diagnostic.dart' as diag;
 import 'package:kernel/ast.dart';
 import 'package:kernel/class_hierarchy.dart';
 import 'package:kernel/type_environment.dart';
 
 import '../../base/local_scope.dart';
+import '../../base/messages.dart';
 import '../../base/scope.dart';
 import '../../builder/declaration_builders.dart';
 import '../../builder/formal_parameter_builder.dart';
@@ -15,7 +18,9 @@ import '../../builder/type_builder.dart';
 import '../../builder/variable_builder.dart';
 import '../../kernel/body_builder_context.dart';
 import '../../kernel/internal_ast.dart';
+import '../../kernel/kernel_helper.dart';
 import '../../kernel/type_algorithms.dart';
+import '../../source/check_helper.dart';
 import '../../source/name_scheme.dart';
 import '../../source/source_class_builder.dart';
 import '../../source/source_function_builder.dart';
@@ -39,7 +44,10 @@ class ExtensionInstanceSetterEncoding extends SetterEncoding
   final FormalParameterBuilder _thisFormal;
 
   ExtensionInstanceSetterEncoding(
-      this._fragment, this._clonedDeclarationTypeParameters, this._thisFormal);
+    this._fragment,
+    this._clonedDeclarationTypeParameters,
+    this._thisFormal,
+  );
 
   @override
   BuiltMemberKind get _builtMemberKind => BuiltMemberKind.ExtensionSetter;
@@ -80,7 +88,10 @@ class ExtensionTypeInstanceSetterEncoding extends SetterEncoding
   final FormalParameterBuilder _thisFormal;
 
   ExtensionTypeInstanceSetterEncoding(
-      this._fragment, this._clonedDeclarationTypeParameters, this._thisFormal);
+    this._fragment,
+    this._clonedDeclarationTypeParameters,
+    this._thisFormal,
+  );
 
   @override
   BuiltMemberKind get _builtMemberKind => BuiltMemberKind.ExtensionTypeSetter;
@@ -131,6 +142,8 @@ sealed class SetterEncoding {
   List<FormalParameterBuilder>? get formals;
   FunctionNode get function;
 
+  bool get isNoSuchMethodForwarder;
+
   List<TypeParameter>? get thisTypeParameters;
 
   VariableDeclaration? get thisVariable;
@@ -139,42 +152,60 @@ sealed class SetterEncoding {
 
   void becomeNative(SourceLoader loader);
 
-  void buildOutlineExpressions(
-      {required ClassHierarchy classHierarchy,
-      required SourceLibraryBuilder libraryBuilder,
-      required DeclarationBuilder? declarationBuilder,
-      required BodyBuilderContext bodyBuilderContext,
-      required Annotatable annotatable,
-      required Uri annotatableFileUri,
-      required bool isClassInstanceMember});
+  void buildOutlineExpressions({
+    required ClassHierarchy classHierarchy,
+    required SourceLibraryBuilder libraryBuilder,
+    required DeclarationBuilder? declarationBuilder,
+    required SourcePropertyBuilder propertyBuilder,
+    required BodyBuilderContext bodyBuilderContext,
+    required Annotatable annotatable,
+    required Uri annotatableFileUri,
+  });
 
-  void buildOutlineNode(
-      {required SourceLibraryBuilder libraryBuilder,
-      required NameScheme nameScheme,
-      required BuildNodesCallback f,
-      required PropertyReferences? references,
-      required bool isAbstractOrExternal,
-      required List<TypeParameter>? classTypeParameters});
+  void buildOutlineNode({
+    required SourceLibraryBuilder libraryBuilder,
+    required ProblemReporting problemReporting,
+    required NameScheme nameScheme,
+    required BuildNodesCallback f,
+    required PropertyReferences? references,
+    required bool isAbstractOrExternal,
+    required List<TypeParameter>? classTypeParameters,
+  });
 
   void checkTypes(
-      SourceLibraryBuilder libraryBuilder, TypeEnvironment typeEnvironment,
-      {required bool isAbstract, required bool isExternal});
+    ProblemReporting problemReporting,
+    TypeEnvironment typeEnvironment, {
+    required bool isAbstract,
+    required bool isExternal,
+  });
 
   void checkVariance(
-      SourceClassBuilder sourceClassBuilder, TypeEnvironment typeEnvironment);
+    SourceClassBuilder sourceClassBuilder,
+    TypeEnvironment typeEnvironment,
+  );
 
   int computeDefaultTypes(ComputeDefaultTypeContext context);
 
   LocalScope createFormalParameterScope(LookupScope typeParameterScope);
 
   void ensureTypes(
-      SourceLibraryBuilder libraryBuilder, ClassHierarchyBase hierarchy);
+    SourceLibraryBuilder libraryBuilder,
+    ClassHierarchyBase hierarchy,
+  );
 
-  VariableDeclaration getFormalParameter(int index);
+  void registerFunctionBody({
+    required Statement? body,
+    required Scope? scope,
+    required AsyncMarker asyncMarker,
+    required DartType? emittedValueType,
+  });
 }
 
 mixin _DirectSetterEncodingMixin implements SetterEncoding {
   Procedure? _procedure;
+
+  @override
+  bool get isNoSuchMethodForwarder => _procedure!.isNoSuchMethodForwarder;
 
   @override
   List<SourceNominalParameterBuilder>? get clonedAndDeclaredTypeParameters =>
@@ -212,62 +243,88 @@ mixin _DirectSetterEncodingMixin implements SetterEncoding {
   }
 
   @override
-  void buildOutlineExpressions(
-      {required ClassHierarchy classHierarchy,
-      required SourceLibraryBuilder libraryBuilder,
-      required DeclarationBuilder? declarationBuilder,
-      required BodyBuilderContext bodyBuilderContext,
-      required Annotatable annotatable,
-      required Uri annotatableFileUri,
-      required bool isClassInstanceMember}) {
+  void buildOutlineExpressions({
+    required ClassHierarchy classHierarchy,
+    required SourceLibraryBuilder libraryBuilder,
+    required DeclarationBuilder? declarationBuilder,
+    required SourcePropertyBuilder propertyBuilder,
+    required BodyBuilderContext bodyBuilderContext,
+    required Annotatable annotatable,
+    required Uri annotatableFileUri,
+  }) {
     buildMetadataForOutlineExpressions(
-        libraryBuilder: libraryBuilder,
-        scope: _fragment.enclosingScope,
-        bodyBuilderContext: bodyBuilderContext,
-        annotatable: annotatable,
-        annotatableFileUri: annotatableFileUri,
-        metadata: _fragment.metadata);
+      libraryBuilder: libraryBuilder,
+      extensionScope: _fragment.enclosingCompilationUnit.extensionScope,
+      scope: _fragment.enclosingScope,
+      bodyBuilderContext: bodyBuilderContext,
+      annotatable: annotatable,
+      annotatableFileUri: annotatableFileUri,
+      metadata: _fragment.metadata,
+      annotationsFileUri: _fragment.fileUri,
+    );
 
-    buildTypeParametersForOutlineExpressions(
-        classHierarchy,
-        libraryBuilder,
-        bodyBuilderContext,
-        _fragment
-            .declaredTypeParameters
-            // Coverage-ignore(suite): Not run.
-            ?.builders);
-    buildFormalsForOutlineExpressions(
-        libraryBuilder, declarationBuilder, _fragment.declaredFormals,
-        scope: _fragment.typeParameterScope,
-        isClassInstanceMember: isClassInstanceMember);
+    _fragment
+        .declaredTypeParameters
+        // Coverage-ignore(suite): Not run.
+        ?.builders
+        // Coverage-ignore(suite): Not run.
+        .buildOutlineExpressions(
+          classHierarchy: classHierarchy,
+          libraryBuilder: libraryBuilder,
+          bodyBuilderContext: bodyBuilderContext,
+        );
+    _fragment.declaredFormals.buildOutlineExpressions(
+      libraryBuilder: libraryBuilder,
+      declarationBuilder: declarationBuilder,
+      memberBuilder: propertyBuilder,
+      extensionScope: _fragment.enclosingCompilationUnit.extensionScope,
+      scope: _fragment.typeParameterScope,
+    );
   }
 
   @override
-  void buildOutlineNode(
-      {required SourceLibraryBuilder libraryBuilder,
-      required NameScheme nameScheme,
-      required BuildNodesCallback f,
-      required PropertyReferences? references,
-      required bool isAbstractOrExternal,
-      required List<TypeParameter>? classTypeParameters}) {
-    FunctionNode function = new FunctionNode(
-        isAbstractOrExternal ? null : new EmptyStatement(),
-        asyncMarker: _fragment.asyncModifier)
-      ..fileOffset = _fragment.formalsOffset
-      ..fileEndOffset = _fragment.endOffset;
+  void buildOutlineNode({
+    required SourceLibraryBuilder libraryBuilder,
+    required ProblemReporting problemReporting,
+    required NameScheme nameScheme,
+    required BuildNodesCallback f,
+    required PropertyReferences? references,
+    required bool isAbstractOrExternal,
+    required List<TypeParameter>? classTypeParameters,
+  }) {
+    FunctionNode function =
+        new FunctionNode(
+            isAbstractOrExternal ? null : new EmptyStatement(),
+            asyncMarker: _fragment.asyncModifier,
+          )
+          ..fileOffset = _fragment.formalsOffset
+          ..fileEndOffset = _fragment.endOffset;
     buildTypeParametersAndFormals(
-        libraryBuilder,
-        function,
-        _fragment
-            .declaredTypeParameters
-            // Coverage-ignore(suite): Not run.
-            ?.builders,
-        _fragment.declaredFormals,
-        classTypeParameters: classTypeParameters,
-        supportsTypeParameters: true);
+      libraryBuilder,
+      function,
+      _fragment
+          .declaredTypeParameters
+          // Coverage-ignore(suite): Not run.
+          ?.builders,
+      _fragment.declaredFormals,
+      classTypeParameters: classTypeParameters,
+      supportsTypeParameters: true,
+    );
     if (_fragment.returnType is! InferableTypeBuilder) {
-      function.returnType =
-          _fragment.returnType.build(libraryBuilder, TypeUse.returnType);
+      DartType returnType = _fragment.returnType.build(
+        libraryBuilder,
+        TypeUse.returnType,
+      );
+      if (returnType is! VoidType) {
+        problemReporting.addProblem(
+          diag.nonVoidReturnSetter,
+          _fragment.returnType.charOffset!,
+          noLength,
+          _fragment.fileUri,
+        );
+        returnType = const VoidType();
+      }
+      function.returnType = returnType;
     }
     if (_fragment.declaredFormals?.length != 1 ||
         _fragment.declaredFormals![0].isOptionalPositional) {
@@ -281,20 +338,27 @@ mixin _DirectSetterEncodingMixin implements SetterEncoding {
       function.namedParameters.clear();
       function.requiredParameterCount = 1;
     }
-    MemberName memberName =
-        nameScheme.getProcedureMemberName(ProcedureKind.Setter, _fragment.name);
-    Procedure procedure = _procedure = new Procedure(
-        memberName.name, ProcedureKind.Setter, function,
-        reference: references?.setterReference, fileUri: _fragment.fileUri)
-      ..fileStartOffset = _fragment.startOffset
-      ..fileOffset = _fragment.nameOffset
-      ..fileEndOffset = _fragment.endOffset
-      ..isAbstract = _fragment.modifiers.isAbstract
-      ..isExternal = _fragment.modifiers.isExternal
-      ..isConst = _fragment.modifiers.isConst
-      ..isStatic = _fragment.modifiers.isStatic
-      ..isExtensionMember = _isExtensionMember
-      ..isExtensionTypeMember = _isExtensionTypeMember;
+    MemberName memberName = nameScheme.getProcedureMemberName(
+      ProcedureKind.Setter,
+      _fragment.name,
+    );
+    Procedure procedure = _procedure =
+        new Procedure(
+            memberName.name,
+            ProcedureKind.Setter,
+            function,
+            reference: references?.setterReference,
+            fileUri: _fragment.fileUri,
+          )
+          ..fileStartOffset = _fragment.startOffset
+          ..fileOffset = _fragment.nameOffset
+          ..fileEndOffset = _fragment.endOffset
+          ..isAbstract = _fragment.modifiers.isAbstract
+          ..isExternal = _fragment.modifiers.isExternal
+          ..isConst = _fragment.modifiers.isConst
+          ..isStatic = _fragment.modifiers.isStatic
+          ..isExtensionMember = _isExtensionMember
+          ..isExtensionTypeMember = _isExtensionTypeMember;
     memberName.attachMember(procedure);
 
     f(kind: _builtMemberKind, member: procedure);
@@ -302,56 +366,75 @@ mixin _DirectSetterEncodingMixin implements SetterEncoding {
 
   @override
   void checkTypes(
-      SourceLibraryBuilder libraryBuilder, TypeEnvironment typeEnvironment,
-      {required bool isAbstract, required bool isExternal}) {
+    ProblemReporting problemReporting,
+    TypeEnvironment typeEnvironment, {
+    required bool isAbstract,
+    required bool isExternal,
+  }) {
     List<SourceNominalParameterBuilder>? typeParameters = _fragment
         .declaredTypeParameters
         // Coverage-ignore(suite): Not run.
         ?.builders;
     // Coverage-ignore(suite): Not run.
     if (typeParameters != null && typeParameters.isNotEmpty) {
-      checkTypeParameterDependencies(libraryBuilder, typeParameters);
+      checkTypeParameterDependencies(problemReporting, typeParameters);
     }
-    libraryBuilder.checkInitializersInFormals(
-        _fragment.declaredFormals, typeEnvironment,
-        isAbstract: isAbstract, isExternal: isExternal);
+    problemReporting.checkInitializersInFormals(
+      formals: _fragment.declaredFormals,
+      typeEnvironment: typeEnvironment,
+      isAbstract: isAbstract,
+      isExternal: isExternal,
+    );
   }
 
   @override
   void checkVariance(
-      SourceClassBuilder sourceClassBuilder, TypeEnvironment typeEnvironment) {
+    SourceClassBuilder sourceClassBuilder,
+    TypeEnvironment typeEnvironment,
+  ) {
     sourceClassBuilder.checkVarianceInTypeParameters(
-        typeEnvironment,
-        _fragment
-            .declaredTypeParameters
-            // Coverage-ignore(suite): Not run.
-            ?.builders);
+      typeEnvironment,
+      _fragment
+          .declaredTypeParameters
+          // Coverage-ignore(suite): Not run.
+          ?.builders,
+    );
     sourceClassBuilder.checkVarianceInFormals(
-        typeEnvironment, _fragment.declaredFormals);
+      typeEnvironment,
+      _fragment.declaredFormals,
+    );
     sourceClassBuilder.checkVarianceInReturnType(
-        typeEnvironment, function.returnType,
-        fileOffset: _fragment.nameOffset, fileUri: _fragment.fileUri);
+      typeEnvironment,
+      function.returnType,
+      fileOffset: _fragment.nameOffset,
+      fileUri: _fragment.fileUri,
+    );
   }
 
   @override
   int computeDefaultTypes(ComputeDefaultTypeContext context) {
-    bool hasErrors = context.reportSimplicityIssuesForTypeParameters(_fragment
-        .declaredTypeParameters
-        // Coverage-ignore(suite): Not run.
-        ?.builders);
+    bool hasErrors = context.reportSimplicityIssuesForTypeParameters(
+      _fragment
+          .declaredTypeParameters
+          // Coverage-ignore(suite): Not run.
+          ?.builders,
+    );
     context.reportGenericFunctionTypesForFormals(_fragment.declaredFormals);
     if (_fragment.returnType is! OmittedTypeBuilder) {
-      hasErrors |=
-          context.reportInboundReferenceIssuesForType(_fragment.returnType);
+      hasErrors |= context.reportInboundReferenceIssuesForType(
+        _fragment.returnType,
+      );
       context.recursivelyReportGenericFunctionTypesAsBoundsForType(
-          _fragment.returnType);
+        _fragment.returnType,
+      );
     }
     return context.computeDefaultTypesForVariables(
-        _fragment
-            .declaredTypeParameters
-            // Coverage-ignore(suite): Not run.
-            ?.builders,
-        inErrorRecovery: hasErrors);
+      _fragment
+          .declaredTypeParameters
+          // Coverage-ignore(suite): Not run.
+          ?.builders,
+      inErrorRecovery: hasErrors,
+    );
   }
 
   @override
@@ -371,42 +454,68 @@ mixin _DirectSetterEncodingMixin implements SetterEncoding {
 
   @override
   void ensureTypes(
-      SourceLibraryBuilder libraryBuilder, ClassHierarchyBase hierarchy) {
-    _fragment.returnType
-        .build(libraryBuilder, TypeUse.returnType, hierarchy: hierarchy);
+    SourceLibraryBuilder libraryBuilder,
+    ClassHierarchyBase hierarchy,
+  ) {
+    _fragment.returnType.build(
+      libraryBuilder,
+      TypeUse.returnType,
+      hierarchy: hierarchy,
+    );
     List<FormalParameterBuilder>? declaredFormals = _fragment.declaredFormals;
     if (declaredFormals != null) {
       for (FormalParameterBuilder formal in declaredFormals) {
-        formal.type
-            .build(libraryBuilder, TypeUse.parameterType, hierarchy: hierarchy);
+        formal.type.build(
+          libraryBuilder,
+          TypeUse.parameterType,
+          hierarchy: hierarchy,
+        );
       }
     }
   }
 
   @override
-  VariableDeclaration getFormalParameter(int index) =>
-      _fragment.declaredFormals![index].variable!;
+  void registerFunctionBody({
+    required Statement? body,
+    required Scope? scope,
+    required AsyncMarker asyncMarker,
+    required DartType? emittedValueType,
+  }) {
+    if (body != null) {
+      function.registerFunctionBody(
+        body,
+        asyncMarker: asyncMarker,
+        emittedValueType: emittedValueType,
+      );
+    }
+    function.scope = scope;
+  }
 }
 
 mixin _ExtensionInstanceSetterEncodingMixin implements SetterEncoding {
   Procedure? _procedure;
 
   @override
-  List<SourceNominalParameterBuilder>? get clonedAndDeclaredTypeParameters =>
-      _clonedDeclarationTypeParameters != null ||
-              _fragment.declaredTypeParameters != null
-          ? [
-              ...?_clonedDeclarationTypeParameters,
-              ...?_fragment
-                  .declaredTypeParameters
-                  // Coverage-ignore(suite): Not run.
-                  ?.builders
-            ]
-          : null;
+  bool get isNoSuchMethodForwarder => _procedure!.isNoSuchMethodForwarder;
 
   @override
-  List<FormalParameterBuilder>? get formals =>
-      [_thisFormal, ...?_fragment.declaredFormals];
+  List<SourceNominalParameterBuilder>? get clonedAndDeclaredTypeParameters =>
+      _clonedDeclarationTypeParameters != null ||
+          _fragment.declaredTypeParameters != null
+      ? [
+          ...?_clonedDeclarationTypeParameters,
+          ...?_fragment
+              .declaredTypeParameters
+              // Coverage-ignore(suite): Not run.
+              ?.builders,
+        ]
+      : null;
+
+  @override
+  List<FormalParameterBuilder>? get formals => [
+    _thisFormal,
+    ...?_fragment.declaredFormals,
+  ];
 
   @override
   FunctionNode get function => _procedure!.function;
@@ -416,7 +525,7 @@ mixin _ExtensionInstanceSetterEncodingMixin implements SetterEncoding {
       _clonedDeclarationTypeParameters != null ? function.typeParameters : null;
 
   @override
-  VariableDeclaration? get thisVariable => _thisFormal.variable!;
+  VariableDeclaration? get thisVariable => _thisFormal.variable;
 
   @override
   Procedure get writeTarget => _procedure!;
@@ -440,51 +549,68 @@ mixin _ExtensionInstanceSetterEncodingMixin implements SetterEncoding {
   }
 
   @override
-  void buildOutlineExpressions(
-      {required ClassHierarchy classHierarchy,
-      required SourceLibraryBuilder libraryBuilder,
-      required DeclarationBuilder? declarationBuilder,
-      required BodyBuilderContext bodyBuilderContext,
-      required Annotatable annotatable,
-      required Uri annotatableFileUri,
-      required bool isClassInstanceMember}) {
+  void buildOutlineExpressions({
+    required ClassHierarchy classHierarchy,
+    required SourceLibraryBuilder libraryBuilder,
+    required DeclarationBuilder? declarationBuilder,
+    required SourcePropertyBuilder propertyBuilder,
+    required BodyBuilderContext bodyBuilderContext,
+    required Annotatable annotatable,
+    required Uri annotatableFileUri,
+  }) {
     buildMetadataForOutlineExpressions(
-        libraryBuilder: libraryBuilder,
-        scope: _fragment.enclosingScope,
-        bodyBuilderContext: bodyBuilderContext,
-        annotatable: annotatable,
-        annotatableFileUri: annotatableFileUri,
-        metadata: _fragment.metadata);
+      libraryBuilder: libraryBuilder,
+      extensionScope: _fragment.enclosingCompilationUnit.extensionScope,
+      scope: _fragment.enclosingScope,
+      bodyBuilderContext: bodyBuilderContext,
+      annotatable: annotatable,
+      annotatableFileUri: annotatableFileUri,
+      metadata: _fragment.metadata,
+      annotationsFileUri: _fragment.fileUri,
+    );
 
-    buildTypeParametersForOutlineExpressions(
-        classHierarchy,
-        libraryBuilder,
-        bodyBuilderContext,
-        _fragment
-            .declaredTypeParameters
-            // Coverage-ignore(suite): Not run.
-            ?.builders);
-    buildFormalsForOutlineExpressions(
-        libraryBuilder, declarationBuilder, _fragment.declaredFormals,
-        scope: _fragment.typeParameterScope,
-        isClassInstanceMember: isClassInstanceMember);
+    _fragment
+        .declaredTypeParameters
+        // Coverage-ignore(suite): Not run.
+        ?.builders
+        // Coverage-ignore(suite): Not run.
+        .buildOutlineExpressions(
+          classHierarchy: classHierarchy,
+          libraryBuilder: libraryBuilder,
+          bodyBuilderContext: bodyBuilderContext,
+        );
+    _fragment.declaredFormals.buildOutlineExpressions(
+      libraryBuilder: libraryBuilder,
+      declarationBuilder: declarationBuilder,
+      memberBuilder: propertyBuilder,
+      extensionScope: _fragment.enclosingCompilationUnit.extensionScope,
+      scope: _fragment.typeParameterScope,
+    );
 
-    buildTypeParametersForOutlineExpressions(classHierarchy, libraryBuilder,
-        bodyBuilderContext, _clonedDeclarationTypeParameters);
-    buildFormalForOutlineExpressions(
-        libraryBuilder, declarationBuilder, _thisFormal,
-        scope: _fragment.typeParameterScope,
-        isClassInstanceMember: isClassInstanceMember);
+    _clonedDeclarationTypeParameters.buildOutlineExpressions(
+      classHierarchy: classHierarchy,
+      libraryBuilder: libraryBuilder,
+      bodyBuilderContext: bodyBuilderContext,
+    );
+    _thisFormal.buildOutlineExpressions(
+      libraryBuilder: libraryBuilder,
+      declarationBuilder: declarationBuilder,
+      memberBuilder: propertyBuilder,
+      extensionScope: _fragment.enclosingCompilationUnit.extensionScope,
+      scope: _fragment.typeParameterScope,
+    );
   }
 
   @override
-  void buildOutlineNode(
-      {required SourceLibraryBuilder libraryBuilder,
-      required NameScheme nameScheme,
-      required BuildNodesCallback f,
-      required PropertyReferences? references,
-      required bool isAbstractOrExternal,
-      required List<TypeParameter>? classTypeParameters}) {
+  void buildOutlineNode({
+    required SourceLibraryBuilder libraryBuilder,
+    required ProblemReporting problemReporting,
+    required NameScheme nameScheme,
+    required BuildNodesCallback f,
+    required PropertyReferences? references,
+    required bool isAbstractOrExternal,
+    required List<TypeParameter>? classTypeParameters,
+  }) {
     List<TypeParameter>? typeParameters;
     if (_clonedDeclarationTypeParameters != null) {
       typeParameters = [];
@@ -495,23 +621,31 @@ mixin _ExtensionInstanceSetterEncodingMixin implements SetterEncoding {
         typeParameters.add(t.parameter);
       }
     }
-    FunctionNode function = new FunctionNode(
-        isAbstractOrExternal ? null : new EmptyStatement(),
-        typeParameters: typeParameters,
-        positionalParameters: [_thisFormal.build(libraryBuilder)],
-        asyncMarker: _fragment.asyncModifier)
-      ..fileOffset = _fragment.formalsOffset
-      ..fileEndOffset = _fragment.endOffset;
+    assert(
+      _thisFormal.kind == FormalParameterKind.requiredPositional ||
+          // Coverage-ignore(suite): Not run.
+          _thisFormal.kind == FormalParameterKind.optionalPositional,
+    );
+    FunctionNode function =
+        new FunctionNode(
+            isAbstractOrExternal ? null : new EmptyStatement(),
+            typeParameters: typeParameters,
+            positionalParameters: [_thisFormal.build(libraryBuilder)],
+            asyncMarker: _fragment.asyncModifier,
+          )
+          ..fileOffset = _fragment.formalsOffset
+          ..fileEndOffset = _fragment.endOffset;
     buildTypeParametersAndFormals(
-        libraryBuilder,
-        function,
-        _fragment
-            .declaredTypeParameters
-            // Coverage-ignore(suite): Not run.
-            ?.builders,
-        _fragment.declaredFormals,
-        classTypeParameters: classTypeParameters,
-        supportsTypeParameters: true);
+      libraryBuilder,
+      function,
+      _fragment
+          .declaredTypeParameters
+          // Coverage-ignore(suite): Not run.
+          ?.builders,
+      _fragment.declaredFormals,
+      classTypeParameters: classTypeParameters,
+      supportsTypeParameters: true,
+    );
     // TODO(johnniwinther): We should have a consistent normalization strategy.
     // We ensure that setters have 1 parameter, but for getters we include all
     // declared parameters.
@@ -530,24 +664,43 @@ mixin _ExtensionInstanceSetterEncodingMixin implements SetterEncoding {
       function.requiredParameterCount = 2;
     }
     if (_fragment.returnType is! InferableTypeBuilder) {
-      function.returnType =
-          _fragment.returnType.build(libraryBuilder, TypeUse.returnType);
+      DartType returnType = _fragment.returnType.build(
+        libraryBuilder,
+        TypeUse.returnType,
+      );
+      if (returnType is! VoidType) {
+        problemReporting.addProblem(
+          diag.nonVoidReturnSetter,
+          _fragment.returnType.charOffset!,
+          noLength,
+          _fragment.fileUri,
+        );
+        returnType = const VoidType();
+      }
+      function.returnType = returnType;
     }
 
-    MemberName memberName =
-        nameScheme.getProcedureMemberName(ProcedureKind.Setter, _fragment.name);
-    Procedure procedure = _procedure = new Procedure(
-        memberName.name, ProcedureKind.Method, function,
-        reference: references?.setterReference, fileUri: _fragment.fileUri)
-      ..fileStartOffset = _fragment.startOffset
-      ..fileOffset = _fragment.nameOffset
-      ..fileEndOffset = _fragment.endOffset
-      ..isAbstract = _fragment.modifiers.isAbstract
-      ..isExternal = _fragment.modifiers.isExternal
-      ..isConst = _fragment.modifiers.isConst
-      ..isStatic = true
-      ..isExtensionMember = _isExtensionMember
-      ..isExtensionTypeMember = _isExtensionTypeMember;
+    MemberName memberName = nameScheme.getProcedureMemberName(
+      ProcedureKind.Setter,
+      _fragment.name,
+    );
+    Procedure procedure = _procedure =
+        new Procedure(
+            memberName.name,
+            ProcedureKind.Method,
+            function,
+            reference: references?.setterReference,
+            fileUri: _fragment.fileUri,
+          )
+          ..fileStartOffset = _fragment.startOffset
+          ..fileOffset = _fragment.nameOffset
+          ..fileEndOffset = _fragment.endOffset
+          ..isAbstract = _fragment.modifiers.isAbstract
+          ..isExternal = _fragment.modifiers.isExternal
+          ..isConst = _fragment.modifiers.isConst
+          ..isStatic = true
+          ..isExtensionMember = _isExtensionMember
+          ..isExtensionTypeMember = _isExtensionTypeMember;
     memberName.attachMember(procedure);
 
     f(kind: _builtMemberKind, member: procedure);
@@ -555,46 +708,65 @@ mixin _ExtensionInstanceSetterEncodingMixin implements SetterEncoding {
 
   @override
   void checkTypes(
-      SourceLibraryBuilder libraryBuilder, TypeEnvironment typeEnvironment,
-      {required bool isAbstract, required bool isExternal}) {
+    ProblemReporting problemReporting,
+    TypeEnvironment typeEnvironment, {
+    required bool isAbstract,
+    required bool isExternal,
+  }) {
     List<SourceNominalParameterBuilder>? typeParameters = _fragment
         .declaredTypeParameters
         // Coverage-ignore(suite): Not run.
         ?.builders;
     // Coverage-ignore(suite): Not run.
     if (typeParameters != null && typeParameters.isNotEmpty) {
-      checkTypeParameterDependencies(libraryBuilder, typeParameters);
+      checkTypeParameterDependencies(problemReporting, typeParameters);
     }
-    libraryBuilder.checkInitializersInFormals(
-        _fragment.declaredFormals, typeEnvironment,
-        isAbstract: isAbstract, isExternal: isExternal);
+    problemReporting.checkInitializersInFormals(
+      formals: _fragment.declaredFormals,
+      typeEnvironment: typeEnvironment,
+      isAbstract: isAbstract,
+      isExternal: isExternal,
+    );
   }
 
   @override
   // Coverage-ignore(suite): Not run.
   void checkVariance(
-      SourceClassBuilder sourceClassBuilder, TypeEnvironment typeEnvironment) {
+    SourceClassBuilder sourceClassBuilder,
+    TypeEnvironment typeEnvironment,
+  ) {
     sourceClassBuilder.checkVarianceInTypeParameters(
-        typeEnvironment, _fragment.declaredTypeParameters?.builders);
+      typeEnvironment,
+      _fragment.declaredTypeParameters?.builders,
+    );
     sourceClassBuilder.checkVarianceInFormals(
-        typeEnvironment, _fragment.declaredFormals);
+      typeEnvironment,
+      _fragment.declaredFormals,
+    );
     sourceClassBuilder.checkVarianceInReturnType(
-        typeEnvironment, function.returnType,
-        fileOffset: _fragment.nameOffset, fileUri: _fragment.fileUri);
+      typeEnvironment,
+      function.returnType,
+      fileOffset: _fragment.nameOffset,
+      fileUri: _fragment.fileUri,
+    );
   }
 
   @override
   int computeDefaultTypes(ComputeDefaultTypeContext context) {
-    bool hasErrors = context.reportSimplicityIssuesForTypeParameters(_fragment
-        .declaredTypeParameters
-        // Coverage-ignore(suite): Not run.
-        ?.builders);
+    bool hasErrors = context.reportSimplicityIssuesForTypeParameters(
+      _fragment
+          .declaredTypeParameters
+          // Coverage-ignore(suite): Not run.
+          ?.builders,
+    );
     context.reportGenericFunctionTypesForFormals(_fragment.declaredFormals);
     if (_fragment.returnType is! OmittedTypeBuilder) {
-      hasErrors |=
-          context.reportInboundReferenceIssuesForType(_fragment.returnType);
+      hasErrors |= context.reportInboundReferenceIssuesForType(
+        _fragment.returnType,
+      );
       context.recursivelyReportGenericFunctionTypesAsBoundsForType(
-          _fragment.returnType);
+        _fragment.returnType,
+      );
     }
     if (_clonedDeclarationTypeParameters != null &&
         _fragment.declaredTypeParameters != null) {
@@ -606,19 +778,21 @@ mixin _ExtensionInstanceSetterEncodingMixin implements SetterEncoding {
         //  required and unnecessary.
         // ignore: unnecessary_non_null_assertion
         ..._clonedDeclarationTypeParameters!,
-        ..._fragment.declaredTypeParameters!.builders
+        ..._fragment.declaredTypeParameters!.builders,
       ], inErrorRecovery: hasErrors);
     } else if (_clonedDeclarationTypeParameters != null) {
       return context.computeDefaultTypesForVariables(
-          _clonedDeclarationTypeParameters,
-          inErrorRecovery: hasErrors);
+        _clonedDeclarationTypeParameters,
+        inErrorRecovery: hasErrors,
+      );
     } else {
       return context.computeDefaultTypesForVariables(
-          _fragment
-              .declaredTypeParameters
-              // Coverage-ignore(suite): Not run.
-              ?.builders,
-          inErrorRecovery: hasErrors);
+        _fragment
+            .declaredTypeParameters
+            // Coverage-ignore(suite): Not run.
+            ?.builders,
+        inErrorRecovery: hasErrors,
+      );
     }
   }
 
@@ -644,21 +818,45 @@ mixin _ExtensionInstanceSetterEncodingMixin implements SetterEncoding {
   @override
   // Coverage-ignore(suite): Not run.
   void ensureTypes(
-      SourceLibraryBuilder libraryBuilder, ClassHierarchyBase hierarchy) {
-    _fragment.returnType
-        .build(libraryBuilder, TypeUse.fieldType, hierarchy: hierarchy);
-    _thisFormal.type
-        .build(libraryBuilder, TypeUse.parameterType, hierarchy: hierarchy);
+    SourceLibraryBuilder libraryBuilder,
+    ClassHierarchyBase hierarchy,
+  ) {
+    _fragment.returnType.build(
+      libraryBuilder,
+      TypeUse.fieldType,
+      hierarchy: hierarchy,
+    );
+    _thisFormal.type.build(
+      libraryBuilder,
+      TypeUse.parameterType,
+      hierarchy: hierarchy,
+    );
     List<FormalParameterBuilder>? declaredFormals = _fragment.declaredFormals;
     if (declaredFormals != null) {
       for (FormalParameterBuilder formal in declaredFormals) {
-        formal.type
-            .build(libraryBuilder, TypeUse.parameterType, hierarchy: hierarchy);
+        formal.type.build(
+          libraryBuilder,
+          TypeUse.parameterType,
+          hierarchy: hierarchy,
+        );
       }
     }
   }
 
   @override
-  VariableDeclaration getFormalParameter(int index) =>
-      _fragment.declaredFormals![index].variable!;
+  void registerFunctionBody({
+    required Statement? body,
+    required Scope? scope,
+    required AsyncMarker asyncMarker,
+    required DartType? emittedValueType,
+  }) {
+    if (body != null) {
+      function.registerFunctionBody(
+        body,
+        asyncMarker: asyncMarker,
+        emittedValueType: emittedValueType,
+      );
+    }
+    function.scope = scope;
+  }
 }

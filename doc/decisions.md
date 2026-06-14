@@ -17,11 +17,11 @@ table.
 
 ## SDK Compatibility
 
-AOPD `0.1.x` targets Flutter 3.35.7 / Dart 3.9.2.
+AOPD targets the Flutter/Dart SDK line declared in the root `pubspec.yaml`.
+Release-to-release support changes are recorded in `CHANGELOG.md`.
 
-The package uses a Dart SDK upper bound (`>=3.9.2 <3.10.0`) as the real
-compatibility gate. Flutter upper bounds are not used because pub.dev has
-deprecated them.
+The package uses a Dart SDK upper bound as the real compatibility gate. Flutter
+upper bounds are not used because pub.dev has deprecated them.
 
 ## Annotation Boundaries
 
@@ -70,10 +70,11 @@ AOPD 使用去中心化 `proceedClosure` 回调，因此 woven call / execute / 
 
 ## SDK 兼容性
 
-AOPD `0.1.x` 面向 Flutter 3.35.7 / Dart 3.9.2。
+AOPD 面向根目录 `pubspec.yaml` 中声明的 Flutter/Dart SDK 支持范围。每个发布版本的支持变化记录在
+`CHANGELOG.md` 中。
 
-包内使用 Dart SDK 上界（`>=3.9.2 <3.10.0`）作为真正的兼容性闸。Flutter 上界没有使用，
-因为 pub.dev 已经废弃 Flutter 上界。
+包内使用 Dart SDK 上界作为真正的兼容性闸。Flutter 上界没有使用，因为 pub.dev 已经废弃
+Flutter 上界。
 
 ## 注解边界
 

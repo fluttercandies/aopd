@@ -3,8 +3,9 @@
 // BSD-style license that can be found in the LICENSE file.
 
 export 'package:_fe_analyzer_shared/src/messages/diagnostic_message.dart'
-    show DiagnosticMessage, DiagnosticMessageHandler, getMessageUri;
-export 'package:_fe_analyzer_shared/src/messages/severity.dart' show Severity;
+    show CfeDiagnosticMessage, DiagnosticMessageHandler, getMessageUri;
+export 'package:_fe_analyzer_shared/src/messages/severity.dart'
+    show CfeSeverity;
 export 'package:_fe_analyzer_shared/src/util/options.dart';
 export 'package:_fe_analyzer_shared/src/util/resolve_input_uri.dart'
     show resolveInputUri;
@@ -40,62 +41,7 @@ export '../api_prototype/terminal_color_support.dart'
 export '../base/compiler_context.dart' show CompilerContext;
 export '../base/hybrid_file_system.dart' show HybridFileSystem;
 export '../base/processed_options.dart' show ProcessedOptions;
-export '../codes/cfe_codes.dart'
-    show
-        LocatedMessage,
-        messageFfiAbiSpecificIntegerInvalid,
-        messageFfiAbiSpecificIntegerMappingInvalid,
-        messageFfiAddressOfMustBeNative,
-        messageFfiCreateOfStructOrUnion,
-        messageFfiDeeplyImmutableClassesMustBeFinalOrSealed,
-        messageFfiDeeplyImmutableFieldsModifiers,
-        messageFfiDeeplyImmutableFieldsMustBeDeeplyImmutable,
-        messageFfiDeeplyImmutableSubtypesMustBeDeeplyImmutable,
-        messageFfiDeeplyImmutableSupertypeMustBeDeeplyImmutable,
-        messageFfiDefaultAssetDuplicate,
-        messageFfiExceptionalReturnNull,
-        messageFfiExpectedConstant,
-        messageFfiLeafCallMustNotReturnHandle,
-        messageFfiLeafCallMustNotTakeHandle,
-        messageFfiNativeDuplicateAnnotations,
-        messageFfiNativeFieldMissingType,
-        messageFfiNativeFieldMustBeStatic,
-        messageFfiNativeFieldType,
-        messageFfiNativeMustBeExternal,
-        messageFfiNativeOnlyNativeFieldWrapperClassCanBePointer,
-        messageFfiPackedAnnotationAlignment,
-        messageNonPositiveArrayDimensions,
-        messageWeakReferenceMismatchReturnAndArgumentTypes,
-        messageWeakReferenceNotOneArgument,
-        messageWeakReferenceNotStatic,
-        messageWeakReferenceReturnTypeNotNullable,
-        messageWeakReferenceTargetHasParameters,
-        messageWeakReferenceTargetNotStaticTearoff,
-        noLength,
-        templateCantHaveNamedParameters,
-        templateCantHaveOptionalParameters,
-        templateFfiNativeCallableListenerReturnVoid,
-        templateFfiCompoundImplementsFinalizable,
-        templateFfiDartTypeMismatch,
-        templateFfiEmptyStruct,
-        templateFfiExpectedConstantArg,
-        templateFfiExpectedExceptionalReturn,
-        templateFfiExpectedNoExceptionalReturn,
-        templateFfiExtendsOrImplementsSealedClass,
-        templateFfiFieldAnnotation,
-        templateFfiFieldCyclic,
-        templateFfiFieldInitializer,
-        templateFfiFieldNoAnnotation,
-        templateFfiFieldNull,
-        templateFfiNativeUnexpectedNumberOfParameters,
-        templateFfiNativeUnexpectedNumberOfParametersWithReceiver,
-        templateFfiNotStatic,
-        templateFfiPackedAnnotation,
-        templateFfiSizeAnnotation,
-        templateFfiSizeAnnotationDimensions,
-        templateFfiStructGeneric,
-        templateFfiTypeInvalid,
-        templateFfiTypeMismatch;
+export '../codes/cfe_codes.dart' show LocatedMessage, noLength;
 export '../compute_platform_binaries_location.dart'
     show computePlatformBinariesLocation;
 export '../kernel/utils.dart'

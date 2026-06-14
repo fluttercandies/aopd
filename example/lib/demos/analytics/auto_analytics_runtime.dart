@@ -107,8 +107,7 @@ class _PointerHit {
 }
 
 class _AnalyticsPathBuilder {
-  _AnalyticsPathBuilder({required RouteTracker routeTracker})
-    : _routeTracker = routeTracker;
+  _AnalyticsPathBuilder({required this._routeTracker});
 
   static const String _packageName = 'example';
 

@@ -516,7 +516,7 @@ Future<api.CompilationResult> compile(
     _OneOption(Flags.benchmarkingExperiment, passThrough),
     _OneOption(Flags.soundNullSafety, passThrough),
     _OneOption(Flags.dumpUnusedLibraries, passThrough),
-    _OneOption(Flags.writeResources, passThrough),
+    _OneOption(Flags.writeRecordedUses, passThrough),
 
     // TODO(floitsch): remove conditional directives flag.
     // We don't provide the info-message yet, since we haven't publicly
@@ -674,10 +674,14 @@ Future<api.CompilationResult> compile(
     if (sourceOrDill.endsWith('.dart')) {
       options.add('${Flags.entryUri}=$file');
       entryUri = file;
-    } else {
-      assert(sourceOrDill.endsWith('.dill'));
+    } else if (sourceOrDill.endsWith('.dill')) {
       options.add('${Flags.inputDill}=$file');
       inputDillUri = file;
+    } else {
+      _fail(
+        "Unexpected file '$sourceOrDill'.\n"
+        "Only .dart and .dill extensions are supported.",
+      );
     }
   }
 

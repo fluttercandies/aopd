@@ -5,6 +5,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:_fe_analyzer_shared/src/experiments/flags.dart';
+import 'package:_fe_analyzer_shared/src/parser/experimental_features.dart';
 import 'package:_fe_analyzer_shared/src/parser/identifier_context.dart';
 import 'package:_fe_analyzer_shared/src/scanner/abstract_scanner.dart'
     show ScannerConfiguration;
@@ -55,46 +57,60 @@ Future<void> main(List<String> args) async {
   for (int i = 0; i < 1; i++) {
     Stopwatch stopwatch = new Stopwatch()..start();
     await extractOutline([file], packages: packages, verbosityLevel: 40);
-    print("Finished in ${stopwatch.elapsedMilliseconds} ms "
-        "(textual outline was "
-        "${latestProcessor!.textualOutlineStopwatch.elapsedMilliseconds} ms)"
-        "(get ast was "
-        "${latestProcessor!.getAstStopwatch.elapsedMilliseconds} ms)"
-        "(extract identifier was "
-        "${latestProcessor!.extractIdentifierStopwatch.elapsedMilliseconds} ms)"
-        "");
+    print(
+      "Finished in ${stopwatch.elapsedMilliseconds} ms "
+      "(textual outline was "
+      "${latestProcessor!.textualOutlineStopwatch.elapsedMilliseconds} ms)"
+      "(get ast was "
+      "${latestProcessor!.getAstStopwatch.elapsedMilliseconds} ms)"
+      "(extract identifier was "
+      "${latestProcessor!.extractIdentifierStopwatch.elapsedMilliseconds} ms)"
+      "",
+    );
   }
 }
 
 _Processor? latestProcessor;
 
-Future<Map<Uri, String>> extractOutline(List<Uri> entryPointUris,
-    {Uri? sdk,
-    required Uri? packages,
-    Uri? platform,
-    Target? target,
-    int verbosityLevel = 0}) {
+Future<Map<Uri, String>> extractOutline(
+  List<Uri> entryPointUris, {
+  Uri? sdk,
+  required Uri? packages,
+  Uri? platform,
+  Target? target,
+  int verbosityLevel = 0,
+}) {
   CompilerOptions options = new CompilerOptions()
     ..target = target
     ..packagesFileUri = packages
     ..sdkSummary = platform
     ..sdkRoot = sdk;
-  ProcessedOptions processedOptions =
-      new ProcessedOptions(options: options, inputs: entryPointUris);
-  return extractOutlineWithProcessedOptions(entryPointUris,
-      verbosityLevel: verbosityLevel, processedOptions: processedOptions);
+  ProcessedOptions processedOptions = new ProcessedOptions(
+    options: options,
+    inputs: entryPointUris,
+  );
+  return extractOutlineWithProcessedOptions(
+    entryPointUris,
+    verbosityLevel: verbosityLevel,
+    processedOptions: processedOptions,
+  );
 }
 
 Future<Map<Uri, String>> extractOutlineWithProcessedOptions(
-    List<Uri> entryPointUris,
-    {int verbosityLevel = 0,
-    required ProcessedOptions processedOptions}) {
-  return CompilerContext.runWithOptions(processedOptions,
-      (CompilerContext c) async {
+  List<Uri> entryPointUris, {
+  int verbosityLevel = 0,
+  required ProcessedOptions processedOptions,
+}) {
+  return CompilerContext.runWithOptions(processedOptions, (
+    CompilerContext c,
+  ) async {
     FileSystem fileSystem = c.options.fileSystem;
     UriTranslator uriTranslator = await c.options.getUriTranslator();
-    _Processor processor =
-        new _Processor(verbosityLevel, fileSystem, uriTranslator);
+    _Processor processor = new _Processor(
+      verbosityLevel,
+      fileSystem,
+      uriTranslator,
+    );
     latestProcessor = processor;
     List<TopLevel> entryPoints = [];
     for (Uri entryPointUri in entryPointUris) {
@@ -130,27 +146,44 @@ class _Processor {
       fileUri = uriTranslator.translate(importUri)!;
     }
     if (verbosityLevel >= 20) log("$fileUri");
-    final Uint8List bytes =
-        await fileSystem.entityForUri(fileUri).readAsBytes();
+    final Uint8List bytes = await fileSystem
+        .entityForUri(fileUri)
+        .readAsBytes();
     // TODO: Support updating the configuration; also default it to match
     // the package version.
-    final ScannerConfiguration configuration =
-        new ScannerConfiguration(enableTripleShift: true);
+    ExperimentalFeatures experimentalFeatures =
+        const DefaultExperimentalFeatures();
+    final ScannerConfiguration configuration = new ScannerConfiguration(
+      enableTripleShift: experimentalFeatures.isExperimentEnabled(
+        ExperimentalFlag.tripleShift,
+      ),
+    );
     textualOutlineStopwatch.start();
-    final String? outlined = textualOutline(bytes, configuration,
-        enablePatterns: true, enableEnhancedParts: true);
+    final String? outlined = textualOutline(
+      bytes,
+      configuration,
+      experimentalFeatures: experimentalFeatures,
+    );
     textualOutlineStopwatch.stop();
     if (outlined == null) throw "Textual outline returned null";
     final Uint8List bytes2 = utf8.encode(outlined);
     getAstStopwatch.start();
     List<Token> languageVersionsSeen = [];
-    final ParserAstNode ast = getAST(bytes2,
-        enableTripleShift: configuration.enableTripleShift,
-        languageVersionsSeen: languageVersionsSeen);
+    final ParserAstNode ast = getAST(
+      bytes2,
+      languageVersionsSeen: languageVersionsSeen,
+      experimentalFeatures: experimentalFeatures,
+    );
     getAstStopwatch.stop();
 
     _ParserAstVisitor visitor = new _ParserAstVisitor(
-        verbosityLevel, outlined, importUri, partOf, ast, languageVersionsSeen);
+      verbosityLevel,
+      outlined,
+      importUri,
+      partOf,
+      ast,
+      languageVersionsSeen,
+    );
     TopLevel topLevel = visitor.currentContainer as TopLevel;
     if (parsed[importUri] != null) throw "$importUri already set?!?";
     parsed[importUri] = topLevel;
@@ -192,16 +225,20 @@ class _Processor {
           throw "$fileUri --- couldn't even find nearest ast node for "
               "${identifier.token} :( -- context $sb";
         }
-        (nearestAstNode.scope[identifier.token.lexeme] ??= [])
-            .add(nearestAstNode);
+        (nearestAstNode.scope[identifier.token.lexeme] ??= []).add(
+          nearestAstNode,
+        );
       }
     }
 
     return topLevel;
   }
 
-  Future<void> _premarkTopLevel(List<_TopLevelAndAstNode> worklist,
-      Set<TopLevel> closed, TopLevel entrypointish) async {
+  Future<void> _premarkTopLevel(
+    List<_TopLevelAndAstNode> worklist,
+    Set<TopLevel> closed,
+    TopLevel entrypointish,
+  ) async {
     if (!closed.add(entrypointish)) return;
 
     for (AstNode child in entrypointish.children) {
@@ -210,7 +247,8 @@ class _Processor {
 
       if (child is Part) {
         if (!child.uri.isScheme("dart")) {
-          TopLevel partTopLevel = parsed[child.uri] ??
+          TopLevel partTopLevel =
+              parsed[child.uri] ??
               await preprocessUri(child.uri, partOf: entrypointish.uri);
           await _premarkTopLevel(worklist, closed, partTopLevel);
         }
@@ -236,7 +274,9 @@ class _Processor {
   }
 
   Future<List<TopLevel>> _preprocessImportsAsNeeded(
-      Map<TopLevel, List<TopLevel>> imports, TopLevel topLevel) async {
+    Map<TopLevel, List<TopLevel>> imports,
+    TopLevel topLevel,
+  ) async {
     List<TopLevel>? imported = imports[topLevel];
     if (imported == null) {
       // Process all imports.
@@ -258,8 +298,10 @@ class _Processor {
           child.marked = Coloring.Marked;
           if (!child.partOfUri.isScheme("dart")) {
             TopLevel part = parsed[child.partOfUri]!;
-            List<TopLevel> importsFromPart =
-                await _preprocessImportsAsNeeded(imports, part);
+            List<TopLevel> importsFromPart = await _preprocessImportsAsNeeded(
+              imports,
+              part,
+            );
             imported.addAll(importsFromPart);
           }
         }
@@ -346,7 +388,10 @@ class _Processor {
             List<AstNode>? lookedUp;
             if (lookupInThisScope) {
               lookedUp = findInScope(
-                  identifier.token.lexeme, nearestAstNode, entry.topLevel);
+                identifier.token.lexeme,
+                nearestAstNode,
+                entry.topLevel,
+              );
               prevLookupResult = lookedUp;
             }
             if (lookedUp != null) {
@@ -366,8 +411,10 @@ class _Processor {
                 log("=> Should find this via an import probably?");
               }
 
-              List<TopLevel> imported =
-                  await _preprocessImportsAsNeeded(imports, entry.topLevel);
+              List<TopLevel> imported = await _preprocessImportsAsNeeded(
+                imports,
+                entry.topLevel,
+              );
 
               Set<Uri>? wantedImportUrls;
               if (!lookupInThisScope && prevLookupResult != null) {
@@ -394,8 +441,10 @@ class _Processor {
             }
           } else {
             if (verbosityLevel >= 30) {
-              log("Ignoring ${identifier.token} as it's a "
-                  "${identifier.context}");
+              log(
+                "Ignoring ${identifier.token} as it's a "
+                "${identifier.context}",
+              );
             }
           }
         }
@@ -411,7 +460,8 @@ class _Processor {
             child.marked = Coloring.Marked;
             // do stuff to part.
             if (!child.uri.isScheme("dart")) {
-              other = parsed[child.uri] ??
+              other =
+                  parsed[child.uri] ??
                   await preprocessUri(child.uri, partOf: topLevel.uri);
             }
           } else if (child is Export) {
@@ -480,7 +530,9 @@ class _Processor {
       for (AstNode child in entry.value.children) {
         if (child.marked == Coloring.Marked) {
           String substring = entry.value.sourceText.substring(
-              child.startInclusive.charOffset, child.endInclusive.charEnd);
+            child.startInclusive.charOffset,
+            child.endInclusive.charEnd,
+          );
           sb.writeln(substring);
           if (verbosityLevel >= 40) {
             log(substring);
@@ -522,8 +574,11 @@ class _Processor {
   }
 
   List<AstNode>? findInScope(
-      String name, AstNode nearestAstNode, TopLevel topLevel,
-      {Set<TopLevel>? visited}) {
+    String name,
+    AstNode nearestAstNode,
+    TopLevel topLevel, {
+    Set<TopLevel>? visited,
+  }) {
     List<AstNode>? result;
     result = nearestAstNode.findInScope(name);
     if (result != null) return result;
@@ -532,16 +587,24 @@ class _Processor {
         visited ??= {topLevel};
         TopLevel partTopLevel = parsed[child.uri]!;
         if (visited.add(partTopLevel)) {
-          result =
-              findInScope(name, partTopLevel, partTopLevel, visited: visited);
+          result = findInScope(
+            name,
+            partTopLevel,
+            partTopLevel,
+            visited: visited,
+          );
           if (result != null) return result;
         }
       } else if (child is PartOf) {
         visited ??= {topLevel};
         TopLevel partOwnerTopLevel = parsed[child.partOfUri]!;
         if (visited.add(partOwnerTopLevel)) {
-          result = findInScope(name, partOwnerTopLevel, partOwnerTopLevel,
-              visited: visited);
+          result = findInScope(
+            name,
+            partOwnerTopLevel,
+            partOwnerTopLevel,
+            visited: visited,
+          );
           if (result != null) return result;
         }
       }
@@ -581,15 +644,24 @@ class _ParserAstVisitor extends IgnoreSomeForCompatibilityAstVisitor {
   final int verbosityLevel;
   final List<Token> languageVersionsSeen;
 
-  _ParserAstVisitor(this.verbosityLevel, String sourceText, this.uri,
-      this.partOfUri, ParserAstNode rootAst, this.languageVersionsSeen) {
+  _ParserAstVisitor(
+    this.verbosityLevel,
+    String sourceText,
+    this.uri,
+    this.partOfUri,
+    ParserAstNode rootAst,
+    this.languageVersionsSeen,
+  ) {
     currentContainer = new TopLevel(sourceText, uri, rootAst, map);
     if (languageVersionsSeen.isNotEmpty) {
       // Use first one.
       Token languageVersion = languageVersionsSeen.first;
       ParserAstNode dummyNode = new NoInitializersHandle(ParserAstType.HANDLE);
-      LanguageVersion version =
-          new LanguageVersion(dummyNode, languageVersion, languageVersion);
+      LanguageVersion version = new LanguageVersion(
+        dummyNode,
+        languageVersion,
+        languageVersion,
+      );
       version.marked = Coloring.Marked;
       currentContainer.addChild(version, map);
     }
@@ -614,7 +686,11 @@ class _ParserAstVisitor extends IgnoreSomeForCompatibilityAstVisitor {
     log("Hello from class ${identifier.token}");
 
     Class cls = new Class(
-        parent, identifier.token.lexeme, node.beginToken, node.endToken);
+      parent,
+      identifier.token.lexeme,
+      node.beginToken,
+      node.endToken,
+    );
     currentContainer.addChild(cls, map);
 
     Container previousContainer = currentContainer;
@@ -624,86 +700,107 @@ class _ParserAstVisitor extends IgnoreSomeForCompatibilityAstVisitor {
   }
 
   @override
-  void visitClassConstructorEnd(ClassConstructorEnd node) {
-    assert(currentContainer is Class);
+  void visitConstructorEnd(ConstructorEnd node) {
+    assert(currentContainer is! TopLevel);
     List<IdentifierHandle> ids = node.getIdentifiers();
     if (ids.length == 1) {
-      ClassConstructor classConstructor = new ClassConstructor(
-          node, ids.single.token.lexeme, node.beginToken, node.endToken);
-      currentContainer.addChild(classConstructor, map);
+      Constructor constructor = new Constructor(
+        node,
+        ids.single.token.lexeme,
+        node.beginToken,
+        node.endToken,
+      );
+      currentContainer.addChild(constructor, map);
       log("Hello from constructor ${ids.single.token}");
     } else if (ids.length == 2) {
-      ClassConstructor classConstructor = new ClassConstructor(
-          node,
-          "${ids.first.token}.${ids.last.token}",
-          node.beginToken,
-          node.endToken);
-      map[node] = classConstructor;
-      currentContainer.addChild(classConstructor, map);
+      Constructor constructor = new Constructor(
+        node,
+        "${ids.first.token}.${ids.last.token}",
+        node.beginToken,
+        node.endToken,
+      );
+      map[node] = constructor;
+      currentContainer.addChild(constructor, map);
       log("Hello from constructor ${ids.first.token}.${ids.last.token}");
     } else {
       throw "Unexpected identifiers in class constructor";
     }
 
-    super.visitClassConstructorEnd(node);
+    super.visitConstructorEnd(node);
   }
 
   @override
-  void visitClassFactoryMethodEnd(ClassFactoryMethodEnd node) {
+  void visitFactoryEnd(FactoryEnd node) {
     assert(currentContainer is Class);
     List<IdentifierHandle> ids = node.getIdentifiers();
     if (ids.length == 1) {
-      ClassFactoryMethod classFactoryMethod = new ClassFactoryMethod(
-          node, ids.single.token.lexeme, node.beginToken, node.endToken);
+      Factory classFactoryMethod = new Factory(
+        node,
+        ids.single.token.lexeme,
+        node.beginToken,
+        node.endToken,
+      );
       currentContainer.addChild(classFactoryMethod, map);
       log("Hello from factory method ${ids.single.token}");
     } else if (ids.length == 2) {
-      ClassFactoryMethod classFactoryMethod = new ClassFactoryMethod(
-          node,
-          "${ids.first.token}.${ids.last.token}",
-          node.beginToken,
-          node.endToken);
+      Factory classFactoryMethod = new Factory(
+        node,
+        "${ids.first.token}.${ids.last.token}",
+        node.beginToken,
+        node.endToken,
+      );
       map[node] = classFactoryMethod;
       currentContainer.addChild(classFactoryMethod, map);
       log("Hello from factory method ${ids.first.token}.${ids.last.token}");
     } else {
       debugDumpSource(
-          node.beginToken,
-          node.endToken,
-          node,
-          "Unexpected identifiers in class factory method: $ids "
-          "(${ids.map((e) => e.token.lexeme).toList()}).");
+        node.beginToken,
+        node.endToken,
+        node,
+        "Unexpected identifiers in class factory method: $ids "
+        "(${ids.map((e) => e.token.lexeme).toList()}).",
+      );
     }
 
-    super.visitClassFactoryMethodEnd(node);
+    super.visitFactoryEnd(node);
   }
 
   @override
-  void visitClassFieldsEnd(ClassFieldsEnd node) {
-    assert(currentContainer is Class);
-    List<String> fields =
-        node.getFieldIdentifiers().map((e) => e.token.lexeme).toList();
-    ClassFields classFields =
-        new ClassFields(node, fields, node.beginToken, node.endToken);
+  void visitFieldsEnd(FieldsEnd node) {
+    assert(currentContainer is! TopLevel);
+    List<String> fields = node
+        .getFieldIdentifiers()
+        .map((e) => e.token.lexeme)
+        .toList();
+    Fields classFields = new Fields(
+      node,
+      fields,
+      node.beginToken,
+      node.endToken,
+    );
     currentContainer.addChild(classFields, map);
-    log("Hello from class fields ${fields.join(", ")}");
-    super.visitClassFieldsEnd(node);
+    log("Hello from fields ${fields.join(", ")}");
+    super.visitFieldsEnd(node);
   }
 
   @override
-  void visitClassMethodEnd(ClassMethodEnd node) {
-    assert(currentContainer is Class);
+  void visitMethodEnd(MethodEnd node) {
+    assert(currentContainer is! TopLevel);
 
     String identifier = node.getNameIdentifier();
-    ClassMethod classMethod =
-        new ClassMethod(node, identifier, node.beginToken, node.endToken);
+    Method classMethod = new Method(
+      node,
+      identifier,
+      node.beginToken,
+      node.endToken,
+    );
     currentContainer.addChild(classMethod, map);
-    log("Hello from class method $identifier");
-    super.visitClassMethodEnd(node);
+    log("Hello from method $identifier");
+    super.visitMethodEnd(node);
   }
 
   @override
-  void visitEnumEnd(EnumEnd node) {
+  void visitEnumDeclarationEnd(EnumDeclarationEnd node) {
     TopLevelDeclarationEnd parent = node.parent! as TopLevelDeclarationEnd;
     IdentifierHandle identifier = parent.getIdentifier();
     List<IdentifierHandle> ids = node.getIdentifiers();
@@ -711,16 +808,19 @@ class _ParserAstVisitor extends IgnoreSomeForCompatibilityAstVisitor {
     assert(node.leftBrace.endGroup == node.endToken);
 
     Enum e = new Enum(
-        node,
-        identifier.token.lexeme,
-        ids.map((e) => e.token.lexeme).toList(),
-        node.enumKeyword,
-        node.endToken);
+      node,
+      identifier.token.lexeme,
+      ids.map((e) => e.token.lexeme).toList(),
+      node.enumKeyword,
+      node.endToken,
+    );
     currentContainer.addChild(e, map);
 
-    log("Hello from enum ${identifier.token} with content "
-        "${ids.map((e) => e.token).join(", ")}");
-    super.visitEnumEnd(node);
+    log(
+      "Hello from enum ${identifier.token} with content "
+      "${ids.map((e) => e.token).join(", ")}",
+    );
+    super.visitEnumDeclarationEnd(node);
   }
 
   @override
@@ -737,7 +837,12 @@ class _ParserAstVisitor extends IgnoreSomeForCompatibilityAstVisitor {
     }
     // TODO: Use 'show' and 'hide' stuff.
     Export e = new Export(
-        node, exportUri, conditionalUris, node.exportKeyword, node.semicolon);
+      node,
+      exportUri,
+      conditionalUris,
+      node.exportKeyword,
+      node.semicolon,
+    );
     currentContainer.addChild(e, map);
     log("Hello export");
   }
@@ -749,7 +854,11 @@ class _ParserAstVisitor extends IgnoreSomeForCompatibilityAstVisitor {
     TopLevelDeclarationEnd parent = node.parent! as TopLevelDeclarationEnd;
     log("Hello from extension ${begin.name}");
     Extension extension = new Extension(
-        parent, begin.name?.lexeme, node.beginToken, node.endToken);
+      parent,
+      begin.name?.lexeme,
+      node.beginToken,
+      node.endToken,
+    );
     currentContainer.addChild(extension, map);
 
     Container previousContainer = currentContainer;
@@ -758,48 +867,20 @@ class _ParserAstVisitor extends IgnoreSomeForCompatibilityAstVisitor {
     currentContainer = previousContainer;
   }
 
-  @override
-  void visitExtensionConstructorEnd(ExtensionConstructorEnd node) {
-    // TODO: implement visitExtensionConstructorEnd
-    throw node;
-  }
-
-  @override
-  void visitExtensionFactoryMethodEnd(ExtensionFactoryMethodEnd node) {
-    // TODO: implement visitExtensionFactoryMethodEnd
-    throw node;
-  }
-
-  @override
-  void visitExtensionFieldsEnd(ExtensionFieldsEnd node) {
-    assert(currentContainer is Extension);
-    List<String> fields =
-        node.getFieldIdentifiers().map((e) => e.token.lexeme).toList();
-    ExtensionFields classFields =
-        new ExtensionFields(node, fields, node.beginToken, node.endToken);
-    currentContainer.addChild(classFields, map);
-    log("Hello from extension fields ${fields.join(", ")}");
-    super.visitExtensionFieldsEnd(node);
-  }
-
-  @override
-  void visitExtensionMethodEnd(ExtensionMethodEnd node) {
-    assert(currentContainer is Extension);
-    ExtensionMethod extensionMethod = new ExtensionMethod(
-        node, node.getNameIdentifier(), node.beginToken, node.endToken);
-    currentContainer.addChild(extensionMethod, map);
-    log("Hello from extension method ${node.getNameIdentifier()}");
-    super.visitExtensionMethodEnd(node);
-  }
-
-  void debugDumpSource(Token startInclusive, Token endInclusive,
-      ParserAstNode node, String message) {
+  void debugDumpSource(
+    Token startInclusive,
+    Token endInclusive,
+    ParserAstNode node,
+    String message,
+  ) {
     Container findTopLevel = currentContainer;
     while (findTopLevel is! TopLevel) {
       findTopLevel = findTopLevel.parent!;
     }
-    String src = findTopLevel.sourceText
-        .substring(startInclusive.charOffset, endInclusive.charEnd);
+    String src = findTopLevel.sourceText.substring(
+      startInclusive.charOffset,
+      endInclusive.charEnd,
+    );
     throw "Error on source ${src} --- \n\n"
         "$message ---\n\n"
         "${node.children}";
@@ -822,8 +903,14 @@ class _ParserAstVisitor extends IgnoreSomeForCompatibilityAstVisitor {
 
     // The ending semicolon can be null on syntax errors and there's recovery of
     // the import. For now we'll ignore this.
-    Import i = new Import(node, importUri, conditionalUris,
-        prefix?.token.lexeme, node.importKeyword, node.semicolon!);
+    Import i = new Import(
+      node,
+      importUri,
+      conditionalUris,
+      prefix?.token.lexeme,
+      node.importKeyword,
+      node.semicolon!,
+    );
     currentContainer.addChild(i, map);
     if (prefix == null) {
       log("Hello import");
@@ -834,8 +921,11 @@ class _ParserAstVisitor extends IgnoreSomeForCompatibilityAstVisitor {
 
   @override
   void visitLibraryNameEnd(LibraryNameEnd node) {
-    LibraryName name =
-        new LibraryName(node, node.libraryKeyword, node.semicolon);
+    LibraryName name = new LibraryName(
+      node,
+      node.libraryKeyword,
+      node.semicolon,
+    );
     name.marked = Coloring.Marked;
     currentContainer.addChild(name, map);
   }
@@ -853,7 +943,11 @@ class _ParserAstVisitor extends IgnoreSomeForCompatibilityAstVisitor {
     log("Hello from mixin ${identifier.token}");
 
     Mixin mixin = new Mixin(
-        parent, identifier.token.lexeme, node.beginToken, node.endToken);
+      parent,
+      identifier.token.lexeme,
+      node.beginToken,
+      node.endToken,
+    );
     currentContainer.addChild(mixin, map);
 
     Container previousContainer = currentContainer;
@@ -863,35 +957,17 @@ class _ParserAstVisitor extends IgnoreSomeForCompatibilityAstVisitor {
   }
 
   @override
-  void visitMixinFieldsEnd(MixinFieldsEnd node) {
-    assert(currentContainer is Mixin);
-    List<String> fields =
-        node.getFieldIdentifiers().map((e) => e.token.lexeme).toList();
-    MixinFields mixinFields =
-        new MixinFields(node, fields, node.beginToken, node.endToken);
-    currentContainer.addChild(mixinFields, map);
-    log("Hello from mixin fields ${fields.join(", ")}");
-    super.visitMixinFieldsEnd(node);
-  }
-
-  @override
-  void visitMixinMethodEnd(MixinMethodEnd node) {
-    assert(currentContainer is Mixin);
-    MixinMethod classMethod = new MixinMethod(
-        node, node.getNameIdentifier(), node.beginParam, node.endToken);
-    currentContainer.addChild(classMethod, map);
-    log("Hello from mixin method ${node.getNameIdentifier()}");
-    super.visitMixinMethodEnd(node);
-  }
-
-  @override
   void visitNamedMixinApplicationEnd(NamedMixinApplicationEnd node) {
     TopLevelDeclarationEnd parent = node.parent! as TopLevelDeclarationEnd;
     IdentifierHandle identifier = parent.getIdentifier();
     log("Hello from named mixin ${identifier.token}");
 
-    Mixin mixin =
-        new Mixin(parent, identifier.token.lexeme, node.begin, node.endToken);
+    Mixin mixin = new Mixin(
+      parent,
+      identifier.token.lexeme,
+      node.begin,
+      node.endToken,
+    );
     currentContainer.addChild(mixin, map);
 
     Container previousContainer = currentContainer;
@@ -915,18 +991,28 @@ class _ParserAstVisitor extends IgnoreSomeForCompatibilityAstVisitor {
     // We'll assume we've gotten here via a "part" so we'll ignore that for now.
     // TODO: partOfUri could - in an error case - be null.
     if (partOfUri == null) throw "partOfUri is null -- uri $uri";
-    PartOf partof =
-        new PartOf(node, partOfUri!, node.partKeyword, node.semicolon);
+    PartOf partof = new PartOf(
+      node,
+      partOfUri!,
+      node.partKeyword,
+      node.semicolon,
+    );
     partof.marked = Coloring.Marked;
     currentContainer.addChild(partof, map);
   }
 
   @override
   void visitTopLevelFieldsEnd(TopLevelFieldsEnd node) {
-    List<String> fields =
-        node.getFieldIdentifiers().map((e) => e.token.lexeme).toList();
-    TopLevelFields f =
-        new TopLevelFields(node, fields, node.beginToken, node.endToken);
+    List<String> fields = node
+        .getFieldIdentifiers()
+        .map((e) => e.token.lexeme)
+        .toList();
+    TopLevelFields f = new TopLevelFields(
+      node,
+      fields,
+      node.beginToken,
+      node.endToken,
+    );
     currentContainer.addChild(f, map);
     log("Hello from top level fields ${fields.join(", ")}");
     super.visitTopLevelFieldsEnd(node);
@@ -934,8 +1020,12 @@ class _ParserAstVisitor extends IgnoreSomeForCompatibilityAstVisitor {
 
   @override
   void visitTopLevelMethodEnd(TopLevelMethodEnd node) {
-    TopLevelMethod m = new TopLevelMethod(node,
-        node.getNameIdentifier().token.lexeme, node.beginToken, node.endToken);
+    TopLevelMethod m = new TopLevelMethod(
+      node,
+      node.getNameIdentifier().token.lexeme,
+      node.beginToken,
+      node.endToken,
+    );
     currentContainer.addChild(m, map);
     log("Hello from top level method ${node.getNameIdentifier().token}");
     super.visitTopLevelMethodEnd(node);
@@ -943,8 +1033,12 @@ class _ParserAstVisitor extends IgnoreSomeForCompatibilityAstVisitor {
 
   @override
   void visitTypedefEnd(TypedefEnd node) {
-    Typedef t = new Typedef(node, node.getNameIdentifier().token.lexeme,
-        node.typedefKeyword, node.endToken);
+    Typedef t = new Typedef(
+      node,
+      node.getNameIdentifier().token.lexeme,
+      node.typedefKeyword,
+      node.endToken,
+    );
     currentContainer.addChild(t, map);
     log("Hello from typedef ${node.getNameIdentifier().token}");
     super.visitTypedefEnd(node);

@@ -4,17 +4,10 @@
 
 /// Handling of static weak references.
 
+import 'package:front_end/src/codes/diagnostic.dart' as diag;
 import 'package:kernel/ast.dart';
 import 'package:kernel/core_types.dart' show CoreTypes;
 
-import '../codes/cfe_codes.dart'
-    show
-        messageWeakReferenceNotStatic,
-        messageWeakReferenceNotOneArgument,
-        messageWeakReferenceReturnTypeNotNullable,
-        messageWeakReferenceMismatchReturnAndArgumentTypes,
-        messageWeakReferenceTargetNotStaticTearoff,
-        messageWeakReferenceTargetHasParameters;
 import 'constant_evaluator.dart' show ErrorReporter;
 
 /// Recognizes and validates static weak references.
@@ -28,7 +21,9 @@ class StaticWeakReferences {
       node.target.hasWeakTearoffReferencePragma;
 
   static bool isAnnotatedWithWeakReferencePragma(
-      Annotatable node, CoreTypes coreTypes) {
+    Annotatable node,
+    CoreTypes coreTypes,
+  ) {
     List<Expression> annotations = node.annotations;
     for (int i = 0; i < annotations.length; i++) {
       Expression annotation = annotations[i];
@@ -50,13 +45,20 @@ class StaticWeakReferences {
     return false;
   }
 
-  // Coverage-ignore(suite): Not run.
   static void validateWeakReferenceUse(
-      StaticInvocation node, ErrorReporter errorReporter) {
+    StaticInvocation node,
+    ErrorReporter errorReporter,
+  ) {
     final Arguments arguments = node.arguments;
     if (arguments.positional.length != 1 || arguments.named.isNotEmpty) {
-      errorReporter.report(messageWeakReferenceNotOneArgument.withLocation(
-          node.location!.file, node.fileOffset, 1));
+      // Coverage-ignore-block(suite): Not run.
+      errorReporter.report(
+        diag.weakReferenceNotOneArgument.withLocation(
+          node.location!.file,
+          node.fileOffset,
+          1,
+        ),
+      );
       return;
     }
     final Expression arg = arguments.positional.single;
@@ -67,45 +69,78 @@ class StaticWeakReferences {
         if (target.isStatic) {
           final FunctionNode function = target.function;
           if (function.positionalParameters.isNotEmpty ||
+              // Coverage-ignore(suite): Not run.
               function.namedParameters.isNotEmpty ||
+              // Coverage-ignore(suite): Not run.
               function.typeParameters.isNotEmpty) {
-            errorReporter.report(messageWeakReferenceTargetHasParameters
-                .withLocation(node.location!.file, node.fileOffset, 1));
+            errorReporter.report(
+              diag.weakReferenceTargetHasParameters.withLocation(
+                node.location!.file,
+                node.fileOffset,
+                1,
+              ),
+            );
           }
           return;
         }
       }
     }
-    errorReporter.report(messageWeakReferenceTargetNotStaticTearoff
-        .withLocation(node.location!.file, node.fileOffset, 1));
+    errorReporter.report(
+      diag.weakReferenceTargetNotStaticTearoff.withLocation(
+        node.location!.file,
+        node.fileOffset,
+        1,
+      ),
+    );
   }
 
-  // Coverage-ignore(suite): Not run.
   static void validateWeakReferenceDeclaration(
-      Annotatable node, ErrorReporter errorReporter) {
+    Annotatable node,
+    ErrorReporter errorReporter,
+  ) {
     if (node is! Procedure ||
         !node.isStatic ||
         node.kind != ProcedureKind.Method) {
-      errorReporter.report(messageWeakReferenceNotStatic.withLocation(
-          node.location!.file, node.fileOffset, 1));
+      errorReporter.report(
+        diag.weakReferenceNotStatic.withLocation(
+          node.location!.file,
+          node.fileOffset,
+          1,
+        ),
+      );
       return;
     }
     final FunctionNode function = node.function;
     if (function.positionalParameters.length != 1 ||
         function.requiredParameterCount != 1 ||
         function.namedParameters.isNotEmpty) {
-      errorReporter.report(messageWeakReferenceNotOneArgument.withLocation(
-          node.location!.file, node.fileOffset, 1));
+      errorReporter.report(
+        diag.weakReferenceNotOneArgument.withLocation(
+          node.location!.file,
+          node.fileOffset,
+          1,
+        ),
+      );
       return;
     }
     final DartType returnType = function.returnType;
     if (returnType.nullability != Nullability.nullable) {
-      errorReporter.report(messageWeakReferenceReturnTypeNotNullable
-          .withLocation(node.location!.file, node.fileOffset, 1));
+      errorReporter.report(
+        diag.weakReferenceReturnTypeNotNullable.withLocation(
+          node.location!.file,
+          node.fileOffset,
+          1,
+        ),
+      );
     }
     if (returnType != function.positionalParameters.single.type) {
-      errorReporter.report(messageWeakReferenceMismatchReturnAndArgumentTypes
-          .withLocation(node.location!.file, node.fileOffset, 1));
+      errorReporter.report(
+        diag.weakReferenceMismatchReturnAndArgumentTypes.withLocation(
+          node.location!.file,
+          node.fileOffset,
+          1,
+        ),
+      );
     }
     node.hasWeakTearoffReferencePragma = true;
   }

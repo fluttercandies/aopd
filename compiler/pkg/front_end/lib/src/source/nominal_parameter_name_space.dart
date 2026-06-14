@@ -2,6 +2,8 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
+import 'package:front_end/src/codes/diagnostic.dart' as diag;
+
 import '../base/messages.dart';
 import '../base/scope.dart';
 import '../builder/declaration_builders.dart';
@@ -10,9 +12,12 @@ import 'source_type_parameter_builder.dart';
 class NominalParameterNameSpace {
   Map<String, SourceNominalParameterBuilder> _typeParametersByName = {};
 
-  void addTypeParameters(ProblemReporting _problemReporting,
-      List<SourceNominalParameterBuilder>? typeParameters,
-      {required String? ownerName, required bool allowNameConflict}) {
+  void addTypeParameters(
+    ProblemReporting _problemReporting,
+    List<SourceNominalParameterBuilder>? typeParameters, {
+    required String? ownerName,
+    required bool allowNameConflict,
+  }) {
     if (typeParameters == null || typeParameters.isEmpty) return;
     for (SourceNominalParameterBuilder tv in typeParameters) {
       SourceNominalParameterBuilder? existing = _typeParametersByName[tv.name];
@@ -24,14 +29,21 @@ class NominalParameterNameSpace {
           existing.parameter.name = '#${existing.name}';
           _typeParametersByName[tv.name] = tv;
         } else {
-          _problemReporting.addProblem(messageTypeParameterDuplicatedName,
-              tv.fileOffset, tv.name.length, tv.fileUri,
-              context: [
-                templateTypeParameterDuplicatedNameCause
-                    .withArguments(tv.name)
-                    .withLocation(existing.fileUri, existing.fileOffset,
-                        existing.name.length)
-              ]);
+          _problemReporting.addProblem(
+            diag.typeParameterDuplicatedName,
+            tv.fileOffset,
+            tv.name.length,
+            tv.fileUri,
+            context: [
+              diag.typeParameterDuplicatedNameCause
+                  .withArguments(typeVariableName: tv.name)
+                  .withLocation(
+                    existing.fileUri,
+                    existing.fileOffset,
+                    existing.name.length,
+                  ),
+            ],
+          );
         }
       } else {
         _typeParametersByName[tv.name] = tv;
@@ -40,8 +52,12 @@ class NominalParameterNameSpace {
         // [#29555](https://github.com/dart-lang/sdk/issues/29555) and
         // [#54602](https://github.com/dart-lang/sdk/issues/54602).
         if (tv.name == ownerName && !allowNameConflict) {
-          _problemReporting.addProblem(messageTypeParameterSameNameAsEnclosing,
-              tv.fileOffset, tv.name.length, tv.fileUri);
+          _problemReporting.addProblem(
+            diag.typeParameterSameNameAsEnclosing,
+            tv.fileOffset,
+            tv.name.length,
+            tv.fileUri,
+          );
         }
       }
     }

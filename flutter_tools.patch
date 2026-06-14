@@ -237,7 +237,7 @@ index 00000000000..f6b6ee904b2
 +  }
 +}
 diff --git a/packages/flutter_tools/lib/src/compile.dart b/packages/flutter_tools/lib/src/compile.dart
-index ca04cfb345a..eca8b8b9589 100644
+index 1e8f435351a..94e67bbd13d 100644
 --- a/packages/flutter_tools/lib/src/compile.dart
 +++ b/packages/flutter_tools/lib/src/compile.dart
 @@ -10,6 +10,7 @@ import 'package:package_config/package_config.dart';
@@ -247,8 +247,8 @@ index ca04cfb345a..eca8b8b9589 100644
 +import 'aop/aopd_hook.dart';
  import 'artifacts.dart';
  import 'base/common.dart';
- import 'base/file_system.dart';
-@@ -255,6 +256,8 @@ class KernelCompiler {
+ import 'base/config.dart';
+@@ -270,6 +271,8 @@ class KernelCompiler {
      required PackageConfig packageConfig,
      String? nativeAssets,
    }) async {
@@ -257,7 +257,7 @@ index ca04cfb345a..eca8b8b9589 100644
      final TargetPlatform? platform = targetModel == TargetModel.dartdevc
          ? TargetPlatform.web_javascript
          : null;
-@@ -319,10 +322,11 @@ class KernelCompiler {
+@@ -334,10 +337,11 @@ class KernelCompiler {
        }
        commandToStartFrontendServer = <String>[
          engineDartAotRuntimePath,
@@ -273,19 +273,19 @@ index ca04cfb345a..eca8b8b9589 100644
        ];
      }
  
-@@ -358,6 +362,11 @@ class KernelCompiler {
-             '--initialize-from-dill',
-             initializeFromDill,
+@@ -382,6 +386,11 @@ class KernelCompiler {
+             '-Dflutter.dart_plugin_registrant=$dartPluginRegistrantUri',
            ],
+           if (nativeAssets != null) ...<String>['--native-assets', nativeAssets],
 +          if (aopdHookConfig.enabled) ...<String>[
 +            '--aop',
 +            '1',
 +            if (aopdHookConfig.trackWidgetCreation) ...<String>['--aop-track-widget-creation', '1'],
 +          ],
-           if (platformDill != null) ...<String>['--platform', platformDill],
-           if (dartPluginRegistrantUri != null) ...<String>[
-             '--source',
-@@ -374,6 +383,12 @@ class KernelCompiler {
+           // See: https://github.com/flutter/flutter/issues/103994
+           '--verbosity=error',
+           ...?_filterExtraFrontEndOptions(extraFrontEndOptions),
+@@ -389,6 +398,12 @@ class KernelCompiler {
          ];
  
      _logger.printTrace(command.join(' '));
@@ -298,7 +298,7 @@ index ca04cfb345a..eca8b8b9589 100644
      final Process server = await _processManager.start(command);
  
      server.stderr.transform<String>(utf8.decoder).listen(_logger.printError);
-@@ -819,6 +834,8 @@ class DefaultResidentCompiler implements ResidentCompiler {
+@@ -923,6 +938,8 @@ class DefaultResidentCompiler implements ResidentCompiler {
      String? additionalSourceUri,
      String? nativeAssetsUri,
    }) async {
@@ -307,7 +307,7 @@ index ca04cfb345a..eca8b8b9589 100644
      final TargetPlatform? platform = (targetModel == TargetModel.dartdevc)
          ? TargetPlatform.web_javascript
          : null;
-@@ -831,10 +848,11 @@ class DefaultResidentCompiler implements ResidentCompiler {
+@@ -935,10 +952,11 @@ class DefaultResidentCompiler implements ResidentCompiler {
      } else {
        commandToStartFrontendServer = <String>[
          artifacts.getArtifactPath(Artifact.engineDartAotRuntime, platform: platform),
@@ -323,21 +323,19 @@ index ca04cfb345a..eca8b8b9589 100644
        ];
      }
  
-@@ -876,6 +894,11 @@ class DefaultResidentCompiler implements ResidentCompiler {
-             '-Dflutter.dart_plugin_registrant=$additionalSourceUri',
-           ],
-           if (nativeAssetsUri != null) ...<String>['--native-assets', nativeAssetsUri],
-+          if (aopdHookConfig.enabled) ...<String>[
-+            '--aop',
-+            '1',
-+            if (aopdHookConfig.trackWidgetCreation) ...<String>['--aop-track-widget-creation', '1'],
-+          ],
-           if (platformDill != null) ...<String>['--platform', platformDill!],
-           if (unsafePackageSerialization) '--unsafe-package-serialization',
-           // See: https://github.com/flutter/flutter/issues/103994
-@@ -883,6 +906,12 @@ class DefaultResidentCompiler implements ResidentCompiler {
-           ...?extraFrontEndOptions,
-         ];
+@@ -978,11 +996,22 @@ class DefaultResidentCompiler implements ResidentCompiler {
+       ],
+       if (nativeAssetsUri != null) ...<String>['--native-assets', nativeAssetsUri],
+       if (platformDill != null) ...<String>['--platform', platformDill!],
++      if (aopdHookConfig.enabled) ...<String>[
++        '--aop',
++        '1',
++        if (aopdHookConfig.trackWidgetCreation) ...<String>['--aop-track-widget-creation', '1'],
++      ],
+       // See: https://github.com/flutter/flutter/issues/103994
+       '--verbosity=error',
+       ...?_filterExtraFrontEndOptions(extraFrontEndOptions),
+     ];
      _logger.printTrace(command.join(' '));
 +    if (aopdHookConfig.enabled) {
 +      _logger.printStatus(
@@ -347,4 +345,4 @@ index ca04cfb345a..eca8b8b9589 100644
 +    }
      _server = await _processManager.start(command);
      _server?.stdout
-         .transform<String>(utf8.decoder)
+         .transform(utf8LineDecoder)

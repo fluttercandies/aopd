@@ -8,6 +8,8 @@ import 'dart:convert' show LineSplitter, utf8;
 
 import 'dart:io' show File;
 
+import 'package:_fe_analyzer_shared/src/parser/experimental_features.dart';
+
 import '../scanner/token.dart' show Token;
 
 import '../scanner/io.dart' show readBytesFromFileSync;
@@ -36,11 +38,12 @@ mainEntryPoint(List<String> arguments) async {
   for (String argument in arguments) {
     if (argument.startsWith("@")) {
       Uri uri = Uri.base.resolve(argument.substring(/* start = */ 1));
-      await for (String file in new File.fromUri(uri)
-          .openRead()
-          .cast<List<int>>()
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())) {
+      await for (String file
+          in new File.fromUri(uri)
+              .openRead()
+              .cast<List<int>>()
+              .transform(utf8.decoder)
+              .transform(const LineSplitter())) {
         outLine(uri.resolve(file));
       }
     } else {
@@ -52,5 +55,6 @@ mainEntryPoint(List<String> arguments) async {
 void outLine(Uri uri) {
   new TopLevelParser(
     new DebugListener(),
+    experimentalFeatures: const DefaultExperimentalFeatures(),
   ).parseUnit(scan(readBytesFromFileSync(uri)).tokens);
 }

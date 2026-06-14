@@ -22,7 +22,10 @@ abstract class DeclarationFragmentImpl implements DeclarationFragment {
   final LookupScope enclosingScope;
 
   final LookupScope typeParameterScope;
+
+  @override
   final DeclarationBuilderScope bodyScope;
+
   final List<Fragment> _fragments = [];
 
   @override
@@ -32,6 +35,8 @@ abstract class DeclarationFragmentImpl implements DeclarationFragment {
 
   final LibraryFragment enclosingCompilationUnit;
 
+  final List<ConstructorReferenceBuilder> constructorReferences = [];
+
   DeclarationFragmentImpl({
     required this.fileUri,
     required this.typeParameters,
@@ -39,8 +44,8 @@ abstract class DeclarationFragmentImpl implements DeclarationFragment {
     required this.typeParameterScope,
     required NominalParameterNameSpace nominalParameterNameSpace,
     required this.enclosingCompilationUnit,
-  })  : nominalParameterNameSpace = nominalParameterNameSpace,
-        bodyScope = new DeclarationBuilderScope(typeParameterScope);
+  }) : nominalParameterNameSpace = nominalParameterNameSpace,
+       bodyScope = new DeclarationBuilderScope(typeParameterScope);
 
   String get name;
 
@@ -52,10 +57,9 @@ abstract class DeclarationFragmentImpl implements DeclarationFragment {
 
   UriOffsetLength get uriOffset;
 
-  void addPrimaryConstructorField(PrimaryConstructorFieldFragment fragment) {
-    throw new UnsupportedError(
-        "Unexpected primary constructor field in $this.");
-  }
+  void registerPrimaryConstructorField(
+    PrimaryConstructorFieldFragment fragment,
+  ) {}
 
   void addEnumElement(EnumElementFragment fragment) {
     throw new UnsupportedError("Unexpected enum element in $this.");
@@ -67,6 +71,8 @@ abstract class DeclarationFragmentImpl implements DeclarationFragment {
 
   DeclarationNameSpaceBuilder toDeclarationNameSpaceBuilder() {
     return new DeclarationNameSpaceBuilder(
-        nominalParameterNameSpace, _fragments);
+      nominalParameterNameSpace,
+      _fragments,
+    );
   }
 }

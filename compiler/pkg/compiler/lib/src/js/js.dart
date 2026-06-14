@@ -8,30 +8,29 @@ import 'package:compiler/src/common/codegen.dart';
 import 'package:js_ast/js_ast.dart';
 
 import '../common.dart';
+import '../dump_info.dart' show DumpInfoJsAstRegistry;
+import '../io/code_output.dart'
+    show AbstractCodeOutput, CodeBuffer, CodeOutputListener;
 import '../js_backend/deferred_holder_expression.dart';
 import '../js_backend/string_reference.dart';
 import '../js_backend/type_reference.dart';
 import '../options.dart';
-import '../dump_info.dart' show DumpInfoJsAstRegistry;
-import '../io/code_output.dart'
-    show AbstractCodeOutput, CodeBuffer, CodeOutputListener;
 import '../serialization/deferrable.dart';
 import '../serialization/serialization.dart';
 import 'js_source_mapping.dart';
 
 export 'package:js_ast/js_ast.dart';
+
 export 'js_debug.dart';
 
 String prettyPrint(
   Node node, {
   bool enableMinification = false,
-  bool allowVariableMinification = true,
   bool preferSemicolonToNewlineInMinifiedOutput = false,
 }) {
   // TODO(johnniwinther): Do we need all the options here?
   JavaScriptPrintingOptions options = JavaScriptPrintingOptions(
-    shouldCompressOutput: enableMinification,
-    minifyLocalVariables: allowVariableMinification,
+    minify: enableMinification,
     preferSemicolonToNewlineInMinifiedOutput:
         preferSemicolonToNewlineInMinifiedOutput,
   );
@@ -48,13 +47,12 @@ CodeBuffer createCodeBuffer(
   DumpInfoJsAstRegistry? monitor,
   JavaScriptAnnotationMonitor annotationMonitor =
       const JavaScriptAnnotationMonitor(),
-  bool allowVariableMinification = true,
   List<CodeOutputListener> listeners = const [],
 }) {
+  bool enableMinification = compilerOptions.enableMinification;
   JavaScriptPrintingOptions options = JavaScriptPrintingOptions(
     utf8: compilerOptions.features.writeUtf8.isEnabled,
-    shouldCompressOutput: compilerOptions.enableMinification,
-    minifyLocalVariables: allowVariableMinification,
+    minify: enableMinification,
   );
   CodeBuffer outBuffer = CodeBuffer(listeners);
   SourceInformationProcessor sourceInformationProcessor =

@@ -3,7 +3,8 @@
 // BSD-style license that can be found in the LICENSE file.
 
 import 'package:_fe_analyzer_shared/src/util/libraries_specification.dart'
-    show TargetLibrariesSpecification;
+    show Importability, TargetLibrariesSpecification;
+import 'package:front_end/src/codes/diagnostic.dart' as diag;
 import 'package:package_config/package_config.dart';
 
 import '../codes/cfe_codes.dart';
@@ -48,7 +49,15 @@ class UriTranslator {
   }
 
   bool isLibrarySupported(String libraryName) {
-    return dartLibraries.libraryInfoFor(libraryName)?.isSupported ?? false;
+    return dartLibraries
+            .libraryInfoFor(libraryName)
+            ?.supportConditionalImport ??
+        false;
+  }
+
+  Importability isLibraryImportable(String libraryName) {
+    return dartLibraries.libraryInfoFor(libraryName)?.importability ??
+        Importability.never;
   }
 
   Uri? _translateDartUri(Uri uri) {
@@ -72,8 +81,12 @@ class UriTranslator {
       // https://github.com/dart-lang/package_config/issues/40 is fixed.
       if (reportMessage) {
         options.reportWithoutLocation(
-            templateInvalidPackageUri.withArguments(uri, "${e.message}"),
-            Severity.error);
+          diag.invalidPackageUri.withArguments(
+            uri: uri,
+            details: "${e.message}",
+          ),
+          CfeSeverity.error,
+        );
       }
       return null;
     }
@@ -82,7 +95,9 @@ class UriTranslator {
   Uri? _packageUriNotFound(Uri uri) {
     String name = uri.pathSegments.first;
     options.reportWithoutLocation(
-        templatePackageNotFound.withArguments(name, uri), Severity.error);
+      diag.packageNotFound.withArguments(packageName: name, uri: uri),
+      CfeSeverity.error,
+    );
     // TODO(sigmund, ahe): ensure we only report an error once,
     // this null result will likely cause another error further down in the
     // compiler.

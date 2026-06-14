@@ -6,21 +6,17 @@ import 'function.dart';
 
 /// The interface for the functions in a module.
 class Functions {
-  /// The start function.
-  final BaseFunction? start;
-
   /// Imported functions.
   final List<ImportedFunction> imported;
 
   /// Defined functions.
   final List<DefinedFunction> defined;
 
-  /// Declared functions.
-  final List<BaseFunction> declared;
+  Functions(this.imported, this.defined);
 
-  /// Named functions.
-  final int namedCount;
+  BaseFunction operator [](int index) => index < imported.length
+      ? imported[index]
+      : defined[index - imported.length];
 
-  Functions(
-      this.start, this.imported, this.defined, this.declared, this.namedCount);
+  int get length => imported.length + defined.length;
 }

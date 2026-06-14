@@ -22,9 +22,10 @@ import 'type_constraint.dart';
 abstract interface class TypeAnalyzerOperations<
   Variable extends Object,
   TypeDeclarationType extends Object,
-  TypeDeclaration extends Object
+  TypeDeclaration extends Object,
+  AstNode extends Object
 >
-    implements FlowAnalysisOperations<Variable, SharedTypeView> {
+    implements FlowAnalysisOperations<Variable> {
   /// Returns the type `double`.
   SharedTypeView get doubleType;
 
@@ -52,24 +53,141 @@ abstract interface class TypeAnalyzerOperations<
   /// Returns the unknown type schema (`_`) used in type inference.
   SharedTypeSchemaView get unknownType;
 
+  /// Computes the constraint solution for a type parameter based on a given
+  /// set of constraints.
+  ///
+  /// For example given:
+  ///
+  ///     bool Function(T) makeComparer<T>(T x) => (T y) => x == y;
+  ///
+  ///     main() {
+  ///       bool Function(num) t = makeComparer/* infer <num> */(42);
+  ///       print(t(42.0)); /// false, no error.
+  ///     }
+  ///
+  /// The constraints we collect are:
+  ///
+  /// * `num <: T`
+  /// * `int <: T`
+  ///
+  /// ... and no upper bound. Therefore the lower bound is the best choice.
+  ///
+  /// If [grounded] is `true`, then the returned type is guaranteed to be a
+  /// known type (i.e. it will not contain any instances of `?`) if it is
+  /// constrained at all.  The returned type for unconstrained variables is
+  /// `?`.
+  ///
+  /// If [isContravariant] is `true`, then we are solving for a contravariant
+  /// type parameter which means we choose the upper bound rather than the
+  /// lower bound for normally covariant type parameters.
+  ///
+  /// The algorithm for computing the constraint solution for a type variable
+  /// is described in
+  /// https://github.com/dart-lang/language/blob/main/resources/type-system/inference.md#constraint-solution-for-a-type-variable.
+  SharedType chooseTypeFromConstraint(
+    MergedTypeConstraint<
+      Variable,
+      TypeDeclarationType,
+      TypeDeclaration,
+      AstNode
+    >
+    constraint, {
+    required bool grounded,
+    required bool isContravariant,
+  });
+
+  /// Computes (or recomputes) a set of inferred types based on the constraints
+  /// that have been recorded so far.
+  List<SharedType> chooseTypes(
+    List<SharedTypeParameter> typeParametersToInfer,
+    Map<
+      SharedTypeParameter,
+      MergedTypeConstraint<
+        Variable,
+        TypeDeclarationType,
+        TypeDeclaration,
+        AstNode
+      >
+    >
+    constraints,
+    List<SharedType>? previouslyInferredTypes, {
+    required bool preliminary,
+    required bool inferenceUsingBoundsIsEnabled,
+    required TypeConstraintGenerationDataForTesting<Variable, AstNode>?
+    dataForTesting,
+    required AstNode? treeNodeForTesting,
+  });
+
   TypeConstraintGenerator<
     Variable,
     TypeDeclarationType,
     TypeDeclaration,
-    Object
+    AstNode
   >
   createTypeConstraintGenerator({
-    required TypeConstraintGenerationDataForTesting<Variable, Object>?
+    required TypeConstraintGenerationDataForTesting<Variable, AstNode>?
     typeConstraintGenerationDataForTesting,
     required List<SharedTypeParameterView> typeParametersToInfer,
     required TypeAnalyzerOperations<
       Variable,
       TypeDeclarationType,
-      TypeDeclaration
+      TypeDeclaration,
+      AstNode
     >
     typeAnalyzerOperations,
     required bool inferenceUsingBoundsIsEnabled,
   });
+
+  /// Computes `flatten` of [type].
+  ///
+  /// See the `Function Expressions` section of
+  /// https://storage.googleapis.com/dart-specification/DartLangSpecDraft.pdf.
+  SharedTypeView flatten(SharedTypeView type);
+
+  /// Returns the type `FutureOr` with omitted nullability and type argument
+  /// [argumentTypeSchema].
+  ///
+  /// The concrete classes implementing [TypeAnalyzerOperations] should mix in
+  /// [TypeAnalyzerOperationsMixin] and implement [futureOrTypeInternal] to
+  /// receive a concrete implementation of [futureOrType] instead of
+  /// implementing [futureOrType] directly.
+  SharedTypeView futureOrType(SharedTypeView argumentTypeSchema);
+
+  /// [futureOrTypeInternal] should be implemented by concrete classes
+  /// implementing [TypeAnalyzerOperations]. The implementations of
+  /// [futureOrType] and [futureOrTypeSchema] are provided by mixing in
+  /// [TypeAnalyzerOperationsMixin], which defines [futureOrType] and
+  /// [futureOrTypeSchema] in terms of [futureOrTypeInternal].
+  ///
+  /// The main purpose of this method is to avoid code duplication in the
+  /// concrete classes implementing [TypeAnalyzerOperations], so they can
+  /// implement only one member, in this case [futureOrTypeInternal], and
+  /// receive the implementation of both [futureOrType] and [futureOrTypeSchema]
+  /// from the mixin.
+  ///
+  /// The auxiliary purpose of [futureOrTypeInternal] is to facilitate the
+  /// development of the shared code at early stages. Sometimes the sharing of
+  /// the code starts by unifying the implementations of some concrete members
+  /// in the Analyzer and the CFE by bringing them in a form that looks
+  /// syntactically very similar in both tools, and then continues by
+  /// abstracting the two concrete members and using the shared abstracted one
+  /// instead of the two concrete methods existing previously. During the early
+  /// stages of unifying the two concrete members it can be beneficial to use
+  /// [futureOrTypeInternal] instead of the tool-specific ways of constructing a
+  /// future type, for the sake of uniformity, and to simplify the abstraction
+  /// step too.
+  SharedType futureOrTypeInternal(covariant SharedType typeStructure);
+
+  /// Returns the type schema `FutureOr` with omitted nullability and type
+  /// argument [argumentTypeSchema].
+  ///
+  /// The concrete classes implementing [TypeAnalyzerOperations] should mix in
+  /// [TypeAnalyzerOperationsMixin] and implement [futureOrTypeInternal] to
+  /// receive a concrete implementation of [futureOrTypeSchema] instead of
+  /// implementing [futureOrTypeSchema] directly.
+  SharedTypeSchemaView futureOrTypeSchema(
+    SharedTypeSchemaView argumentTypeSchema,
+  );
 
   /// Returns the type `Future` with omitted nullability and type argument
   /// [argumentType].
@@ -181,9 +299,19 @@ abstract interface class TypeAnalyzerOperations<
     covariant SharedType type2,
   );
 
-  /// Returns the greatest closure of [schema] with respect to the unknown type
-  /// (`_`).
-  SharedTypeView greatestClosure(SharedTypeSchemaView schema);
+  /// Computes the greatest closure of a type schema.
+  ///
+  /// The greatest closure of a type schema is defined in
+  /// https://github.com/dart-lang/language/blob/main/accepted/future-releases/0323-null-aware-elements/feature-specification.md
+  ///
+  /// The [topType] parameter is needed to account for the known discrepancy in
+  /// the implementations between the CFE and the Analyzer. For details, see
+  /// https://github.com/dart-lang/language/issues/4466.
+  //TODO(cstefantsova): Remove [topType] when the discrepancy is resolved.
+  SharedTypeView greatestClosureOfSchema(
+    SharedTypeSchemaView schema, {
+    SharedTypeView? topType,
+  });
 
   /// Computes the greatest closure of a type.
   ///
@@ -193,6 +321,66 @@ abstract interface class TypeAnalyzerOperations<
     covariant SharedType type,
     List<SharedTypeParameter> typeParametersToEliminate,
   );
+
+  /// Chooses types from all available sources at the final stage of inference.
+  SharedType inferTypeParameterFromAll(
+    SharedType? typeFromPreviousInference,
+    MergedTypeConstraint<
+      Variable,
+      TypeDeclarationType,
+      TypeDeclaration,
+      AstNode
+    >
+    constraint,
+    SharedType? extendsConstraint, {
+    bool isContravariant = false,
+    bool isLegacyCovariant = true,
+    required Map<
+      SharedTypeParameter,
+      MergedTypeConstraint<
+        Variable,
+        TypeDeclarationType,
+        TypeDeclaration,
+        AstNode
+      >
+    >
+    constraints,
+    required SharedTypeParameter typeParameterToInfer,
+    required List<SharedTypeParameter> typeParametersToInfer,
+    required TypeConstraintGenerationDataForTesting<Variable, AstNode>?
+    dataForTesting,
+    required bool inferenceUsingBoundsIsEnabled,
+  });
+
+  /// Chooses types from the current inference context in preliminary stages.
+  SharedType inferTypeParameterFromContext(
+    SharedType? typeFromPreviousInference,
+    MergedTypeConstraint<
+      Variable,
+      TypeDeclarationType,
+      TypeDeclaration,
+      AstNode
+    >
+    constraint,
+    SharedType? extendsConstraint, {
+    required bool isContravariant,
+    bool isLegacyCovariant = true,
+    required Map<
+      SharedTypeParameter,
+      MergedTypeConstraint<
+        Variable,
+        TypeDeclarationType,
+        TypeDeclaration,
+        AstNode
+      >
+    >
+    constraints,
+    required List<SharedTypeParameter> typeParametersToInfer,
+    required SharedTypeParameter typeParameterToInfer,
+    required TypeConstraintGenerationDataForTesting<Variable, AstNode>?
+    dataForTesting,
+    required bool inferenceUsingBoundsIsEnabled,
+  });
 
   /// Queries whether [type] is an "always-exhaustive" type (as defined in the
   /// patterns spec).  Exhaustive types are types for which the switch statement
@@ -204,6 +392,9 @@ abstract interface class TypeAnalyzerOperations<
 
   @override
   bool isBottomType(SharedTypeView type);
+
+  /// True if [typeParameter] doesn't have an explicit bound.
+  bool isBoundOmitted(SharedTypeParameter typeParameter);
 
   /// Returns `true` if [type] is `Function` from `dart:core`. The method
   /// returns `false` for `Function?` and `Function*`.
@@ -224,6 +415,21 @@ abstract interface class TypeAnalyzerOperations<
   /// extension type, a type alias, `Null`, `Never`, or `FutureOr<X>` for any
   /// type `X`.
   bool isInterfaceTypeInternal(covariant SharedType type);
+
+  /// Determines whether a type schema contains the unknown type.
+  ///
+  /// Examples of known types:
+  ///
+  ///   * `int`,
+  ///   * `List<String>`,
+  ///   * `bool Function(double)`.
+  ///
+  /// Examples of types that are not known:
+  ///
+  ///   * `_`,
+  ///   * `List<_>`,
+  ///   * `_ Function(_)`.
+  bool isKnownType(SharedTypeSchemaView typeSchema);
 
   /// Returns `true` if `Null` is not a subtype of all types matching [type].
   ///
@@ -267,6 +473,12 @@ abstract interface class TypeAnalyzerOperations<
   SharedTypeSchemaView iterableTypeSchema(
     SharedTypeSchemaView elementTypeSchema,
   );
+
+  /// Computes the least closure of a type schema.
+  ///
+  /// The least closure of a type schema is defined in
+  /// https://github.com/dart-lang/language/blob/main/accepted/future-releases/0323-null-aware-elements/feature-specification.md
+  SharedTypeView leastClosureOfSchema(SharedTypeSchemaView schema);
 
   /// Computes the least closure of a type.
   ///
@@ -581,17 +793,22 @@ abstract interface class TypeAnalyzerOperations<
     SharedTypeSchemaView typeSchema,
   );
 
-  MergedTypeConstraint<Variable, TypeDeclarationType, TypeDeclaration>
+  MergedTypeConstraint<Variable, TypeDeclarationType, TypeDeclaration, AstNode>
   mergeInConstraintsFromBound({
     required SharedTypeParameter typeParameterToInfer,
     required List<SharedTypeParameterView> typeParametersToInfer,
     required SharedType lower,
     required Map<
       SharedTypeParameter,
-      MergedTypeConstraint<Variable, TypeDeclarationType, TypeDeclaration>
+      MergedTypeConstraint<
+        Variable,
+        TypeDeclarationType,
+        TypeDeclaration,
+        AstNode
+      >
     >
     inferencePhaseConstraints,
-    required TypeConstraintGenerationDataForTesting<Variable, Object>?
+    required TypeConstraintGenerationDataForTesting<Variable, AstNode>?
     dataForTesting,
     required bool inferenceUsingBoundsIsEnabled,
   });
@@ -656,6 +873,12 @@ abstract interface class TypeAnalyzerOperations<
 
   /// Returns the type schema `Stream`, with type argument [elementTypeSchema].
   SharedTypeSchemaView streamTypeSchema(SharedTypeSchemaView elementTypeSchema);
+
+  SharedType substituteTypeFromIterables(
+    SharedType typeToSubstitute,
+    List<SharedTypeParameter> typeParameters,
+    List<SharedType> types,
+  );
 
   @override
   SharedTypeView? tryPromoteToType(SharedTypeView to, SharedTypeView from);
@@ -738,30 +961,178 @@ abstract interface class TypeAnalyzerOperations<
 
   /// Converts a type into a corresponding type schema.
   SharedTypeSchemaView typeToSchema(SharedTypeView type);
-
-  /// Determines whether a type schema contains the unknown type.
-  ///
-  /// Examples of known types:
-  ///
-  ///   * `int`,
-  ///   * `List<String>`,
-  ///   * `bool Function(double)`.
-  ///
-  /// Examples of types that are not known:
-  ///
-  ///   * `_`,
-  ///   * `List<_>`,
-  ///   * `_ Function(_)`.
-  bool isKnownType(SharedTypeSchemaView typeSchema);
 }
 
 mixin TypeAnalyzerOperationsMixin<
   Variable extends Object,
   TypeDeclarationType extends Object,
-  TypeDeclaration extends Object
+  TypeDeclaration extends Object,
+  AstNode extends Object
 >
     implements
-        TypeAnalyzerOperations<Variable, TypeDeclarationType, TypeDeclaration> {
+        TypeAnalyzerOperations<
+          Variable,
+          TypeDeclarationType,
+          TypeDeclaration,
+          AstNode
+        > {
+  @override
+  SharedType chooseTypeFromConstraint(
+    MergedTypeConstraint<
+      Variable,
+      TypeDeclarationType,
+      TypeDeclaration,
+      AstNode
+    >
+    constraint, {
+    required bool grounded,
+    required bool isContravariant,
+  }) {
+    if (!isContravariant) {
+      // Prefer the known bound, if any.
+      if (isKnownType(constraint.lower)) {
+        return constraint.lower.unwrapTypeSchemaView();
+      }
+      if (isKnownType(constraint.upper)) {
+        return constraint.upper.unwrapTypeSchemaView();
+      }
+
+      // Otherwise take whatever bound has partial information,
+      // e.g. `Iterable<?>`
+      if (constraint.lower is! SharedUnknownTypeSchemaView) {
+        return grounded
+            ? leastClosureOfSchema(constraint.lower).unwrapTypeView()
+            : constraint.lower.unwrapTypeSchemaView();
+      } else if (constraint.upper is! SharedUnknownTypeSchemaView) {
+        return grounded
+            ? greatestClosureOfSchema(constraint.upper).unwrapTypeView()
+            : constraint.upper.unwrapTypeSchemaView();
+      } else {
+        assert(constraint.lower is SharedUnknownTypeSchemaView);
+        return constraint.lower.unwrapTypeSchemaView();
+      }
+    } else {
+      // Prefer the known bound, if any.
+      if (isKnownType(constraint.upper)) {
+        return constraint.upper.unwrapTypeSchemaView();
+      }
+      if (isKnownType(constraint.lower)) {
+        return constraint.lower.unwrapTypeSchemaView();
+      }
+
+      // Otherwise take whatever bound has partial information,
+      // e.g. `Iterable<?>`
+      if (constraint.upper is! SharedUnknownTypeSchemaView) {
+        // Coverage-ignore-block(suite): Not run.
+        return grounded
+            ? greatestClosureOfSchema(constraint.upper).unwrapTypeView()
+            : constraint.upper.unwrapTypeSchemaView();
+      } else if (constraint.lower is! SharedUnknownTypeSchemaView) {
+        return grounded
+            ? leastClosureOfSchema(constraint.lower).unwrapTypeView()
+            : constraint.lower.unwrapTypeSchemaView();
+      } else {
+        assert(constraint.upper is SharedUnknownTypeSchemaView);
+        return constraint.upper.unwrapTypeSchemaView();
+      }
+    }
+  }
+
+  @override
+  List<SharedType> chooseTypes(
+    List<SharedTypeParameter> typeParametersToInfer,
+    Map<
+      SharedTypeParameter,
+      MergedTypeConstraint<
+        Variable,
+        TypeDeclarationType,
+        TypeDeclaration,
+        AstNode
+      >
+    >
+    constraints,
+    List<SharedType>? previouslyInferredTypes, {
+    required bool preliminary,
+    required bool inferenceUsingBoundsIsEnabled,
+    required TypeConstraintGenerationDataForTesting<Variable, AstNode>?
+    dataForTesting,
+    required AstNode? treeNodeForTesting,
+  }) {
+    List<SharedType> inferredTypes =
+        previouslyInferredTypes?.toList(growable: false) ??
+        new List.filled(
+          typeParametersToInfer.length,
+          unknownType.unwrapTypeSchemaView(),
+        );
+
+    for (int i = 0; i < typeParametersToInfer.length; i++) {
+      SharedTypeParameter typeParam = typeParametersToInfer[i];
+
+      SharedType? typeParamBound = typeParam.boundShared;
+      SharedType? extendsConstraint;
+      if (typeParamBound != null && !isBoundOmitted(typeParam)) {
+        extendsConstraint = substituteTypeFromIterables(
+          typeParamBound,
+          typeParametersToInfer,
+          inferredTypes,
+        );
+      }
+
+      MergedTypeConstraint<
+        Variable,
+        TypeDeclarationType,
+        TypeDeclaration,
+        AstNode
+      >
+      constraint = constraints[typeParam]!;
+      if (preliminary) {
+        inferredTypes[i] = inferTypeParameterFromContext(
+          previouslyInferredTypes?[i],
+          constraint,
+          extendsConstraint,
+          isContravariant: typeParam.variance == Variance.contravariant,
+          isLegacyCovariant: typeParam.isLegacyCovariant,
+          constraints: constraints,
+          typeParameterToInfer: typeParam,
+          typeParametersToInfer: typeParametersToInfer,
+          dataForTesting: dataForTesting,
+          inferenceUsingBoundsIsEnabled: inferenceUsingBoundsIsEnabled,
+        );
+      } else {
+        inferredTypes[i] = inferTypeParameterFromAll(
+          previouslyInferredTypes?[i],
+          constraint,
+          extendsConstraint,
+          isContravariant: typeParam.variance == Variance.contravariant,
+          isLegacyCovariant: typeParam.isLegacyCovariant,
+          constraints: constraints,
+          typeParameterToInfer: typeParam,
+          typeParametersToInfer: typeParametersToInfer,
+          dataForTesting: dataForTesting,
+          inferenceUsingBoundsIsEnabled: inferenceUsingBoundsIsEnabled,
+        );
+      }
+    }
+
+    return inferredTypes;
+  }
+
+  @override
+  SharedTypeView futureOrType(SharedTypeView argumentType) {
+    return new SharedTypeView(
+      futureOrTypeInternal(argumentType.unwrapTypeView()),
+    );
+  }
+
+  @override
+  SharedTypeSchemaView futureOrTypeSchema(
+    SharedTypeSchemaView argumentTypeSchema,
+  ) {
+    return new SharedTypeSchemaView(
+      futureOrTypeInternal(argumentTypeSchema.unwrapTypeSchemaView()),
+    );
+  }
+
   @override
   SharedTypeView futureType(SharedTypeView argumentType) {
     return new SharedTypeView(
@@ -795,6 +1166,165 @@ mixin TypeAnalyzerOperationsMixin<
     return new SharedTypeView(
       glbInternal(type1.unwrapTypeView(), type2.unwrapTypeView()),
     );
+  }
+
+  @override
+  SharedType inferTypeParameterFromAll(
+    SharedType? typeFromPreviousInference,
+    MergedTypeConstraint<
+      Variable,
+      TypeDeclarationType,
+      TypeDeclaration,
+      AstNode
+    >
+    constraint,
+    SharedType? extendsConstraint, {
+    bool isContravariant = false,
+    bool isLegacyCovariant = true,
+    required Map<
+      SharedTypeParameter,
+      MergedTypeConstraint<
+        Variable,
+        TypeDeclarationType,
+        TypeDeclaration,
+        AstNode
+      >
+    >
+    constraints,
+    required SharedTypeParameter typeParameterToInfer,
+    required List<SharedTypeParameter> typeParametersToInfer,
+    required TypeConstraintGenerationDataForTesting<Variable, AstNode>?
+    dataForTesting,
+    required bool inferenceUsingBoundsIsEnabled,
+  }) {
+    // See if we already fixed this type in a previous inference step.
+    // If so, then we aren't allowed to change it unless [isLegacyCovariant] is
+    // false.
+    if (typeFromPreviousInference != null &&
+        isLegacyCovariant &&
+        isKnownType(new SharedTypeSchemaView(typeFromPreviousInference))) {
+      return typeFromPreviousInference;
+    }
+
+    if (inferenceUsingBoundsIsEnabled &&
+        constraint.lower is! SharedUnknownTypeSchemaView &&
+        !isBoundOmitted(typeParameterToInfer)) {
+      MergedTypeConstraint constraintFromBound = mergeInConstraintsFromBound(
+        typeParameterToInfer: typeParameterToInfer,
+        typeParametersToInfer: typeParametersToInfer
+            .cast<SharedTypeParameterView>(),
+        lower: constraint.lower.unwrapTypeSchemaView(),
+        inferencePhaseConstraints: constraints,
+        dataForTesting: dataForTesting,
+        inferenceUsingBoundsIsEnabled: inferenceUsingBoundsIsEnabled,
+      );
+
+      constraint.mergeInTypeSchemaUpper(constraintFromBound.upper, this);
+      constraint.mergeInTypeSchemaLower(constraintFromBound.lower, this);
+    }
+
+    if (extendsConstraint != null) {
+      constraint = constraint.clone();
+      constraint.mergeInTypeSchemaUpper(
+        new SharedTypeSchemaView(extendsConstraint),
+        this,
+      );
+    }
+
+    return chooseTypeFromConstraint(
+      constraint,
+      grounded: true,
+      isContravariant: isContravariant,
+    );
+  }
+
+  @override
+  SharedType inferTypeParameterFromContext(
+    SharedType? typeFromPreviousInference,
+    MergedTypeConstraint<
+      Variable,
+      TypeDeclarationType,
+      TypeDeclaration,
+      AstNode
+    >
+    constraint,
+    SharedType? extendsConstraint, {
+    required bool isContravariant,
+    bool isLegacyCovariant = true,
+    required Map<
+      SharedTypeParameter,
+      MergedTypeConstraint<
+        Variable,
+        TypeDeclarationType,
+        TypeDeclaration,
+        AstNode
+      >
+    >
+    constraints,
+    required List<SharedTypeParameter> typeParametersToInfer,
+    required SharedTypeParameter typeParameterToInfer,
+    required TypeConstraintGenerationDataForTesting<Variable, AstNode>?
+    dataForTesting,
+    required bool inferenceUsingBoundsIsEnabled,
+  }) {
+    // See if we already fixed this type in a previous inference step.
+    // If so, then we aren't allowed to change it unless [isLegacyCovariant] is
+    // false.
+    if (isLegacyCovariant &&
+        typeFromPreviousInference != null &&
+        isKnownType(new SharedTypeSchemaView(typeFromPreviousInference))) {
+      return typeFromPreviousInference;
+    }
+
+    SharedType t = chooseTypeFromConstraint(
+      constraint,
+      grounded: false,
+      isContravariant: isContravariant,
+    );
+    if (!isKnownType(new SharedTypeSchemaView(t))) {
+      return t;
+    }
+
+    // If we're about to make our final choice, apply the extends clause.
+    // This gives us a chance to refine the choice, in case it would violate
+    // the `extends` clause. For example:
+    //
+    //     Object obj = math.min/*<infer Object, error>*/(1, 2);
+    //
+    // If we consider the `T extends num` we conclude `<num>`, which works.
+
+    if (inferenceUsingBoundsIsEnabled &&
+        constraint.lower is! SharedUnknownTypeSchemaView &&
+        !isBoundOmitted(typeParameterToInfer)) {
+      // Coverage-ignore-block(suite): Not run.
+      MergedTypeConstraint constraintFromBound = mergeInConstraintsFromBound(
+        typeParameterToInfer: typeParameterToInfer,
+        typeParametersToInfer: typeParametersToInfer
+            .cast<SharedTypeParameterView>(),
+        lower: constraint.lower.unwrapTypeSchemaView(),
+        inferencePhaseConstraints: constraints,
+        dataForTesting: dataForTesting,
+        inferenceUsingBoundsIsEnabled: inferenceUsingBoundsIsEnabled,
+      );
+
+      constraint.mergeInTypeSchemaUpper(constraintFromBound.upper, this);
+      constraint.mergeInTypeSchemaLower(constraintFromBound.lower, this);
+    }
+
+    if (extendsConstraint != null) {
+      constraint = constraint.clone();
+      constraint.mergeInTypeSchemaUpper(
+        new SharedTypeSchemaView(extendsConstraint),
+        this,
+      );
+      return chooseTypeFromConstraint(
+        constraint,
+        grounded: false,
+        isContravariant: false,
+      );
+    }
+
+    return t;
   }
 
   @override
@@ -893,17 +1423,22 @@ mixin TypeAnalyzerOperationsMixin<
   }
 
   @override
-  MergedTypeConstraint<Variable, TypeDeclarationType, TypeDeclaration>
+  MergedTypeConstraint<Variable, TypeDeclarationType, TypeDeclaration, AstNode>
   mergeInConstraintsFromBound({
     required SharedTypeParameter typeParameterToInfer,
     required List<SharedTypeParameterView> typeParametersToInfer,
     required SharedType lower,
     required Map<
       SharedTypeParameter,
-      MergedTypeConstraint<Variable, TypeDeclarationType, TypeDeclaration>
+      MergedTypeConstraint<
+        Variable,
+        TypeDeclarationType,
+        TypeDeclaration,
+        AstNode
+      >
     >
     inferencePhaseConstraints,
-    required TypeConstraintGenerationDataForTesting<Variable, Object>?
+    required TypeConstraintGenerationDataForTesting<Variable, AstNode>?
     dataForTesting,
     required bool inferenceUsingBoundsIsEnabled,
   }) {
@@ -937,7 +1472,7 @@ mixin TypeAnalyzerOperationsMixin<
       Variable,
       TypeDeclarationType,
       TypeDeclaration,
-      Object
+      AstNode
     >
     typeConstraintGatherer = createTypeConstraintGenerator(
       typeConstraintGenerationDataForTesting: null,
@@ -953,11 +1488,21 @@ mixin TypeAnalyzerOperationsMixin<
     );
     Map<
       SharedTypeParameter,
-      MergedTypeConstraint<Variable, TypeDeclarationType, TypeDeclaration>
+      MergedTypeConstraint<
+        Variable,
+        TypeDeclarationType,
+        TypeDeclaration,
+        AstNode
+      >
     >
     constraintsPerTypeVariable = typeConstraintGatherer.computeConstraints();
     for (SharedTypeParameter typeParameter in constraintsPerTypeVariable.keys) {
-      MergedTypeConstraint<Variable, TypeDeclarationType, TypeDeclaration>
+      MergedTypeConstraint<
+        Variable,
+        TypeDeclarationType,
+        TypeDeclaration,
+        AstNode
+      >
       constraint = constraintsPerTypeVariable[typeParameter]!;
       constraint.origin = new TypeConstraintFromExtendsClause(
         typeParameterName: typeParameterToInfer.displayName,
@@ -1098,7 +1643,12 @@ abstract class TypeConstraintGenerator<
   bool get enableDiscrepantObliviousnessOfNullabilitySuffixOfFutureOr;
 
   /// Abstract type operations to be used in the matching methods.
-  TypeAnalyzerOperations<Variable, TypeDeclarationType, TypeDeclaration>
+  TypeAnalyzerOperations<
+    Variable,
+    TypeDeclarationType,
+    TypeDeclaration,
+    AstNode
+  >
   get typeAnalyzerOperations;
 
   /// Type parameters being constrained by [TypeConstraintGenerator].
@@ -1121,7 +1671,12 @@ abstract class TypeConstraintGenerator<
   /// Returns the set of type constraints that was gathered.
   Map<
     SharedTypeParameter,
-    MergedTypeConstraint<Variable, TypeDeclarationType, TypeDeclaration>
+    MergedTypeConstraint<
+      Variable,
+      TypeDeclarationType,
+      TypeDeclaration,
+      AstNode
+    >
   >
   computeConstraints();
 
@@ -2268,136 +2823,6 @@ class TypeDeclarationMatchResult<
     required this.typeDeclaration,
     required this.typeArguments,
   });
-}
-
-/// The variance of a type parameter `X` in a type `T`.
-enum Variance {
-  /// Used when `X` does not occur free in `T`.
-  unrelated(keyword: ''),
-
-  /// Used when `X` occurs free in `T`, and `U <: V` implies `[U/X]T <: [V/X]T`.
-  covariant(keyword: 'out'),
-
-  /// Used when `X` occurs free in `T`, and `U <: V` implies `[V/X]T <: [U/X]T`.
-  contravariant(keyword: 'in'),
-
-  /// Used when there exists a pair `U` and `V` such that `U <: V`, but
-  /// `[U/X]T` and `[V/X]T` are incomparable.
-  invariant(keyword: 'inout');
-
-  final String keyword;
-
-  const Variance({required this.keyword});
-
-  /// Return the variance with the given [encoding].
-  factory Variance.fromEncoding(int encoding) => values[encoding];
-
-  /// Return the variance associated with the string representation of variance.
-  factory Variance.fromKeywordString(String keywordString) {
-    Variance? result;
-    if (keywordString == "in") {
-      result = contravariant;
-    } else if (keywordString == "inout") {
-      result = invariant;
-    } else if (keywordString == "out") {
-      result = covariant;
-    } else if (keywordString == "unrelated") {
-      result = unrelated;
-    }
-    if (result != null) {
-      assert(result.keyword == keywordString);
-      return result;
-    } else {
-      throw new ArgumentError(
-        'Invalid keyword string for variance: $keywordString',
-      );
-    }
-  }
-
-  /// Return `true` if this represents the case when `X` occurs free in `T`, and
-  /// `U <: V` implies `[V/X]T <: [U/X]T`.
-  bool get isContravariant => this == contravariant;
-
-  /// Return `true` if this represents the case when `X` occurs free in `T`, and
-  /// `U <: V` implies `[U/X]T <: [V/X]T`.
-  bool get isCovariant => this == covariant;
-
-  /// Return `true` if this represents the case when there exists a pair `U` and
-  /// `V` such that `U <: V`, but `[U/X]T` and `[V/X]T` are incomparable.
-  bool get isInvariant => this == invariant;
-
-  /// Return `true` if this represents the case when `X` does not occur free in
-  /// `T`.
-  bool get isUnrelated => this == unrelated;
-
-  /// Combines variances of `X` in `T` and `Y` in `S` into variance of `X` in
-  /// `[Y/T]S`.
-  ///
-  /// Consider the following examples:
-  ///
-  /// * variance of `X` in `Function(X)` is contravariant, variance of `Y`
-  /// in `List<Y>` is covariant, so variance of `X` in `List<Function(X)>` is
-  /// contravariant;
-  ///
-  /// * variance of `X` in `List<X>` is covariant, variance of `Y` in
-  /// `Function(Y)` is contravariant, so variance of `X` in
-  /// `Function(List<X>)` is contravariant;
-  ///
-  /// * variance of `X` in `Function(X)` is contravariant, variance of `Y` in
-  /// `Function(Y)` is contravariant, so variance of `X` in
-  /// `Function(Function(X))` is covariant;
-  ///
-  /// * let the following be declared:
-  ///
-  ///     typedef F<Z> = Function();
-  ///
-  /// then variance of `X` in `F<X>` is unrelated, variance of `Y` in
-  /// `List<Y>` is covariant, so variance of `X` in `List<F<X>>` is
-  /// unrelated;
-  ///
-  /// * let the following be declared:
-  ///
-  ///     typedef G<Z> = Z Function(Z);
-  ///
-  /// then variance of `X` in `List<X>` is covariant, variance of `Y` in
-  /// `G<Y>` is invariant, so variance of `X` in `G<List<X>>` is invariant.
-  Variance combine(Variance other) {
-    if (isUnrelated || other.isUnrelated) return unrelated;
-    if (isInvariant || other.isInvariant) return invariant;
-    return this == other ? covariant : contravariant;
-  }
-
-  /// Returns true if this variance is greater than (above) or equal to the
-  /// [other] variance in the partial order induced by the variance lattice.
-  ///
-  ///       unrelated
-  /// covariant   contravariant
-  ///       invariant
-  bool greaterThanOrEqual(Variance other) {
-    if (isUnrelated) {
-      return true;
-    } else if (isCovariant) {
-      return other.isCovariant || other.isInvariant;
-    } else if (isContravariant) {
-      return other.isContravariant || other.isInvariant;
-    } else {
-      assert(isInvariant);
-      return other.isInvariant;
-    }
-  }
-
-  /// Variance values form a lattice where unrelated is the top, invariant is
-  /// the bottom, and covariant and contravariant are incomparable.  [meet]
-  /// calculates the meet of two elements of such lattice.  It can be used, for
-  /// example, to calculate the variance of a typedef type parameter if it's
-  /// encountered on the RHS of the typedef multiple times.
-  ///
-  ///       unrelated
-  /// covariant   contravariant
-  ///       invariant
-  Variance meet(Variance other) {
-    return new Variance.fromEncoding(index | other.index);
-  }
 }
 
 /// Representation of the state of [TypeConstraintGenerator].

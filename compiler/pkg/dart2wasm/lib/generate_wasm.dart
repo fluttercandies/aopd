@@ -2,20 +2,23 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-import 'dart:io';
-
+import 'package:front_end/src/api_prototype/standard_file_system.dart'
+    show StandardFileSystem;
 import 'package:front_end/src/api_unstable/vm.dart' show printDiagnosticMessage;
-import 'package:path/path.dart' as path;
 
 import 'compile.dart';
 import 'compiler_options.dart';
+import 'io_util.dart';
 
 export 'package:dart2wasm/compiler_options.dart';
 
 typedef PrintError = void Function(String error);
 
-Future<int> generateWasm(WasmCompilerOptions options,
-    {PrintError errorPrinter = print}) async {
+Future<int> generateWasm(
+  WasmCompilerOptions options, {
+  PrintError errorPrinter = print,
+}) async {
+  options.validate();
   final translatorOptions = options.translatorOptions;
   if (translatorOptions.verbose) {
     print('Running dart compile wasm...');
@@ -24,6 +27,11 @@ Future<int> generateWasm(WasmCompilerOptions options,
     print('  - librariesSpecPath = ${options.librariesSpecPath}');
     print('  - packagesPath file = ${options.packagesPath}');
     print('  - platformPath file = ${options.platformPath}');
+    print('  - strip wasm = ${options.stripWasm}');
+    print('  - wasm-opt path = ${options.wasmOptPath}');
+    print(
+      '  - max active wasm-opt processes = ${options.maxActiveWasmOptProcesses}',
+    );
     print('');
     print('Translator options:');
     print('  - enable asserts = ${translatorOptions.enableAsserts}');
@@ -31,55 +39,49 @@ Future<int> generateWasm(WasmCompilerOptions options,
     print('  - inlining = ${translatorOptions.inlining}');
     print('  - js compatibility = ${translatorOptions.jsCompatibility}');
     print(
-        '  - omit implicit type checks = ${translatorOptions.omitImplicitTypeChecks}');
+      '  - omit implicit type checks = ${translatorOptions.omitImplicitTypeChecks}',
+    );
     print(
-        '  - omit explicit type checks = ${translatorOptions.omitExplicitTypeChecks}');
+      '  - omit explicit type checks = ${translatorOptions.omitExplicitTypeChecks}',
+    );
     print('  - omit bounds checks = ${translatorOptions.omitBoundsChecks}');
     print(
-        '  - polymorphic specialization = ${translatorOptions.polymorphicSpecialization}');
+      '  - polymorphic specialization = ${translatorOptions.polymorphicSpecialization}',
+    );
     print('  - print kernel = ${translatorOptions.printKernel}');
     print('  - print wasm = ${translatorOptions.printWasm}');
     print('  - minify = ${translatorOptions.minify}');
     print('  - verity type checks = ${translatorOptions.verifyTypeChecks}');
     print(
-        '  - enable experimental ffi = ${translatorOptions.enableExperimentalFfi}');
+      '  - enable experimental ffi = ${translatorOptions.enableExperimentalFfi}',
+    );
     print(
-        '  - enable experimental wasm interop = ${translatorOptions.enableExperimentalWasmInterop}');
+      '  - enable experimental wasm interop = ${translatorOptions.enableExperimentalWasmInterop}',
+    );
     print('  - generate source maps = ${translatorOptions.generateSourceMaps}');
     print(
-        '  - enable deferred loading = ${translatorOptions.enableDeferredLoading}');
+      '  - enable deferred loading = ${translatorOptions.enableDeferredLoading}',
+    );
     print(
-        '  - enable multi module stress test mode = ${translatorOptions.enableMultiModuleStressTestMode}');
+      '  - enable multi module stress test mode = ${translatorOptions.enableMultiModuleStressTestMode}',
+    );
     print('  - inlining limit = ${translatorOptions.inliningLimit}');
     print(
-        '  - shared memory max pages = ${translatorOptions.sharedMemoryMaxPages}');
+      '  - shared memory max pages = ${translatorOptions.sharedMemoryMaxPages}',
+    );
     print(
-        '  - watch points = [${translatorOptions.watchPoints.map((p) => p.toString()).join(',')}]');
+      '  - watch points = [${translatorOptions.watchPoints.map((p) => p.toString()).join(',')}]',
+    );
   }
 
-  String moduleNameToWasmOutputFile(String moduleName) {
-    final outputFile = options.outputFile;
-    if (moduleName.isEmpty) return outputFile;
-    final extension = path.extension(outputFile);
-    return path.setExtension(outputFile, '_$moduleName$extension');
-  }
-
-  String moduleNameToSourceMapFile(String moduleName) {
-    return '${moduleNameToWasmOutputFile(moduleName)}.map';
-  }
-
-  Uri moduleNameToRelativeSourceMapUri(String moduleName) {
-    return Uri.file(path.basename(moduleNameToSourceMapFile(moduleName)));
-  }
-
-  final relativeSourceMapUrlMapper = translatorOptions.generateSourceMaps
-      ? moduleNameToRelativeSourceMapUri
-      : null;
-
-  CompilationResult result =
-      await compileToModule(options, relativeSourceMapUrlMapper, (message) {
-    if (!options.dryRun) printDiagnosticMessage(message, errorPrinter);
-  });
+  final fileSystem = StandardFileSystem.instance;
+  CompilationResult result = await compile(
+    options,
+    CompilerPhaseInputOutputManager(fileSystem, options),
+    (message) {
+      if (!options.dryRun) printDiagnosticMessage(message, errorPrinter);
+    },
+  );
 
   if (result is CompilationDryRunResult) {
     assert(options.dryRun);
@@ -106,27 +108,6 @@ Future<int> generateWasm(WasmCompilerOptions options,
 
     return 255;
   }
-
-  final writeFutures = <Future>[];
-  result.wasmModules.forEach((moduleName, moduleInfo) {
-    final (:moduleBytes, :sourceMap) = moduleInfo;
-    final File outFile = File(moduleNameToWasmOutputFile(moduleName));
-    outFile.parent.createSync(recursive: true);
-    writeFutures.add(outFile.writeAsBytes(moduleBytes));
-
-    if (sourceMap != null) {
-      writeFutures.add(
-          File(moduleNameToSourceMapFile(moduleName)).writeAsString(sourceMap));
-    }
-  });
-  await Future.wait(writeFutures);
-
-  final jsFile = path.setExtension(options.outputFile, '.mjs');
-  final jsRuntime = result.jsRuntime;
-  await File(jsFile).writeAsString(jsRuntime);
-
-  final supportJsFile = path.setExtension(options.outputFile, '.support.js');
-  await File(supportJsFile).writeAsString(result.supportJs);
 
   return 0;
 }

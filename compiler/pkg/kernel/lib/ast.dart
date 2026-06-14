@@ -68,8 +68,6 @@ import 'dart:collection' show ListBase;
 import 'dart:convert' show utf8;
 import 'dart:typed_data';
 
-import 'package:_fe_analyzer_shared/src/type_inference/type_analyzer_operations.dart'
-    show Variance;
 import 'package:_fe_analyzer_shared/src/types/shared_type.dart'
     show
         SharedDynamicType,
@@ -81,7 +79,12 @@ import 'package:_fe_analyzer_shared/src/types/shared_type.dart'
         SharedRecordType,
         SharedTypeParameter,
         SharedType,
-        SharedVoidType;
+        SharedVoidType,
+        Variance;
+import 'package:_fe_analyzer_shared/src/messages/codes.dart'
+    show demangleMixinApplicationName;
+import 'package:_fe_analyzer_shared/src/util/libraries_specification.dart'
+    show Importability;
 
 import 'src/extension_type_erasure.dart';
 import 'visitor.dart';
@@ -103,8 +106,9 @@ import 'src/non_null.dart';
 import 'src/printer.dart';
 import 'src/text_util.dart';
 
-export 'package:_fe_analyzer_shared/src/type_inference/type_analyzer_operations.dart'
-    show Variance;
+export 'package:_fe_analyzer_shared/src/types/shared_type.dart' show Variance;
+export 'package:_fe_analyzer_shared/src/messages/codes.dart'
+    show demangleMixinApplicationName;
 
 part 'src/ast/constants.dart';
 part 'src/ast/components.dart';
@@ -122,3 +126,4 @@ part 'src/ast/patterns.dart';
 part 'src/ast/statements.dart';
 part 'src/ast/typedefs.dart';
 part 'src/ast/types.dart';
+part 'src/ast/variables.dart';

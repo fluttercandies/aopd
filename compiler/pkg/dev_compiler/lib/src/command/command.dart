@@ -19,6 +19,7 @@ import 'package:kernel/kernel.dart';
 import 'package:kernel/target/targets.dart';
 import 'package:kernel/text/ast_to_text.dart' as kernel show Printer;
 import 'package:kernel/text/debug_printer.dart';
+import 'package:package_config/package_config.dart';
 import 'package:path/path.dart' as p;
 import 'package:source_maps/source_maps.dart' show SourceMapBuilder;
 
@@ -30,6 +31,7 @@ import '../js_ast/source_map_printer.dart' show SourceMapPrintingContext;
 import '../kernel/compiler.dart';
 import '../kernel/compiler_new.dart';
 import '../kernel/hot_reload_delta_inspector.dart';
+import '../kernel/kernel_helpers.dart';
 import '../kernel/module_metadata.dart';
 import '../kernel/module_symbols.dart';
 import '../kernel/module_symbols_collector.dart';
@@ -107,7 +109,7 @@ Future<CompilerResult> _compile(
     return CompilerResult(64);
   }
   if (argResults.wasParsed('sound-null-safety')) {
-    var soundNullSafety = argResults['sound-null-safety'] as bool;
+    var soundNullSafety = argResults.flag('sound-null-safety');
     print(
       'Dart 3 only supports sound null safety, '
       'see https://dart.dev/null-safety.\n'
@@ -119,7 +121,7 @@ Future<CompilerResult> _compile(
     }
   }
 
-  var outPaths = argResults['out'] as List<String>;
+  var outPaths = argResults.multiOption('out');
   var moduleFormats = parseModuleFormatOption(argResults);
   if (outPaths.isEmpty) {
     print(
@@ -135,7 +137,7 @@ Future<CompilerResult> _compile(
     return CompilerResult(64);
   }
 
-  if (argResults['help'] as bool || args.isEmpty) {
+  if (argResults.flag('help') || args.isEmpty) {
     print(_usageMessage(argParser));
     return CompilerResult(0);
   }
@@ -172,7 +174,8 @@ Future<CompilerResult> _compile(
   // lib folder). The following [FileSystem] will resolve those references to
   // the correct location and keeps the real file location hidden from the
   // front end.
-  var multiRootPaths = (argResults['multi-root'] as Iterable<String>)
+  var multiRootPaths = argResults
+      .multiOption('multi-root')
       .map(Uri.base.resolve)
       .toList();
   var multiRootOutputPath = options.multiRootOutputPath;
@@ -198,9 +201,9 @@ Future<CompilerResult> _compile(
     summaryPaths.map(sourcePathToUri).cast<Uri>(),
     options.summaryModules.values,
   );
-  var sdkSummaryPath = argResults['dart-sdk-summary'] as String?;
-  var librarySpecPath = argResults['libraries-file'] as String?;
-  var compileSdk = argResults['compile-sdk'] == true;
+  var sdkSummaryPath = argResults.option('dart-sdk-summary');
+  var librarySpecPath = argResults.option('libraries-file');
+  var compileSdk = argResults.flag('compile-sdk');
   if (sdkSummaryPath == null) {
     if (!compileSdk) {
       sdkSummaryPath = defaultSdkSummaryPath;
@@ -251,12 +254,11 @@ Future<CompilerResult> _compile(
   // .dart_tool/package_config.json file to resolve package URIs that are in the
   // input summaries, but it seems to.
   // This needs further investigation.
-  var packageFile =
-      argResults['packages'] as String? ?? _findPackagesFilePath();
+  var packageFile = argResults.option('packages') ?? _findPackagesFilePath();
 
   var succeeded = true;
-  void diagnosticMessageHandler(fe.DiagnosticMessage message) {
-    if (message.severity == fe.Severity.error) {
+  void diagnosticMessageHandler(fe.CfeDiagnosticMessage message) {
+    if (message.severity == fe.CfeSeverity.error) {
       succeeded = false;
     }
     fe.printDiagnosticMessage(message, print);
@@ -268,9 +270,9 @@ Future<CompilerResult> _compile(
     onWarning: print,
   );
 
-  var trackWidgetCreation = argResults['track-widget-creation'] as bool;
+  var trackWidgetCreation = argResults.flag('track-widget-creation');
   var oldCompilerState = compilerState;
-  var recordUsedInputs = argResults['used-inputs-file'] != null;
+  var recordUsedInputs = argResults.option('used-inputs-file') != null;
   var additionalDills = summaryModules.keys.toList();
   fe.DdcResult? result;
 
@@ -402,7 +404,7 @@ Future<CompilerResult> _compile(
 
   // Output files can be written in parallel, so collect the futures.
   var outFiles = <Future>[];
-  if (argResults['summarize'] as bool) {
+  if (argResults.flag('summarize')) {
     if (outPaths.length > 1) {
       print(
         'If multiple output files (found ${outPaths.length}) are specified, '
@@ -426,7 +428,7 @@ Future<CompilerResult> _compile(
     outFiles.add(sink.flush().then((_) => sink.close()));
   }
   String? fullDillUri;
-  if (argResults['experimental-output-compiled-kernel'] as bool) {
+  if (argResults.flag('experimental-output-compiled-kernel')) {
     if (outPaths.length > 1) {
       print(
         'If multiple output files (found ${outPaths.length}) are specified, '
@@ -448,7 +450,7 @@ Future<CompilerResult> _compile(
     kernel.BinaryPrinter(sink).writeComponentFile(compiledLibraries);
     outFiles.add(sink.flush().then((_) => sink.close()));
   }
-  if (argResults['summarize-text'] as bool) {
+  if (argResults.flag('summarize-text')) {
     if (outPaths.length > 1) {
       print(
         'If multiple output files (found ${outPaths.length}) are specified, '
@@ -549,18 +551,22 @@ Future<CompilerResult> _compile(
     outFiles.add(file.writeAsString(jsCode.code));
     if (jsCode.sourceMap != null) {
       outFiles.add(
-        File('$output.map').writeAsString(json.encode(jsCode.sourceMap)),
+        File('$output.map').writeAsString('${json.encode(jsCode.sourceMap)}\n'),
       );
     }
     if (jsCode.metadata != null) {
       outFiles.add(
-        File('$output.metadata').writeAsString(json.encode(jsCode.metadata)),
+        File(
+          '$output.metadata',
+        ).writeAsString('${json.encode(jsCode.metadata)}\n'),
       );
     }
 
     if (jsCode.symbols != null) {
       outFiles.add(
-        File('$output.symbols').writeAsString(json.encode(jsCode.symbols)),
+        File(
+          '$output.symbols',
+        ).writeAsString('${json.encode(jsCode.symbols)}\n'),
       );
     }
   }
@@ -589,7 +595,7 @@ Future<CompilerResult> _compile(
       usedOutlines.addAll(summaryModules.keys);
     }
 
-    var outputUsedFile = File(argResults['used-inputs-file'] as String);
+    var outputUsedFile = File(argResults.option('used-inputs-file')!);
     outputUsedFile.createSync(recursive: true);
     outputUsedFile.writeAsStringSync(usedOutlines.join('\n'));
   }
@@ -629,7 +635,7 @@ Future<CompilerResult> compileSdkFromDill(List<String> args) async {
     return CompilerResult(64);
   }
 
-  var outPaths = argResults['out'] as List<String>;
+  var outPaths = argResults.multiOption('out');
   var moduleFormats = parseModuleFormatOption(argResults);
   if (outPaths.isEmpty) {
     print(
@@ -718,32 +724,8 @@ Future<CompilerResult> compileSdkFromDill(List<String> args) async {
 /// Compute code size to embed in the generated JavaScript for this module.
 int _computeDartSize(Component component) {
   var dartSize = 0;
-  var uriToSource = component.uriToSource;
   for (var lib in component.libraries) {
-    var libUri = lib.fileUri;
-    var importUri = lib.importUri;
-    var source = uriToSource[libUri];
-    if (source == null) {
-      // Sources that only contain external declarations have nothing to add to
-      // the sum.
-      continue;
-    }
-    dartSize += source.source.length;
-    for (var part in lib.parts) {
-      var partUri = part.partUri;
-      if (partUri.startsWith(importUri.scheme)) {
-        // Convert to a relative-to-library uri in order to compute a file uri.
-        partUri = p.relative(partUri, from: p.dirname('${lib.importUri}'));
-      }
-      var fileUri = libUri.resolve(partUri);
-      var partSource = uriToSource[fileUri];
-      if (partSource == null) {
-        // Sources that only contain external declarations have nothing to add
-        // to the sum.
-        continue;
-      }
-      dartSize += partSource.source.length;
-    }
+    dartSize += lib.dartSize;
   }
   return dartSize;
 }
@@ -782,7 +764,7 @@ class JSCode {
 /// Converts [moduleTree] to [JSCode], using [format].
 ///
 /// See [placeSourceMap] for a description of [sourceMapBase], [customScheme],
-/// and [multiRootOutputPath] arguments.
+/// [multiRootOutputPath] and [packageConfig] arguments.
 JSCode jsProgramToCode(
   js_ast.Program moduleTree,
   ModuleFormat format, {
@@ -798,6 +780,7 @@ JSCode jsProgramToCode(
   String? multiRootOutputPath,
   Compiler? compiler,
   Component? component,
+  PackageConfig? packageConfig,
 }) {
   var opts = js_ast.JavaScriptPrintingOptions(
     allowKeywordsInProperties: true,
@@ -831,6 +814,7 @@ JSCode jsProgramToCode(
       customScheme,
       multiRootOutputPath: multiRootOutputPath,
       sourceMapBase: sourceMapBase,
+      packageConfig: packageConfig,
     );
     var jsDir = p.dirname(p.fromUri(jsUrl));
     var relative = p.relative(p.fromUri(mapUrl), from: jsDir);
@@ -859,17 +843,28 @@ JSCode jsProgramToCode(
   // TODO(vsm): Ideally, this information is never sent to the browser.  I.e.,
   // our runtime metrics gathering would obtain this information from the
   // compilation server, not the browser.  We don't yet have the infra for that.
-  var compileTimeStatistics = {
-    'dartSize': _computeDartSize(component!),
-    'sourceMapSize': encodedMap.length,
-  };
-  text = text.replaceFirst(
-    ProgramCompiler.metricsLocationID,
-    '$compileTimeStatistics',
-  );
+  if (ModuleFormat.ddcLibraryBundle == format) {
+    // TODO(nshahan): Find a better solution for the size of the source map
+    // per library. For now we just use the size of the full source map and only
+    // count it once in the runtime when the first library gets defined.
+    text = text.replaceFirst(
+      ProgramCompiler.metricsLocationID,
+      '${encodedMap.length}',
+    );
+    text = text.replaceAll(LibraryCompiler.metricsLocationID, '0');
+  } else {
+    var compileTimeStatistics = {
+      'dartSize': _computeDartSize(component!),
+      'sourceMapSize': encodedMap.length,
+    };
+    text = text.replaceFirst(
+      ProgramCompiler.metricsLocationID,
+      '$compileTimeStatistics',
+    );
+  }
 
   var debugMetadata = emitDebugMetadata
-      ? _emitMetadata(moduleTree, component, mapUrl!, jsUrl!, fullDillUri)
+      ? _emitMetadata(moduleTree, component!, mapUrl!, jsUrl!, fullDillUri)
       : null;
 
   var debugSymbols = emitDebugSymbols
@@ -877,7 +872,7 @@ JSCode jsProgramToCode(
           compiler!,
           moduleTree.name!,
           nameListener!.identifierNames,
-          component,
+          component!,
         )
       : null;
 
@@ -1098,6 +1093,17 @@ Uri sourcePathToRelativeUri(String source, {bool? windows}) {
   return uri;
 }
 
+/// Pattern to match when a relative path appears to leave the `lib/` directory
+/// of one package to enter the `lib/` directory of another package.
+final _crossPackageLib = RegExp(
+  // Two or more '../'.
+  r'\.\.\/(?:\.\.\/)+'
+  // The package name (captured).
+  r'([^\/]*)'
+  // The `/lib/` directory.
+  r'\/lib\/',
+);
+
 /// Adjusts the source uris in [sourceMap] to be relative uris, and returns
 /// the new map.
 ///
@@ -1113,6 +1119,11 @@ Uri sourcePathToRelativeUri(String source, {bool? windows}) {
 ///   to the [multiRootOutputPath], and assert that [multiRootOutputPath]
 ///   starts with `/packages` (more explanation inline).
 ///
+/// Passing a [packageConfig] will enable the rewriting of original source paths
+/// when the sourcemap contains files from `lib/` directories across multiple
+/// packages. The rewriting assumes that the sources will be served in a package
+/// directory structure without `lib/` directories.
+///
 // TODO(#40251): Remove this logic from dev_compiler itself, push it to the
 // invokers of dev_compiler which have more knowledge about how they want
 // source paths to look.
@@ -1122,12 +1133,14 @@ Map<String, Object?> placeSourceMap(
   String? multiRootScheme, {
   String? multiRootOutputPath,
   String? sourceMapBase,
+  PackageConfig? packageConfig,
 }) {
   var map = Map.of(sourceMap);
   // Convert to a local file path if it's not.
   sourceMapPath = sourcePathToUri(p.absolute(p.fromUri(sourceMapPath))).path;
   var sourceMapDir = p.url.dirname(sourceMapPath);
   sourceMapBase ??= sourceMapDir;
+  var basePackageName = packageConfig?.packageOf(p.toUri(sourceMapBase))?.name;
   var list = (map['sources'] as List).toList();
 
   String makeRelative(String sourcePath) {
@@ -1157,7 +1170,31 @@ Map<String, Object?> placeSourceMap(
     sourcePath = p.url.relative(sourcePath, from: sourceMapBase);
 
     // Convert from relative local path to relative URI.
-    return p.toUri(sourcePath).path;
+    var relativeUriPath = p.toUri(sourcePath).path;
+    // Handle source paths when the original sources come from the `lib/`
+    // directories from different packages.
+    //
+    // This assumes that the original source files and source map will be hosted
+    // in a packages directory structure with all of the `lib/` directories
+    // removed.
+    // For reference:
+    //  - https://github.com/dart-lang/sdk/issues/40251
+    //  - https://github.com/dart-lang/webdev/issues/1692
+    if (basePackageName != null && uri.isScheme('file')) {
+      var sourcePackage = packageConfig?.packageOf(uri);
+      if (sourcePackage != null && basePackageName != sourcePackage.name) {
+        // The source location is part of a different package.
+        var match = _crossPackageLib.matchAsPrefix(relativeUriPath);
+        if (match != null) {
+          var crossPackageName = match[1];
+          return relativeUriPath.replaceFirst(
+            '../../$crossPackageName/lib/',
+            '../$crossPackageName/',
+          );
+        }
+      }
+    }
+    return relativeUriPath;
   }
 
   for (var i = 0; i < list.length; i++) {

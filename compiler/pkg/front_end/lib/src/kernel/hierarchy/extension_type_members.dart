@@ -2,6 +2,7 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
+import 'package:front_end/src/codes/diagnostic.dart' as diag;
 import 'package:kernel/ast.dart';
 
 import '../../base/messages.dart';
@@ -43,16 +44,18 @@ class ExtensionTypeMembersNodeBuilder extends MembersNodeBuilder {
         _Tuple? tuple = memberMap[name];
         if (classMember.isExtensionTypeMember) {
           if (tuple == null) {
-            memberMap[name] =
-                new _Tuple.declareExtensionTypeGetable(classMember);
+            memberMap[name] = new _Tuple.declareExtensionTypeGetable(
+              classMember,
+            );
           } else {
             // Coverage-ignore-block(suite): Not run.
             tuple.declaredExtensionTypeGetable = classMember;
           }
         } else {
           if (tuple == null) {
-            memberMap[name] =
-                new _Tuple.declareNonExtensionTypeGetable(classMember);
+            memberMap[name] = new _Tuple.declareNonExtensionTypeGetable(
+              classMember,
+            );
           } else {
             // Coverage-ignore-block(suite): Not run.
             tuple.declaredNonExtensionTypeGetable = classMember;
@@ -64,16 +67,18 @@ class ExtensionTypeMembersNodeBuilder extends MembersNodeBuilder {
         _Tuple? tuple = memberMap[name];
         if (classMember.isExtensionTypeMember) {
           if (tuple == null) {
-            memberMap[name] =
-                new _Tuple.declareExtensionTypeSetable(classMember);
+            memberMap[name] = new _Tuple.declareExtensionTypeSetable(
+              classMember,
+            );
           } else {
             tuple.declaredExtensionTypeSetable = classMember;
           }
         } else {
           // Coverage-ignore-block(suite): Not run.
           if (tuple == null) {
-            memberMap[name] =
-                new _Tuple.declareNonExtensionTypeSetable(classMember);
+            memberMap[name] = new _Tuple.declareNonExtensionTypeSetable(
+              classMember,
+            );
           } else {
             tuple.declaredNonExtensionTypeSetable = classMember;
           }
@@ -82,7 +87,8 @@ class ExtensionTypeMembersNodeBuilder extends MembersNodeBuilder {
     }
 
     void implementNonExtensionType(
-        Map<Name, ClassMember>? superInterfaceMembers) {
+      Map<Name, ClassMember>? superInterfaceMembers,
+    ) {
       if (superInterfaceMembers == null) return;
       for (MapEntry<Name, ClassMember> entry in superInterfaceMembers.entries) {
         Name name = entry.key;
@@ -98,11 +104,13 @@ class ExtensionTypeMembersNodeBuilder extends MembersNodeBuilder {
           if (superInterfaceMember.forSetter) {
             memberMap[superInterfaceMember.name] =
                 new _Tuple.implementNonExtensionTypeSetable(
-                    superInterfaceMember);
+                  superInterfaceMember,
+                );
           } else {
             memberMap[superInterfaceMember.name] =
                 new _Tuple.implementNonExtensionTypeGetable(
-                    superInterfaceMember);
+                  superInterfaceMember,
+                );
           }
         }
       }
@@ -139,9 +147,11 @@ class ExtensionTypeMembersNodeBuilder extends MembersNodeBuilder {
         ClassMembersNode? interfaceNode = _membersBuilder
             .getNodeFromClassBuilder(superclassNode.classBuilder);
         implementNonExtensionType(
-            interfaceNode.interfaceMemberMap ?? interfaceNode.classMemberMap);
+          interfaceNode.interfaceMemberMap ?? interfaceNode.classMemberMap,
+        );
         implementNonExtensionType(
-            interfaceNode.interfaceSetterMap ?? interfaceNode.classSetterMap);
+          interfaceNode.interfaceSetterMap ?? interfaceNode.classSetterMap,
+        );
       }
     }
     List<ExtensionTypeHierarchyNode>? directSuperExtensionTypeNodes =
@@ -149,9 +159,10 @@ class ExtensionTypeMembersNodeBuilder extends MembersNodeBuilder {
     if (directSuperExtensionTypeNodes != null) {
       for (ExtensionTypeHierarchyNode superclassNode
           in directSuperExtensionTypeNodes) {
-        ExtensionTypeMembersNode? interfaceNode =
-            _membersBuilder.getNodeFromExtensionTypeDeclarationBuilder(
-                superclassNode.extensionTypeDeclarationBuilder);
+        ExtensionTypeMembersNode? interfaceNode = _membersBuilder
+            .getNodeFromExtensionTypeDeclarationBuilder(
+              superclassNode.extensionTypeDeclarationBuilder,
+            );
         implementNonExtensionType(interfaceNode.nonExtensionTypeGetableMap);
         implementNonExtensionType(interfaceNode.nonExtensionTypeSetableMap);
         implementExtensionType(interfaceNode.extensionTypeGetableMap);
@@ -171,20 +182,24 @@ class ExtensionTypeMembersNodeBuilder extends MembersNodeBuilder {
       /// overridden by duplicates are removed.
       ///
       /// Conflicts between the getable and setable are reported afterwards.
-      var (_SanitizedMember? getable, _SanitizedMember? setable) =
-          tuple.sanitize(this);
+      var (_SanitizedMember? getable, _SanitizedMember? setable) = tuple
+          .sanitize(this);
 
       ClassMember? getableMember;
       if (getable != null) {
-        getableMember = getable.computeMembers(this,
-            nonExtensionTypeMemberMap: nonExtensionTypeGetableMap,
-            extensionTypeMemberMap: extensionTypeGetableMap);
+        getableMember = getable.computeMembers(
+          this,
+          nonExtensionTypeMemberMap: nonExtensionTypeGetableMap,
+          extensionTypeMemberMap: extensionTypeGetableMap,
+        );
       }
       ClassMember? setableMember;
       if (setable != null) {
-        setableMember = setable.computeMembers(this,
-            nonExtensionTypeMemberMap: nonExtensionTypeSetableMap,
-            extensionTypeMemberMap: extensionTypeSetableMap);
+        setableMember = setable.computeMembers(
+          this,
+          nonExtensionTypeMemberMap: nonExtensionTypeSetableMap,
+          extensionTypeMemberMap: extensionTypeSetableMap,
+        );
       }
       if (extensionTypeDeclarationBuilder
               is SourceExtensionTypeDeclarationBuilder &&
@@ -219,19 +234,24 @@ class ExtensionTypeMembersNodeBuilder extends MembersNodeBuilder {
           /// `ET2.property1`.
           ///
           SourceExtensionTypeDeclarationBuilder
-              sourceExtensionTypeDeclarationBuilder =
+          sourceExtensionTypeDeclarationBuilder =
               extensionTypeDeclarationBuilder
                   as SourceExtensionTypeDeclarationBuilder;
           if (!sourceExtensionTypeDeclarationBuilder
-              .libraryBuilder.libraryFeatures.getterSetterError.isEnabled) {
+              .libraryBuilder
+              .libraryFeatures
+              .getterSetterError
+              .isEnabled) {
             // Coverage-ignore-block(suite): Not run.
             _membersBuilder.registerGetterSetterCheck(
-                new DelayedExtensionTypeGetterSetterCheck(
-                    extensionTypeDeclarationBuilder
-                        as SourceExtensionTypeDeclarationBuilder,
-                    name,
-                    getableMember,
-                    setableMember));
+              new DelayedExtensionTypeGetterSetterCheck(
+                extensionTypeDeclarationBuilder
+                    as SourceExtensionTypeDeclarationBuilder,
+                name,
+                getableMember,
+                setableMember,
+              ),
+            );
           }
         }
       }
@@ -240,15 +260,12 @@ class ExtensionTypeMembersNodeBuilder extends MembersNodeBuilder {
     memberMap.forEach(computeExtensionTypeMember);
 
     return new ExtensionTypeMembersNode(
-        _hierarchyNode.extensionTypeDeclarationBuilder,
-        nonExtensionTypeGetableMap.isNotEmpty
-            ? nonExtensionTypeGetableMap
-            : null,
-        nonExtensionTypeSetableMap.isNotEmpty
-            ? nonExtensionTypeSetableMap
-            : null,
-        extensionTypeGetableMap.isNotEmpty ? extensionTypeGetableMap : null,
-        extensionTypeSetableMap.isNotEmpty ? extensionTypeSetableMap : null);
+      _hierarchyNode.extensionTypeDeclarationBuilder,
+      nonExtensionTypeGetableMap.isNotEmpty ? nonExtensionTypeGetableMap : null,
+      nonExtensionTypeSetableMap.isNotEmpty ? nonExtensionTypeSetableMap : null,
+      extensionTypeGetableMap.isNotEmpty ? extensionTypeGetableMap : null,
+      extensionTypeSetableMap.isNotEmpty ? extensionTypeSetableMap : null,
+    );
   }
 }
 
@@ -270,11 +287,12 @@ class ExtensionTypeMembersNode {
   final Map<Name, ClassMember>? extensionTypeSetableMap;
 
   ExtensionTypeMembersNode(
-      this.extensionTypeDeclarationBuilder,
-      this.nonExtensionTypeGetableMap,
-      this.nonExtensionTypeSetableMap,
-      this.extensionTypeGetableMap,
-      this.extensionTypeSetableMap);
+    this.extensionTypeDeclarationBuilder,
+    this.nonExtensionTypeGetableMap,
+    this.nonExtensionTypeSetableMap,
+    this.extensionTypeGetableMap,
+    this.extensionTypeSetableMap,
+  );
 
   ClassMember? getMember(Name name, bool isSetter) {
     ClassMember? result = isSetter
@@ -292,8 +310,8 @@ class ExtensionTypeMembersNode {
   ClassMember? getStaticMember(Name name, bool isSetter) {
     ClassMember? result = isSetter
         ?
-        // Coverage-ignore(suite): Not run.
-        (extensionTypeSetableMap?[name] ?? nonExtensionTypeSetableMap?[name])
+          // Coverage-ignore(suite): Not run.
+          (extensionTypeSetableMap?[name] ?? nonExtensionTypeSetableMap?[name])
         : (extensionTypeGetableMap?[name] ?? nonExtensionTypeGetableMap?[name]);
     if (result == null) {
       return null;
@@ -316,49 +334,45 @@ class _Tuple {
   List<ClassMember>? _implementedExtensionTypeSetables;
 
   _Tuple.declareExtensionTypeGetable(ClassMember declaredGetable)
-      : assert(!declaredGetable.forSetter),
-        this._declaredExtensionTypeGetable = declaredGetable,
-        this.name = declaredGetable.name;
+    : assert(!declaredGetable.forSetter),
+      this._declaredExtensionTypeGetable = declaredGetable,
+      this.name = declaredGetable.name;
 
   _Tuple.declareNonExtensionTypeGetable(ClassMember declaredGetable)
-      : assert(!declaredGetable.forSetter),
-        this._declaredNonExtensionTypeGetable = declaredGetable,
-        this.name = declaredGetable.name;
+    : assert(!declaredGetable.forSetter),
+      this._declaredNonExtensionTypeGetable = declaredGetable,
+      this.name = declaredGetable.name;
 
   _Tuple.implementNonExtensionTypeGetable(ClassMember implementedGetable)
-      : assert(!implementedGetable.forSetter),
-        this.name = implementedGetable.name,
-        _implementedNonExtensionTypeGetables = <ClassMember>[
-          implementedGetable
-        ];
+    : assert(!implementedGetable.forSetter),
+      this.name = implementedGetable.name,
+      _implementedNonExtensionTypeGetables = <ClassMember>[implementedGetable];
 
   _Tuple.implementExtensionTypeGetable(ClassMember implementedGetable)
-      : assert(!implementedGetable.forSetter),
-        this.name = implementedGetable.name,
-        _implementedExtensionTypeGetables = <ClassMember>[implementedGetable];
+    : assert(!implementedGetable.forSetter),
+      this.name = implementedGetable.name,
+      _implementedExtensionTypeGetables = <ClassMember>[implementedGetable];
 
   _Tuple.declareExtensionTypeSetable(ClassMember declaredSetable)
-      : assert(declaredSetable.forSetter),
-        this._declaredExtensionTypeSetable = declaredSetable,
-        this.name = declaredSetable.name;
+    : assert(declaredSetable.forSetter),
+      this._declaredExtensionTypeSetable = declaredSetable,
+      this.name = declaredSetable.name;
 
   // Coverage-ignore(suite): Not run.
   _Tuple.declareNonExtensionTypeSetable(ClassMember declaredSetable)
-      : assert(declaredSetable.forSetter),
-        this._declaredNonExtensionTypeSetable = declaredSetable,
-        this.name = declaredSetable.name;
+    : assert(declaredSetable.forSetter),
+      this._declaredNonExtensionTypeSetable = declaredSetable,
+      this.name = declaredSetable.name;
 
   _Tuple.implementNonExtensionTypeSetable(ClassMember implementedSetable)
-      : assert(implementedSetable.forSetter),
-        this.name = implementedSetable.name,
-        _implementedNonExtensionTypeSetables = <ClassMember>[
-          implementedSetable
-        ];
+    : assert(implementedSetable.forSetter),
+      this.name = implementedSetable.name,
+      _implementedNonExtensionTypeSetables = <ClassMember>[implementedSetable];
 
   _Tuple.implementExtensionTypeSetable(ClassMember implementedSetable)
-      : assert(implementedSetable.forSetter),
-        this.name = implementedSetable.name,
-        _implementedExtensionTypeSetables = <ClassMember>[implementedSetable];
+    : assert(implementedSetable.forSetter),
+      this.name = implementedSetable.name,
+      _implementedExtensionTypeSetables = <ClassMember>[implementedSetable];
 
   ClassMember? get declaredExtensionTypeGetable =>
       _declaredExtensionTypeGetable;
@@ -367,14 +381,16 @@ class _Tuple {
   void set declaredExtensionTypeGetable(ClassMember? value) {
     assert(!value!.forSetter);
     assert(
-        _declaredExtensionTypeGetable == null,
-        "Declared extension type getable already set to "
-        "$_declaredExtensionTypeGetable, trying to set it to $value.");
+      _declaredExtensionTypeGetable == null,
+      "Declared extension type getable already set to "
+      "$_declaredExtensionTypeGetable, trying to set it to $value.",
+    );
     assert(
-        _declaredNonExtensionTypeGetable == null,
-        "Declared non-extension type getable already set to "
-        "$_declaredNonExtensionTypeGetable, trying to set the declared "
-        "extension type getable to $value.");
+      _declaredNonExtensionTypeGetable == null,
+      "Declared non-extension type getable already set to "
+      "$_declaredNonExtensionTypeGetable, trying to set the declared "
+      "extension type getable to $value.",
+    );
     _declaredExtensionTypeGetable = value;
   }
 
@@ -384,14 +400,16 @@ class _Tuple {
   void set declaredExtensionTypeSetable(ClassMember? value) {
     assert(value!.forSetter);
     assert(
-        _declaredExtensionTypeSetable == null,
-        "Declared extension type setable already set to "
-        "$_declaredExtensionTypeSetable, trying to set it to $value.");
+      _declaredExtensionTypeSetable == null,
+      "Declared extension type setable already set to "
+      "$_declaredExtensionTypeSetable, trying to set it to $value.",
+    );
     assert(
-        _declaredNonExtensionTypeSetable == null,
-        "Declared non-extension type setable already set to "
-        "$_declaredNonExtensionTypeSetable, trying to set the declared "
-        "extension type setable to $value.");
+      _declaredNonExtensionTypeSetable == null,
+      "Declared non-extension type setable already set to "
+      "$_declaredNonExtensionTypeSetable, trying to set the declared "
+      "extension type setable to $value.",
+    );
     _declaredExtensionTypeSetable = value;
   }
 
@@ -402,14 +420,16 @@ class _Tuple {
   void set declaredNonExtensionTypeGetable(ClassMember? value) {
     assert(!value!.forSetter);
     assert(
-        _declaredNonExtensionTypeGetable == null,
-        "Declared non-extension type getable already set to "
-        "$_declaredNonExtensionTypeGetable, trying to set it to $value.");
+      _declaredNonExtensionTypeGetable == null,
+      "Declared non-extension type getable already set to "
+      "$_declaredNonExtensionTypeGetable, trying to set it to $value.",
+    );
     assert(
-        _declaredExtensionTypeGetable == null,
-        "Declared extension type getable already set to "
-        "$_declaredExtensionTypeGetable, trying to set the declared "
-        "non-extension type getable to $value.");
+      _declaredExtensionTypeGetable == null,
+      "Declared extension type getable already set to "
+      "$_declaredExtensionTypeGetable, trying to set the declared "
+      "non-extension type getable to $value.",
+    );
     _declaredNonExtensionTypeGetable = value;
   }
 
@@ -420,14 +440,16 @@ class _Tuple {
   void set declaredNonExtensionTypeSetable(ClassMember? value) {
     assert(value!.forSetter);
     assert(
-        _declaredNonExtensionTypeSetable == null,
-        "Declared non-extension type setable already set to "
-        "$_declaredNonExtensionTypeSetable, trying to set it to $value.");
+      _declaredNonExtensionTypeSetable == null,
+      "Declared non-extension type setable already set to "
+      "$_declaredNonExtensionTypeSetable, trying to set it to $value.",
+    );
     assert(
-        _declaredExtensionTypeSetable == null,
-        "Declared extension type setable already set to "
-        "$_declaredExtensionTypeSetable, trying to set the declared "
-        "non-extension type setable to $value.");
+      _declaredExtensionTypeSetable == null,
+      "Declared extension type setable already set to "
+      "$_declaredExtensionTypeSetable, trying to set the declared "
+      "non-extension type setable to $value.",
+    );
     _declaredNonExtensionTypeSetable = value;
   }
 
@@ -537,7 +559,8 @@ class _Tuple {
   /// Conflicts between [definingGetable] and [definingSetable] are reported
   /// afterwards.
   (_SanitizedMember?, _SanitizedMember?) sanitize(
-      ExtensionTypeMembersNodeBuilder builder) {
+    ExtensionTypeMembersNodeBuilder builder,
+  ) {
     ClassMember? definingGetable;
     ClassMember? definingSetable;
 
@@ -596,9 +619,11 @@ class _Tuple {
     if (tupleImplementedNonExtensionTypeGetables != null &&
         // Skip implemented members if we already have a duplicate.
         !(definingGetable != null && definingGetable.isDuplicate)) {
-      for (int i = 0;
-          i < tupleImplementedNonExtensionTypeGetables.length;
-          i++) {
+      for (
+        int i = 0;
+        i < tupleImplementedNonExtensionTypeGetables.length;
+        i++
+      ) {
         ClassMember? implementedGetable =
             tupleImplementedNonExtensionTypeGetables[i];
         if (implementedGetable.isStatic || implementedGetable.isDuplicate) {
@@ -638,7 +663,9 @@ class _Tuple {
             ///   }
             ///
             builder.reportInheritanceConflict(
-                definingGetable, implementedGetable);
+              definingGetable,
+              implementedGetable,
+            );
             implementedGetable = null;
           }
         }
@@ -670,9 +697,11 @@ class _Tuple {
     if (tupleImplementedNonExtensionTypeSetables != null &&
         // Skip implemented setters if we already have a duplicate.
         !(definingSetable != null && definingSetable.isDuplicate)) {
-      for (int i = 0;
-          i < tupleImplementedNonExtensionTypeSetables.length;
-          i++) {
+      for (
+        int i = 0;
+        i < tupleImplementedNonExtensionTypeSetables.length;
+        i++
+      ) {
         ClassMember? implementedSetable =
             tupleImplementedNonExtensionTypeSetables[i];
         if (implementedSetable.isStatic || implementedSetable.isDuplicate) {
@@ -711,7 +740,9 @@ class _Tuple {
             ///   }
             ///
             builder.reportInheritanceConflict(
-                definingSetable, implementedSetable);
+              definingSetable,
+              implementedSetable,
+            );
             implementedSetable = null;
           }
         }
@@ -781,7 +812,9 @@ class _Tuple {
             ///     static method() {}
             ///   }
             builder.reportInheritanceConflict(
-                definingGetable, implementedGetable);
+              definingGetable,
+              implementedGetable,
+            );
             implementedGetable = null;
           }
         }
@@ -851,7 +884,9 @@ class _Tuple {
             ///     static set setter(value) {}
             ///   }
             builder.reportInheritanceConflict(
-                definingSetable, implementedSetable);
+              definingSetable,
+              implementedSetable,
+            );
             implementedSetable = null;
           }
         }
@@ -907,7 +942,8 @@ class _Tuple {
               declaredExtensionTypeGetable,
               declaredNonExtensionTypeGetable,
               implementedNonExtensionTypeGetables,
-              implementedExtensionTypeGetables)
+              implementedExtensionTypeGetables,
+            )
           : null,
       definingSetable != null
           ? new _SanitizedMember(
@@ -916,8 +952,9 @@ class _Tuple {
               declaredExtensionTypeSetable,
               declaredNonExtensionTypeSetable,
               implementedNonExtensionTypeSetables,
-              implementedExtensionTypeSetables)
-          : null
+              implementedExtensionTypeSetables,
+            )
+          : null,
     );
   }
 }
@@ -954,12 +991,13 @@ class _SanitizedMember {
   final List<ClassMember>? _implementedExtensionTypeMembers;
 
   _SanitizedMember(
-      this.name,
-      this._definingMember,
-      this._declaredExtensionTypeMember,
-      this._declaredNonExtensionTypeMember,
-      this._implementedNonExtensionTypeMembers,
-      this._implementedExtensionTypeMembers);
+    this.name,
+    this._definingMember,
+    this._declaredExtensionTypeMember,
+    this._declaredNonExtensionTypeMember,
+    this._implementedNonExtensionTypeMembers,
+    this._implementedExtensionTypeMembers,
+  );
 
   /// Computes the class and interface members for this [_SanitizedMember].
   ///
@@ -967,9 +1005,11 @@ class _SanitizedMember {
   /// and [interfaceMemberMap], respectively.
   ///
   /// [
-  ClassMember? computeMembers(ExtensionTypeMembersNodeBuilder builder,
-      {required Map<Name, ClassMember> nonExtensionTypeMemberMap,
-      required Map<Name, ClassMember> extensionTypeMemberMap}) {
+  ClassMember? computeMembers(
+    ExtensionTypeMembersNodeBuilder builder, {
+    required Map<Name, ClassMember> nonExtensionTypeMemberMap,
+    required Map<Name, ClassMember> extensionTypeMemberMap,
+  }) {
     ExtensionTypeDeclarationBuilder extensionTypeDeclarationBuilder =
         builder.extensionTypeDeclarationBuilder;
     if (_declaredExtensionTypeMember != null) {
@@ -978,44 +1018,60 @@ class _SanitizedMember {
       return nonExtensionTypeMemberMap[name] = _declaredNonExtensionTypeMember;
     } else if (_implementedExtensionTypeMembers != null) {
       Set<ClassMember> extensionTypeMemberDeclarations = toSet(
-          extensionTypeDeclarationBuilder, _implementedExtensionTypeMembers);
+        extensionTypeDeclarationBuilder,
+        _implementedExtensionTypeMembers,
+      );
       if (_implementedNonExtensionTypeMembers != null) {
         List<LocatedMessage> context = [];
         Set<ClassMember> nonExtensionTypeMemberDeclarations = toSet(
-            extensionTypeDeclarationBuilder,
-            _implementedNonExtensionTypeMembers);
+          extensionTypeDeclarationBuilder,
+          _implementedNonExtensionTypeMembers,
+        );
         for (ClassMember classMember in extensionTypeMemberDeclarations) {
-          context.add((extensionTypeMemberDeclarations.length > 1
-                  ? messageExtensionTypeMemberOneOfContext
-                  : messageExtensionTypeMemberContext)
-              .withLocation2(classMember.uriOffset));
+          context.add(
+            (extensionTypeMemberDeclarations.length > 1
+                    ? diag.extensionTypeMemberOneOfContext
+                    : diag.extensionTypeMemberContext)
+                .withLocation2(classMember.uriOffset),
+          );
         }
         for (ClassMember classMember in nonExtensionTypeMemberDeclarations) {
-          context.add((nonExtensionTypeMemberDeclarations.length > 1
-                  ? messageNonExtensionTypeMemberOneOfContext
-                  : messageNonExtensionTypeMemberContext)
-              .withLocation2(classMember.uriOffset));
+          context.add(
+            (nonExtensionTypeMemberDeclarations.length > 1
+                    ? diag.nonExtensionTypeMemberOneOfContext
+                    : diag.nonExtensionTypeMemberContext)
+                .withLocation2(classMember.uriOffset),
+          );
         }
         extensionTypeDeclarationBuilder.libraryBuilder.addProblem(
-            templateImplementNonExtensionTypeAndExtensionTypeMember
-                .withArguments(extensionTypeDeclarationBuilder.name, name.text),
-            extensionTypeDeclarationBuilder.fileOffset,
-            extensionTypeDeclarationBuilder.name.length,
-            extensionTypeDeclarationBuilder.fileUri,
-            context: context);
+          diag.implementNonExtensionTypeAndExtensionTypeMember.withArguments(
+            extensionTypeName: extensionTypeDeclarationBuilder.name,
+            memberName: name.text,
+          ),
+          extensionTypeDeclarationBuilder.fileOffset,
+          extensionTypeDeclarationBuilder.name.length,
+          extensionTypeDeclarationBuilder.fileUri,
+          context: context,
+        );
       } else if (extensionTypeMemberDeclarations.length > 1) {
         List<LocatedMessage> context = [];
         for (ClassMember classMember in extensionTypeMemberDeclarations) {
-          context.add(messageExtensionTypeMemberOneOfContext
-              .withLocation2(classMember.uriOffset));
+          context.add(
+            diag.extensionTypeMemberOneOfContext.withLocation2(
+              classMember.uriOffset,
+            ),
+          );
         }
         extensionTypeDeclarationBuilder.libraryBuilder.addProblem(
-            templateImplementMultipleExtensionTypeMembers.withArguments(
-                extensionTypeDeclarationBuilder.name, name.text),
-            extensionTypeDeclarationBuilder.fileOffset,
-            extensionTypeDeclarationBuilder.name.length,
-            extensionTypeDeclarationBuilder.fileUri,
-            context: context);
+          diag.implementMultipleExtensionTypeMembers.withArguments(
+            extensionTypeName: extensionTypeDeclarationBuilder.name,
+            memberName: name.text,
+          ),
+          extensionTypeDeclarationBuilder.fileOffset,
+          extensionTypeDeclarationBuilder.name.length,
+          extensionTypeDeclarationBuilder.fileUri,
+          context: context,
+        );
       }
       return extensionTypeMemberMap[name] =
           extensionTypeMemberDeclarations.first;
@@ -1025,11 +1081,12 @@ class _SanitizedMember {
             _implementedNonExtensionTypeMembers.first;
       } else {
         ClassMember classMember = new SynthesizedNonExtensionTypeMember(
-            extensionTypeDeclarationBuilder,
-            name,
-            _implementedNonExtensionTypeMembers,
-            memberKind: _definingMember.memberKind,
-            shouldModifyKernel: builder.shouldModifyKernel);
+          extensionTypeDeclarationBuilder,
+          name,
+          _implementedNonExtensionTypeMembers,
+          memberKind: _definingMember.memberKind,
+          shouldModifyKernel: builder.shouldModifyKernel,
+        );
         builder._membersBuilder.registerMemberComputation(classMember);
         return nonExtensionTypeMemberMap[name] = classMember;
       }

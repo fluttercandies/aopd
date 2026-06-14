@@ -2,7 +2,7 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-import '../builder/module.dart';
+import '../serialize/printer.dart';
 import '../serialize/serialize.dart';
 import 'ir.dart';
 
@@ -12,13 +12,13 @@ abstract class Global with Indexable, Exportable {
   final FinalizableIndex finalizableIndex;
   final GlobalType type;
   @override
-  final ModuleBuilder enclosingModule;
+  final Module enclosingModule;
 
   /// Name of the global in the names section.
-  final String? globalName;
+  String? globalName;
 
-  Global(
-      this.enclosingModule, this.finalizableIndex, this.type, this.globalName);
+  Global(this.enclosingModule, this.finalizableIndex, this.type,
+      [this.globalName]);
 
   @override
   String toString() => globalName ?? "$finalizableIndex";
@@ -27,6 +27,9 @@ abstract class Global with Indexable, Exportable {
   Export buildExport(String name) {
     return GlobalExport(name, this);
   }
+
+  void printTo(IrPrinter p, {bool includeInitializer = true}) =>
+      throw 'not implemented';
 }
 
 /// A global variable defined in a module.
@@ -41,6 +44,35 @@ class DefinedGlobal extends Global implements Serializable {
   void serialize(Serializer s) {
     s.write(type);
     s.write(initializer);
+  }
+
+  @override
+  void printTo(IrPrinter p, {bool includeInitializer = true}) {
+    // This may generate globals this one refers to.
+    final ip = p.dup();
+    if (includeInitializer) {
+      initializer.printInitializerTo(ip);
+    }
+
+    p.write('(global ');
+    p.writeGlobalReference(this);
+    p.write(' ');
+    type.printTo(p);
+    if (includeInitializer) {
+      if (p.preferMultiline) {
+        p.indent();
+        p.writeln();
+      } else {
+        p.write(' ');
+      }
+      p.write(ip.getText().trim());
+      if (p.preferMultiline) {
+        p.deindent();
+      }
+    } else {
+      p.write(' <...>');
+    }
+    p.write(')');
   }
 }
 
@@ -62,6 +94,17 @@ class ImportedGlobal extends Global implements Import {
     s.writeName(name);
     s.writeByte(0x03);
     s.write(type);
+  }
+
+  @override
+  void printTo(IrPrinter p, {bool includeInitializer = true}) {
+    p.write('(global ');
+    p.writeGlobalReference(this);
+    p.write(' ');
+    p.writeImport(module, name);
+    p.write(' ');
+    p.writeValueType(type.type);
+    p.write(')');
   }
 }
 

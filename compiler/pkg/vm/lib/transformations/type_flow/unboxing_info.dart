@@ -89,22 +89,22 @@ class UnboxingInfoManager {
       }
       // Give getters one parameter info slot to hold the unboxing info for the
       // setters that the getter is grouped with.
-      final int paramCount =
-          member is Field
-              ? (member.hasSetter ? 1 : 0)
-              : member is Procedure && member.isGetter
-              ? 1
-              : member.function!.requiredParameterCount;
+      final int paramCount = member is Field
+          ? (member.hasSetter ? 1 : 0)
+          : member is Procedure && member.isGetter
+          ? 1
+          : member.function!.requiredParameterCount;
       UnboxingInfoMetadata? info;
       if (member.isInstanceMember) {
         int selectorId =
             member is Field || member is Procedure && member.isGetter
-                ? tableSelectorAssigner.getterSelectorId(member)
-                : tableSelectorAssigner.methodOrSetterSelectorId(member);
+            ? tableSelectorAssigner.getterSelectorId(member)
+            : tableSelectorAssigner.methodOrSetterSelectorId(member);
         assert(selectorId != kInvalidSelectorId);
         selectorId = selectorUnionFind.find(selectorId);
-        info =
-            selectorIdToInfo[selectorId] ??= UnboxingInfoMetadata(paramCount);
+        info = selectorIdToInfo[selectorId] ??= UnboxingInfoMetadata(
+          paramCount,
+        );
       } else {
         info = UnboxingInfoMetadata(paramCount);
       }
@@ -262,7 +262,14 @@ class UnboxingInfoManager {
           PragmaRecognizedType.AsmIntrinsic,
           PragmaRecognizedType.Other,
         ]) ||
-        _nativeCodeOracle.hasDisableUnboxedParameters(member);
+        _nativeCodeOracle.hasDisableUnboxedParameters(member) ||
+        // Instance method dispatch uses boxed calling convention
+        // when receiver has a dynamically loaded class, even if
+        // method is not exported.
+        (member.isInstanceMember &&
+            _nativeCodeOracle.hasDynamicallyExtendableSubtypes(
+              member.enclosingClass!,
+            ));
   }
 
   bool _isNative(Member member) => getExternalName(_coreTypes, member) != null;

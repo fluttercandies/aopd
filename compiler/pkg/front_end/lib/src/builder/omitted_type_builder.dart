@@ -12,6 +12,7 @@ import '../kernel/type_algorithms.dart';
 import '../source/source_library_builder.dart';
 import '../source/source_loader.dart';
 import '../source/type_parameter_factory.dart';
+import '../util/helpers.dart';
 import 'declaration_builders.dart';
 import 'inferable_type_builder.dart';
 import 'library_builder.dart';
@@ -41,10 +42,6 @@ abstract class OmittedTypeBuilderImpl extends OmittedTypeBuilder {
 
   @override
   // Coverage-ignore(suite): Not run.
-  bool get isVoidType => false;
-
-  @override
-  // Coverage-ignore(suite): Not run.
   TypeName? get typeName => null;
 
   @override
@@ -66,27 +63,32 @@ abstract class OmittedTypeBuilderImpl extends OmittedTypeBuilder {
 
   @override
   VarianceCalculationValue computeTypeParameterBuilderVariance(
-      NominalParameterBuilder variable,
-      {required SourceLoader sourceLoader}) {
+    NominalParameterBuilder variable, {
+    required SourceLoader sourceLoader,
+  }) {
     return VarianceCalculationValue.calculatedUnrelated;
   }
 
   @override
   // Coverage-ignore(suite): Not run.
-  TypeDeclarationBuilder? computeUnaliasedDeclaration(
-          {required bool isUsedAsClass}) =>
-      null;
+  TypeDeclarationBuilder? computeUnaliasedDeclaration({
+    required bool isUsedAsClass,
+  }) => null;
 
   @override
-  void collectReferencesFrom(Map<TypeParameterBuilder, int> parameterIndices,
-      List<List<int>> edges, int index) {}
+  void collectReferencesFrom(
+    Map<TypeParameterBuilder, int> parameterIndices,
+    List<List<int>> edges,
+    int index,
+  ) {}
 
   @override
   TypeBuilder? substituteRange(
-      Map<TypeParameterBuilder, TypeBuilder> upperSubstitution,
-      Map<TypeParameterBuilder, TypeBuilder> lowerSubstitution,
-      TypeParameterFactory typeParameterFactory,
-      {Variance variance = Variance.covariant}) {
+    Map<TypeParameterBuilder, TypeBuilder> upperSubstitution,
+    Map<TypeParameterBuilder, TypeBuilder> lowerSubstitution,
+    TypeParameterFactory typeParameterFactory, {
+    Variance variance = Variance.covariant,
+  }) {
     return null;
   }
 
@@ -113,14 +115,18 @@ class ImplicitTypeBuilder extends OmittedTypeBuilderImpl {
   const ImplicitTypeBuilder();
 
   @override
-  DartType build(LibraryBuilder library, TypeUse typeUse,
-          {ClassHierarchyBase? hierarchy}) =>
-      type;
+  DartType build(
+    LibraryBuilder library,
+    TypeUse typeUse, {
+    ClassHierarchyBase? hierarchy,
+  }) => type;
 
   @override
-  DartType buildAliased(LibraryBuilder library, TypeUse typeUse,
-          ClassHierarchyBase? hierarchy) =>
-      type;
+  DartType buildAliased(
+    LibraryBuilder library,
+    TypeUse typeUse,
+    ClassHierarchyBase? hierarchy,
+  ) => type;
 
   @override
   String get debugName => 'ImplicitTypeBuilder';
@@ -141,10 +147,10 @@ class ImplicitTypeBuilder extends OmittedTypeBuilderImpl {
 
   @override
   // Coverage-ignore(suite): Not run.
-  Nullability computeNullability(
-          {required Map<TypeParameterBuilder, TraversalState>
-              typeParametersTraversalState}) =>
-      type.nullability;
+  Nullability computeNullability({
+    required Map<TypeParameterBuilder, TraversalState>
+    typeParametersTraversalState,
+  }) => type.nullability;
 }
 
 /// [TypeBuilder] for when there is no explicit type provided by the user but
@@ -156,15 +162,25 @@ class ImplicitTypeBuilder extends OmittedTypeBuilderImpl {
 class InferableTypeBuilder extends OmittedTypeBuilderImpl
     with InferableTypeBuilderMixin
     implements InferableType {
+  final InferenceDefaultType inferenceDefaultType;
+
+  InferableTypeBuilder(this.inferenceDefaultType);
+
   @override
-  DartType build(LibraryBuilder library, TypeUse typeUse,
-      {ClassHierarchyBase? hierarchy}) {
+  DartType build(
+    LibraryBuilder library,
+    TypeUse typeUse, {
+    ClassHierarchyBase? hierarchy,
+  }) {
     if (hierarchy != null) {
       inferType(hierarchy);
       return type;
     } else {
-      InferableTypeUse inferableTypeUse =
-          new InferableTypeUse(library as SourceLibraryBuilder, this, typeUse);
+      InferableTypeUse inferableTypeUse = new InferableTypeUse(
+        library as SourceLibraryBuilder,
+        this,
+        typeUse,
+      );
       library.loader.inferableTypes.registerInferableType(inferableTypeUse);
       return new InferredType.fromInferableTypeUse(inferableTypeUse);
     }
@@ -173,7 +189,10 @@ class InferableTypeBuilder extends OmittedTypeBuilderImpl
   @override
   // Coverage-ignore(suite): Not run.
   DartType buildAliased(
-      LibraryBuilder library, TypeUse typeUse, ClassHierarchyBase? hierarchy) {
+    LibraryBuilder library,
+    TypeUse typeUse,
+    ClassHierarchyBase? hierarchy,
+  ) {
     if (hierarchy != null) {
       inferType(hierarchy);
       return type;
@@ -197,9 +216,10 @@ class InferableTypeBuilder extends OmittedTypeBuilderImpl
   @override
   void registerInferable(Inferable inferable) {
     assert(
-        _inferable == null,
-        "Inferable $_inferable has already been register, "
-        "trying to register $inferable.");
+      _inferable == null,
+      "Inferable $_inferable has already been register, "
+      "trying to register $inferable.",
+    );
     _inferable = inferable;
   }
 
@@ -214,7 +234,13 @@ class InferableTypeBuilder extends OmittedTypeBuilderImpl
       if (inferable != null) {
         inferable.inferTypes(hierarchy);
       } else {
-        registerInferredType(const DynamicType());
+        switch (inferenceDefaultType) {
+          case InferenceDefaultType.NullableObject:
+            // Coverage-ignore(suite): Not run.
+            registerInferredType(hierarchy.coreTypes.objectNullableRawType);
+          case InferenceDefaultType.Dynamic:
+            registerInferredType(const DynamicType());
+        }
       }
       assert(hasType, "No type computed for $this");
     }
@@ -234,9 +260,10 @@ class InferableTypeBuilder extends OmittedTypeBuilderImpl
   }
 
   @override
-  Nullability computeNullability(
-      {required Map<TypeParameterBuilder, TraversalState>
-          typeParametersTraversalState}) {
+  Nullability computeNullability({
+    required Map<TypeParameterBuilder, TraversalState>
+    typeParametersTraversalState,
+  }) {
     throw new UnsupportedError("$runtimeType.computeNullability");
   }
 }
@@ -257,8 +284,12 @@ abstract class Inferable {
 class InferableTypes {
   final List<InferableType> _inferableTypes = [];
 
-  InferableTypeBuilder addInferableType() {
-    InferableTypeBuilder typeBuilder = new InferableTypeBuilder();
+  InferableTypeBuilder addInferableType(
+    InferenceDefaultType inferenceDefaultType,
+  ) {
+    InferableTypeBuilder typeBuilder = new InferableTypeBuilder(
+      inferenceDefaultType,
+    );
     registerInferableType(typeBuilder);
     return typeBuilder;
   }

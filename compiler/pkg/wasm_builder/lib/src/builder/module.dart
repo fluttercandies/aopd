@@ -5,20 +5,35 @@
 import '../ir/ir.dart' as ir;
 import 'builder.dart';
 
-// TODO(joshualitt): Get rid of cycles in the builder graph.
 /// A Wasm module builder.
+///
+/// NOTE: The [ModuleBuilder] contains builders for various constituents and
+/// those in return will refer back to the [ModuleBuilder], making the builders
+/// be cyclic data structures.
+///
+/// The main reason for this is that e.g. an [InstructionsBuilder] may insert
+/// new instructions. Doing so may require e.g. defining new function types. So
+/// it does so by calling `moduleBuilder.functions.defineFunction()`.
+///
+/// We could avoid some of the cyclic dependencies by passing the individual
+/// builders down to other builders that need it, instead of passing an
+/// [ModuleBuilder] down that contains all builders.
 class ModuleBuilder with Builder<ir.Module> {
+  final ir.Module module = ir.Module.uninitialized();
+
   final String moduleName;
   final Uri? sourceMapUrl;
   final List<int> watchPoints;
   late final TypesBuilder types;
   late final functions = FunctionsBuilder(this);
+  late final elements = ElementsBuilder(this);
   late final tables = TablesBuilder(this);
-  late final memories = MemoriesBuilder(this);
-  late final tags = TagsBuilder(this);
+  late final memories = MemoriesBuilder(module);
+  late final tags = TagsBuilder(module);
   final dataSegments = DataSegmentsBuilder();
   late final globals = GlobalsBuilder(this);
   final exports = ExportsBuilder();
+  FunctionBuilder? _startFunction;
 
   /// Create a new, initially empty, module.
   ///
@@ -31,31 +46,60 @@ class ModuleBuilder with Builder<ir.Module> {
     types = TypesBuilder(this, parent: parent?.types);
   }
 
+  /// Whether loading the module would have no effect.
+  ///
+  /// This means no code is executable and no external data would be modified.
+  bool get hasNoEffect {
+    // Exports can be used from the outside.
+    if (exports.hasExports) return false;
+
+    // Start function is implicitly used from the outside - it's run at module
+    // instantiation time.
+    if (_startFunction != null) return false;
+
+    // Active element segments are implicitly used from the outside - they are
+    // run at module instantiation time and may patch imported tables.
+    if (elements.hasActiveElementSegments) return false;
+
+    return true;
+  }
+
+  FunctionBuilder get startFunction => _startFunction ??=
+      functions.define(types.defineFunction(const [], const []), "#init");
+
   @override
   ir.Module forceBuild() {
+    if (_startFunction case final start?) {
+      start.body.end();
+    }
     final finalFunctions = functions.build();
     final finalTables = tables.build();
+    final finalElements = elements.build();
     final finalMemories = memories.build();
     final finalGlobals = globals.build();
     final finalTags = tags.build();
-    return ir.Module(
-        moduleName,
-        sourceMapUrl,
-        finalFunctions,
-        finalTables,
-        finalTags,
-        finalMemories,
-        exports.build(),
-        finalGlobals,
-        types.build(),
-        dataSegments.build(),
-        <ir.Import>[
-          ...finalFunctions.imported,
-          ...finalTables.imported,
-          ...finalMemories.imported,
-          ...finalGlobals.imported,
-          ...finalTags.imported,
-        ],
-        watchPoints);
+    final imports = ir.Imports(
+      finalFunctions.imported,
+      finalTags.imported,
+      finalGlobals.imported,
+      finalTables.imported,
+      finalMemories.imported,
+    );
+    return module
+      ..initialize(
+          moduleName,
+          finalFunctions,
+          _startFunction,
+          finalTables,
+          finalElements,
+          finalTags,
+          finalMemories,
+          exports.build(),
+          finalGlobals,
+          types.build(),
+          dataSegments.build(),
+          imports,
+          watchPoints,
+          sourceMapUrl);
   }
 }

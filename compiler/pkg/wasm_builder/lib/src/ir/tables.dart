@@ -13,4 +13,10 @@ class Tables {
   final List<DefinedTable> defined;
 
   Tables(this.imported, this.defined);
+
+  Table operator [](int index) => index < imported.length
+      ? imported[index]
+      : defined[index - imported.length];
+
+  int get length => imported.length + defined.length;
 }

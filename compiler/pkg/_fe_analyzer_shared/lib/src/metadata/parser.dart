@@ -63,8 +63,9 @@ class AnnotationsListener extends StackListener {
       ]),
     );
     List<Argument>? arguments = pop(_NullValues.Arguments) as List<Argument>?;
-    IdentifierProto? identifier =
-        periodBeforeName != null ? pop() as IdentifierProto : null;
+    IdentifierProto? identifier = periodBeforeName != null
+        ? pop() as IdentifierProto
+        : null;
     List<TypeAnnotation>? typeArguments =
         pop(_NullValues.TypeAnnotations) as List<TypeAnnotation>?;
     Proto proto = pop() as Proto;
@@ -136,8 +137,9 @@ class AnnotationsListener extends StackListener {
         /* (qualified) name before type arguments */ _ValueKinds._Proto,
       ]),
     );
-    IdentifierProto? constructorName =
-        periodBeforeName != null ? pop() as IdentifierProto : null;
+    IdentifierProto? constructorName = periodBeforeName != null
+        ? pop() as IdentifierProto
+        : null;
     List<TypeAnnotation>? typeArguments =
         pop(_NullValues.TypeAnnotations) as List<TypeAnnotation>?;
     Proto className = pop() as Proto;
@@ -374,8 +376,17 @@ class AnnotationsListener extends StackListener {
   }
 
   @override
-  void handleEndingBinaryExpression(Token token, Token endToken) {
-    endBinaryExpression(token, endToken);
+  void handleDotAccess(Token token, Token endToken, bool isNullAware) {
+    assert(
+      checkState(token, [
+        /* right */ _ValueKinds._Proto,
+        /* left */ _ValueKinds._Proto,
+      ]),
+    );
+    Proto right = pop() as Proto;
+    Proto left = pop() as Proto;
+    IdentifierProto identifierProto = right as IdentifierProto;
+    push(left.apply(identifierProto, isNullAware: isNullAware));
   }
 
   @override
@@ -389,12 +400,6 @@ class AnnotationsListener extends StackListener {
     Proto right = pop() as Proto;
     Proto left = pop() as Proto;
     switch (token.lexeme) {
-      case '.':
-        IdentifierProto identifierProto = right as IdentifierProto;
-        push(left.apply(identifierProto));
-      case '?.':
-        IdentifierProto identifierProto = right as IdentifierProto;
-        push(left.apply(identifierProto, isNullAware: true));
       case '??':
         push(
           new ExpressionProto(
@@ -777,8 +782,9 @@ class AnnotationsListener extends StackListener {
     List<TypeAnnotation>? typeArguments =
         pop(_NullValues.TypeAnnotations) as List<TypeAnnotation>?;
     Proto type = pop() as Proto;
-    TypeAnnotation typeAnnotation =
-        type.instantiate(typeArguments).toTypeAnnotation();
+    TypeAnnotation typeAnnotation = type
+        .instantiate(typeArguments)
+        .toTypeAnnotation();
     if (questionMark != null) {
       typeAnnotation = new NullableTypeAnnotation(typeAnnotation);
     }
@@ -1013,6 +1019,7 @@ class AnnotationsListener extends StackListener {
 
   @override
   void endFormalParameter(
+    Token? varOrFinal,
     Token? thisKeyword,
     Token? superKeyword,
     Token? periodAfterThisOrSuper,
@@ -1198,9 +1205,9 @@ class AnnotationsListener extends StackListener {
         leftBracket,
         hasNamedFields
             ? [
-              _ValueKinds._RecordTypeEntries,
-              ...repeatedKind(_ValueKinds._RecordTypeEntry, count - 1),
-            ]
+                _ValueKinds._RecordTypeEntries,
+                ...repeatedKind(_ValueKinds._RecordTypeEntry, count - 1),
+              ]
             : repeatedKind(_ValueKinds._RecordTypeEntry, count),
       ),
     );
@@ -1389,7 +1396,8 @@ Expression parseAnnotation(
   Token atToken,
   Uri fileUri,
   Scope scope,
-  References references, {
+  References references,
+  ExperimentalFeatures experimentalFeatures, {
   required bool isDartLibrary,
   bool delayLookupForTesting = false,
 }) {
@@ -1400,7 +1408,11 @@ Expression parseAnnotation(
     delayLookup: delayLookupForTesting,
     isDartLibrary: isDartLibrary,
   );
-  Parser parser = new Parser(listener, useImplicitCreationExpression: false);
+  Parser parser = new Parser(
+    listener,
+    useImplicitCreationExpression: false,
+    experimentalFeatures: experimentalFeatures,
+  );
   parser.parseMetadata(parser.syntheticPreviousToken(atToken));
   return listener.pop() as Expression;
 }
@@ -1410,7 +1422,8 @@ Expression parseExpression(
   Token initializerToken,
   Uri fileUri,
   Scope scope,
-  References references, {
+  References references,
+  ExperimentalFeatures experimentalFeatures, {
   required bool isDartLibrary,
   bool delayLookupForTesting = false,
 }) {
@@ -1421,7 +1434,11 @@ Expression parseExpression(
     delayLookup: delayLookupForTesting,
     isDartLibrary: isDartLibrary,
   );
-  Parser parser = new Parser(listener, useImplicitCreationExpression: false);
+  Parser parser = new Parser(
+    listener,
+    useImplicitCreationExpression: false,
+    experimentalFeatures: experimentalFeatures,
+  );
   parser.parseExpression(parser.syntheticPreviousToken(initializerToken));
   return listener._popExpression();
 }

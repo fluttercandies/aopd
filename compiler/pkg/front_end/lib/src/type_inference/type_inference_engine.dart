@@ -4,11 +4,10 @@
 
 import 'package:_fe_analyzer_shared/src/flow_analysis/flow_analysis_operations.dart';
 import 'package:_fe_analyzer_shared/src/type_inference/assigned_variables.dart';
-import 'package:_fe_analyzer_shared/src/type_inference/type_analyzer_operations.dart'
-    hide Variance;
+import 'package:_fe_analyzer_shared/src/type_inference/type_analyzer_operations.dart';
 import 'package:_fe_analyzer_shared/src/type_inference/type_constraint.dart'
     as shared;
-import 'package:_fe_analyzer_shared/src/types/shared_type.dart';
+import 'package:_fe_analyzer_shared/src/types/shared_type.dart' hide Variance;
 import 'package:kernel/ast.dart';
 import 'package:kernel/class_hierarchy.dart'
     show ClassHierarchy, ClassHierarchyBase;
@@ -17,8 +16,8 @@ import 'package:kernel/src/norm.dart';
 import 'package:kernel/type_algebra.dart';
 import 'package:kernel/type_environment.dart';
 
-import '../base/instrumentation.dart' show Instrumentation;
-import '../base/scope.dart';
+import '../base/extension_scope.dart';
+import '../kernel/assigned_variables_impl.dart';
 import '../kernel/benchmarker.dart' show Benchmarker;
 import '../kernel/exhaustiveness.dart';
 import '../kernel/hierarchy/hierarchy_builder.dart' show ClassHierarchyBuilder;
@@ -33,23 +32,27 @@ import 'type_constraint_gatherer.dart';
 import 'type_inferrer.dart';
 import 'type_schema.dart';
 import 'type_schema_elimination.dart' as type_schema_elimination;
-import 'type_schema_environment.dart' show TypeSchemaEnvironment;
+import 'type_schema_environment.dart';
 
 /// Visitor to check whether a given type mentions any of a class's type
 /// parameters in a non-covariant fashion.
-class IncludesTypeParametersNonCovariantly implements DartTypeVisitor<bool> {
+class IncludesTypeParametersNonCovariantly
+    with DartTypeVisitorExperimentExclusionMixin<bool>
+    implements DartTypeVisitor<bool> {
   Variance _variance;
 
   final List<TypeParameter> _typeParametersToSearchFor;
 
-  IncludesTypeParametersNonCovariantly(this._typeParametersToSearchFor,
-      {required Variance initialVariance})
-      : _variance = initialVariance;
+  IncludesTypeParametersNonCovariantly(
+    this._typeParametersToSearchFor, {
+    required Variance initialVariance,
+  }) : _variance = initialVariance;
 
   @override
   bool visitAuxiliaryType(AuxiliaryType node) {
     throw new UnsupportedError(
-        "Unsupported auxiliary type ${node} (${node.runtimeType}).");
+      "Unsupported auxiliary type ${node} (${node.runtimeType}).",
+    );
   }
 
   @override
@@ -104,8 +107,9 @@ class IncludesTypeParametersNonCovariantly implements DartTypeVisitor<bool> {
   bool visitInterfaceType(InterfaceType node) {
     Variance oldVariance = _variance;
     for (int i = 0; i < node.typeArguments.length; i++) {
-      _variance =
-          node.classNode.typeParameters[i].variance.combine(oldVariance);
+      _variance = node.classNode.typeParameters[i].variance.combine(
+        oldVariance,
+      );
       if (node.typeArguments[i].accept(this)) return true;
     }
     _variance = oldVariance;
@@ -174,8 +178,6 @@ abstract class TypeInferenceEngine {
   // ensure that these are called for all member accesses.
   final Map<Member, TypeDependency> typeDependencies = {};
 
-  final Instrumentation? instrumentation;
-
   final Map<DartType, DartType> typeCacheNonNullable =
       new Map<DartType, DartType>.identity();
   final Map<DartType, DartType> typeCacheNullable =
@@ -183,16 +185,17 @@ abstract class TypeInferenceEngine {
   final Map<DartType, DartType> typeCacheLegacy =
       new Map<DartType, DartType>.identity();
 
-  TypeInferenceEngine(this.instrumentation);
-
-  /// Creates a type inferrer for use inside of a method body declared in a file
-  /// with the given [uri].
-  TypeInferrer createLocalTypeInferrer(
-      Uri uri,
-      InterfaceType? thisType,
-      SourceLibraryBuilder libraryBuilder,
-      LookupScope extensionScope,
-      InferenceDataForTesting? dataForTesting);
+  /// Creates a type inferrer for use inside in the library of [libraryBuilder]
+  /// in a compilation unit with the given [extensionScope].
+  ///
+  /// This [thisType] is used as the static type of `this` expressions. If
+  /// `null`, `this` expressions are not supported.
+  TypeInferrer createTypeInferrer({
+    required InterfaceType? thisType,
+    required SourceLibraryBuilder libraryBuilder,
+    required ExtensionScope extensionScope,
+    InferenceDataForTesting? dataForTesting,
+  });
 
   /// Performs the third phase of top level inference, which is to visit all
   /// constructors still needing inference and infer the types of their
@@ -215,13 +218,17 @@ abstract class TypeInferenceEngine {
   void prepareTopLevel(CoreTypes coreTypes, ClassHierarchy hierarchy) {
     assert(!isTypeInferencePrepared, "Top level inference already prepared.");
     this.coreTypes = coreTypes;
-    this.typeSchemaEnvironment =
-        new TypeSchemaEnvironment(coreTypes, hierarchy);
+    this.typeSchemaEnvironment = new TypeSchemaEnvironment(
+      coreTypes,
+      hierarchy,
+    );
     isTypeInferencePrepared = true;
   }
 
   static Member? resolveInferenceNode(
-      Member? member, ClassHierarchyBase hierarchy) {
+    Member? member,
+    ClassHierarchyBase hierarchy,
+  ) {
     // TODO(johnniwinther): Can we remove this now?
     if (member is Field) {
       DartType type = member.type;
@@ -262,8 +269,11 @@ abstract class TypeInferenceEngine {
       _listAddFunctionType ??= listAdd.getterType as FunctionType;
 
   Procedure? _listAddAll;
-  Procedure get listAddAll => _listAddAll ??=
-      coreTypes.index.getProcedure('dart:core', 'List', 'addAll');
+  Procedure get listAddAll => _listAddAll ??= coreTypes.index.getProcedure(
+    'dart:core',
+    'List',
+    'addAll',
+  );
 
   FunctionType? _listAddAllFunctionType;
   FunctionType get listAddAllFunctionType =>
@@ -296,8 +306,11 @@ abstract class TypeInferenceEngine {
   Procedure get setOf => _setOf ??= _findSetFactory(coreTypes, 'of');
 
   Procedure? _mapEntries;
-  Procedure get mapEntries => _mapEntries ??=
-      coreTypes.index.getProcedure('dart:core', 'Map', 'get:entries');
+  Procedure get mapEntries => _mapEntries ??= coreTypes.index.getProcedure(
+    'dart:core',
+    'Map',
+    'get:entries',
+  );
 
   Procedure? _mapPut;
   Procedure get mapPut =>
@@ -316,8 +329,11 @@ abstract class TypeInferenceEngine {
       _mapEntryKey ??= coreTypes.index.getField('dart:core', 'MapEntry', 'key');
 
   Field? _mapEntryValue;
-  Field get mapEntryValue => _mapEntryValue ??=
-      coreTypes.index.getField('dart:core', 'MapEntry', 'value');
+  Field get mapEntryValue => _mapEntryValue ??= coreTypes.index.getField(
+    'dart:core',
+    'MapEntry',
+    'value',
+  );
 
   Procedure? _mapAddAll;
   Procedure get mapAddAll =>
@@ -350,84 +366,75 @@ abstract class TypeInferenceEngine {
 class TypeInferenceEngineImpl extends TypeInferenceEngine {
   final Benchmarker? benchmarker;
 
-  TypeInferenceEngineImpl(Instrumentation? instrumentation, this.benchmarker)
-      : super(instrumentation);
+  TypeInferenceEngineImpl({this.benchmarker});
 
   @override
-  TypeInferrer createLocalTypeInferrer(
-      Uri uri,
-      InterfaceType? thisType,
-      SourceLibraryBuilder libraryBuilder,
-      LookupScope extensionScope,
-      InferenceDataForTesting? dataForTesting) {
-    AssignedVariables<TreeNode, VariableDeclaration> assignedVariables;
+  TypeInferrer createTypeInferrer({
+    required InterfaceType? thisType,
+    required SourceLibraryBuilder libraryBuilder,
+    required ExtensionScope extensionScope,
+    InferenceDataForTesting? dataForTesting,
+  }) {
+    AssignedVariablesImpl assignedVariables;
+    bool isClosureContextLoweringEnabled = libraryBuilder
+        .loader
+        .target
+        .backendTarget
+        .flags
+        .isClosureContextLoweringEnabled;
     if (dataForTesting != null) {
       // Coverage-ignore-block(suite): Not run.
-      assignedVariables = dataForTesting.flowAnalysisResult.assignedVariables =
+      dataForTesting.flowAnalysisResult.assignedVariables =
           new AssignedVariablesForTesting<TreeNode, VariableDeclaration>();
+      assignedVariables = new AssignedVariablesImpl(
+        dataForTesting.flowAnalysisResult.assignedVariables!,
+        isClosureContextLoweringEnabled: isClosureContextLoweringEnabled,
+      );
     } else {
-      assignedVariables =
-          new AssignedVariables<TreeNode, VariableDeclaration>();
+      assignedVariables = new AssignedVariablesImpl(
+        new AssignedVariables<TreeNode, VariableDeclaration>(),
+        isClosureContextLoweringEnabled: isClosureContextLoweringEnabled,
+      );
     }
     if (benchmarker == null) {
-      return new TypeInferrerImpl(this, uri, false, thisType, libraryBuilder,
-          extensionScope, assignedVariables, dataForTesting);
-    }
-    // Coverage-ignore(suite): Not run.
-    return new TypeInferrerImplBenchmarked(
+      return new TypeInferrerImpl(
         this,
-        uri,
-        false,
         thisType,
         libraryBuilder,
         extensionScope,
         assignedVariables,
         dataForTesting,
-        benchmarker!);
-  }
-
-  /// Creates a [TypeInferrer] object which is ready to perform type inference
-  /// on the given [field].
-  TypeInferrer createTopLevelTypeInferrer(
-      Uri uri,
-      InterfaceType? thisType,
-      SourceLibraryBuilder libraryBuilder,
-      LookupScope extensionScope,
-      InferenceDataForTesting? dataForTesting) {
-    AssignedVariables<TreeNode, VariableDeclaration> assignedVariables;
-    if (dataForTesting != null) {
-      // Coverage-ignore-block(suite): Not run.
-      assignedVariables = dataForTesting.flowAnalysisResult.assignedVariables =
-          new AssignedVariablesForTesting<TreeNode, VariableDeclaration>();
-    } else {
-      assignedVariables =
-          new AssignedVariables<TreeNode, VariableDeclaration>();
-    }
-    if (benchmarker == null) {
-      return new TypeInferrerImpl(this, uri, true, thisType, libraryBuilder,
-          extensionScope, assignedVariables, dataForTesting);
+      );
     }
     // Coverage-ignore(suite): Not run.
     return new TypeInferrerImplBenchmarked(
-        this,
-        uri,
-        true,
-        thisType,
-        libraryBuilder,
-        extensionScope,
-        assignedVariables,
-        dataForTesting,
-        benchmarker!);
+      this,
+      thisType,
+      libraryBuilder,
+      extensionScope,
+      assignedVariables,
+      dataForTesting,
+      benchmarker!,
+    );
   }
 }
 
 // TODO(cstefantsova): Merge with [TypeInferenceResultForTesting].
-class InferenceDataForTesting extends shared
-    .TypeConstraintGenerationDataForTesting<VariableDeclaration, TreeNode> {
+class InferenceDataForTesting
+    extends
+        shared.TypeConstraintGenerationDataForTesting<
+          VariableDeclaration,
+          TreeNode
+        > {
   final FlowAnalysisResult flowAnalysisResult = new FlowAnalysisResult();
 
   final TypeInferenceResultForTesting typeInferenceResult =
       new TypeInferenceResultForTesting();
+
+  /// Map from external nodes to their corresponding internal nodes.
+  ///
+  /// This is only maintained for nodes used in tests.
+  final Map<Node, Node> externalToInternalNodeMap = {};
 }
 
 /// The result of performing flow analysis on a unit.
@@ -463,11 +470,19 @@ class FlowAnalysisResult {
 /// CFE-specific implementation of [FlowAnalysisOperations].
 class OperationsCfe
     with
-        TypeAnalyzerOperationsMixin<VariableDeclaration, TypeDeclarationType,
-            TypeDeclaration>
+        TypeAnalyzerOperationsMixin<
+          VariableDeclaration,
+          TypeDeclarationType,
+          TypeDeclaration,
+          TreeNode
+        >
     implements
-        TypeAnalyzerOperations<VariableDeclaration, TypeDeclarationType,
-            TypeDeclaration> {
+        TypeAnalyzerOperations<
+          VariableDeclaration,
+          TypeDeclarationType,
+          TypeDeclaration,
+          TreeNode
+        > {
   final TypeEnvironment typeEnvironment;
 
   /// Information about which fields are promotable in this library.
@@ -485,16 +500,19 @@ class OperationsCfe
   final Map<DartType, DartType> typeCacheNullable;
   final Map<DartType, DartType> typeCacheLegacy;
 
-  OperationsCfe(this.typeEnvironment,
-      {required this.fieldNonPromotabilityInfo,
-      required this.typeCacheNonNullable,
-      required this.typeCacheNullable,
-      required this.typeCacheLegacy});
+  OperationsCfe(
+    this.typeEnvironment, {
+    required this.fieldNonPromotabilityInfo,
+    required this.typeCacheNonNullable,
+    required this.typeCacheNullable,
+    required this.typeCacheLegacy,
+  });
 
   @override
   SharedTypeView get boolType {
     return new SharedTypeView(
-        typeEnvironment.coreTypes.boolRawType(Nullability.nonNullable));
+      typeEnvironment.coreTypes.boolRawType(Nullability.nonNullable),
+    );
   }
 
   @override
@@ -535,7 +553,8 @@ class OperationsCfe
   @override
   SharedTypeView get objectType {
     return new SharedTypeView(
-        typeEnvironment.coreTypes.objectNonNullableRawType);
+      typeEnvironment.coreTypes.objectNonNullableRawType,
+    );
   }
 
   @override
@@ -550,7 +569,9 @@ class OperationsCfe
       // Note: this can happen during top-level inference.
       return TypeClassification.potentiallyNullable;
     } else if (isSubtypeOfInternal(
-        unwrapped, typeEnvironment.coreTypes.objectNonNullableRawType)) {
+      unwrapped,
+      typeEnvironment.coreTypes.objectNonNullableRawType,
+    )) {
       return TypeClassification.nonNullable;
     } else if (isSubtypeOfInternal(unwrapped, const NullType())) {
       return TypeClassification.nullOrEquivalent;
@@ -561,21 +582,22 @@ class OperationsCfe
 
   @override
   SharedTypeView factor(SharedTypeView from, SharedTypeView what) {
-    return new SharedTypeView(factorType(
-        typeEnvironment, from.unwrapTypeView(), what.unwrapTypeView()));
+    return new SharedTypeView(
+      factorType(typeEnvironment, from.unwrapTypeView(), what.unwrapTypeView()),
+    );
   }
 
   @override
-  SharedTypeView greatestClosure(SharedTypeSchemaView schema) {
-    return new SharedTypeView(type_schema_elimination.greatestClosure(
-        schema.unwrapTypeSchemaView(),
-        topType: const DynamicType()));
+  SharedTypeView flatten(SharedTypeView type) {
+    return new SharedTypeView(typeEnvironment.flatten(type.unwrapTypeView()));
   }
 
   @override
   bool isAlwaysExhaustiveType(SharedTypeView type) {
     return computeIsAlwaysExhaustiveType(
-        type.unwrapTypeView(), typeEnvironment.coreTypes);
+      type.unwrapTypeView(),
+      typeEnvironment.coreTypes,
+    );
   }
 
   @override
@@ -596,6 +618,11 @@ class OperationsCfe
   @override
   bool isBottomType(SharedTypeView type) {
     return typeEnvironment.coreTypes.isBottom(type.unwrapTypeView());
+  }
+
+  @override
+  bool isInvalidType(SharedTypeView type) {
+    return type.unwrapTypeView<DartType>() is InvalidType;
   }
 
   @override
@@ -633,7 +660,8 @@ class OperationsCfe
 
   @override
   PropertyNonPromotabilityReason? whyPropertyIsNotPromotable(
-      covariant Member property) {
+    covariant Member property,
+  ) {
     FieldNonPromotabilityInfo? fieldNonPromotabilityInfo =
         this.fieldNonPromotabilityInfo;
     if (fieldNonPromotabilityInfo == null) {
@@ -665,11 +693,14 @@ class OperationsCfe
   }
 
   @override
-  SharedTypeView variableType(covariant VariableDeclarationImpl variable) {
+  SharedTypeView variableType(VariableDeclaration variable) {
     // When late variables get lowered, their type is changed, but the
     // original type is stored in `VariableDeclarationImpl.lateType`, so we
     // use that if it exists.
-    return new SharedTypeView(variable.lateType ?? variable.type);
+    DartType? lateType = variable is InternalVariable
+        ? (variable as InternalVariable).lateType
+        : null;
+    return new SharedTypeView(lateType ?? variable.type);
   }
 
   @override
@@ -691,20 +722,26 @@ class OperationsCfe
           // We treat promotions of the form `x is T`, where `T` is not
           // nullable, as a two-step promotions equivalent to
           // `x != null && x is T`.
-          return new SharedTypeView(new IntersectionType(
+          return new SharedTypeView(
+            new IntersectionType(
               unwrappedFrom.withDeclaredNullability(
-                  unwrappedFrom.parameter.computeNullabilityFromBound()),
-              unwrappedTo));
+                unwrappedFrom.parameter.computeNullabilityFromBound(),
+              ),
+              unwrappedTo,
+            ),
+          );
         } else {
           return new SharedTypeView(
-              new IntersectionType(unwrappedFrom, unwrappedTo));
+            new IntersectionType(unwrappedFrom, unwrappedTo),
+          );
         }
       }
     }
     if (unwrappedFrom is IntersectionType) {
       if (isSubtypeOfInternal(unwrappedTo, unwrappedFrom.right)) {
         return new SharedTypeView(
-            new IntersectionType(unwrappedFrom.left, unwrappedTo));
+          new IntersectionType(unwrappedFrom.left, unwrappedTo),
+        );
       }
     }
     return new SharedTypeView(unwrappedFrom);
@@ -734,11 +771,14 @@ class OperationsCfe
 
   @override
   // Coverage-ignore(suite): Not run.
-  bool isTypeSchemaSatisfied(
-      {required SharedTypeSchemaView typeSchema,
-      required SharedTypeView type}) {
+  bool isTypeSchemaSatisfied({
+    required SharedTypeSchemaView typeSchema,
+    required SharedTypeView type,
+  }) {
     return isSubtypeOfInternal(
-        type.unwrapTypeView(), typeSchema.unwrapTypeSchemaView());
+      type.unwrapTypeView(),
+      typeSchema.unwrapTypeSchemaView(),
+    );
   }
 
   @override
@@ -748,17 +788,24 @@ class OperationsCfe
 
   @override
   SharedTypeSchemaView iterableTypeSchema(
-      SharedTypeSchemaView elementTypeSchema) {
-    return new SharedTypeSchemaView(new InterfaceType(
+    SharedTypeSchemaView elementTypeSchema,
+  ) {
+    return new SharedTypeSchemaView(
+      new InterfaceType(
         typeEnvironment.coreTypes.iterableClass,
         Nullability.nonNullable,
-        <DartType>[elementTypeSchema.unwrapTypeSchemaView()]));
+        <DartType>[elementTypeSchema.unwrapTypeSchemaView()],
+      ),
+    );
   }
 
   @override
   DartType listTypeInternal(DartType elementType) {
-    return new InterfaceType(typeEnvironment.coreTypes.listClass,
-        Nullability.nonNullable, <DartType>[elementType]);
+    return new InterfaceType(
+      typeEnvironment.coreTypes.listClass,
+      Nullability.nonNullable,
+      <DartType>[elementType],
+    );
   }
 
   @override
@@ -787,19 +834,26 @@ class OperationsCfe
   }
 
   @override
-  DartType mapTypeInternal(
-      {required DartType keyType, required DartType valueType}) {
-    return new InterfaceType(typeEnvironment.coreTypes.mapClass,
-        Nullability.nonNullable, <DartType>[keyType, valueType]);
+  DartType mapTypeInternal({
+    required DartType keyType,
+    required DartType valueType,
+  }) {
+    return new InterfaceType(
+      typeEnvironment.coreTypes.mapClass,
+      Nullability.nonNullable,
+      <DartType>[keyType, valueType],
+    );
   }
 
   @override
   SharedTypeView? matchListType(SharedTypeView type) {
     DartType unwrappedType = type.unwrapTypeView();
     if (unwrappedType is TypeDeclarationType) {
-      List<DartType>? typeArguments =
-          typeEnvironment.getTypeArgumentsAsInstanceOf(
-              unwrappedType, typeEnvironment.coreTypes.listClass);
+      List<DartType>? typeArguments = typeEnvironment
+          .getTypeArgumentsAsInstanceOf(
+            unwrappedType,
+            typeEnvironment.coreTypes.listClass,
+          );
       if (typeArguments == null || typeArguments.length != 1) {
         return null;
       } else {
@@ -812,21 +866,23 @@ class OperationsCfe
 
   @override
   ({SharedTypeView keyType, SharedTypeView valueType})? matchMapType(
-      SharedTypeView type) {
+    SharedTypeView type,
+  ) {
     DartType unwrappedType = type.unwrapTypeView();
     if (unwrappedType is! TypeDeclarationType) {
       return null;
     } else {
       TypeDeclarationType? mapType = typeEnvironment.getTypeAsInstanceOf(
-          unwrappedType,
-          typeEnvironment.coreTypes.mapClass,
-          typeEnvironment.coreTypes);
+        unwrappedType,
+        typeEnvironment.coreTypes.mapClass,
+        typeEnvironment.coreTypes,
+      );
       if (mapType == null) {
         return null;
       } else {
         return (
           keyType: new SharedTypeView(mapType.typeArguments[0]),
-          valueType: new SharedTypeView(mapType.typeArguments[1])
+          valueType: new SharedTypeView(mapType.typeArguments[1]),
         );
       }
     }
@@ -836,9 +892,11 @@ class OperationsCfe
   SharedTypeView? matchStreamType(SharedTypeView type) {
     DartType unwrappedType = type.unwrapTypeView();
     if (unwrappedType is TypeDeclarationType) {
-      List<DartType>? typeArguments =
-          typeEnvironment.getTypeArgumentsAsInstanceOf(
-              unwrappedType, typeEnvironment.coreTypes.streamClass);
+      List<DartType>? typeArguments = typeEnvironment
+          .getTypeArgumentsAsInstanceOf(
+            unwrappedType,
+            typeEnvironment.coreTypes.streamClass,
+          );
       if (typeArguments == null || typeArguments.length != 1) {
         return null;
       } else {
@@ -852,7 +910,8 @@ class OperationsCfe
   @override
   SharedTypeView normalize(SharedTypeView type) {
     return new SharedTypeView(
-        norm(typeEnvironment.coreTypes, type.unwrapTypeView()));
+      norm(typeEnvironment.coreTypes, type.unwrapTypeView()),
+    );
   }
 
   @override
@@ -861,9 +920,10 @@ class OperationsCfe
       return null;
     } else {
       TypeDeclarationType? interfaceType = typeEnvironment.getTypeAsInstanceOf(
-          type,
-          typeEnvironment.coreTypes.iterableClass,
-          typeEnvironment.coreTypes);
+        type,
+        typeEnvironment.coreTypes.iterableClass,
+        typeEnvironment.coreTypes,
+      );
       if (interfaceType == null) {
         return null;
       } else {
@@ -873,31 +933,40 @@ class OperationsCfe
   }
 
   @override
-  DartType recordTypeInternal(
-      {required List<SharedType> positional,
-      required List<(String, SharedType)> named}) {
+  DartType recordTypeInternal({
+    required List<SharedType> positional,
+    required List<(String, SharedType)> named,
+  }) {
     List<NamedType> namedFields = [];
     for (var (name, type) in named) {
       namedFields.add(new NamedType(name, type as DartType));
     }
     namedFields.sort((f1, f2) => f1.name.compareTo(f2.name));
     return new RecordType(
-        positional.cast<DartType>(), namedFields, Nullability.nonNullable);
+      positional.cast<DartType>(),
+      namedFields,
+      Nullability.nonNullable,
+    );
   }
 
   @override
   SharedTypeSchemaView streamTypeSchema(
-      SharedTypeSchemaView elementTypeSchema) {
-    return new SharedTypeSchemaView(new InterfaceType(
+    SharedTypeSchemaView elementTypeSchema,
+  ) {
+    return new SharedTypeSchemaView(
+      new InterfaceType(
         typeEnvironment.coreTypes.streamClass,
         Nullability.nonNullable,
-        <DartType>[elementTypeSchema.unwrapTypeSchemaView()]));
+        <DartType>[elementTypeSchema.unwrapTypeSchemaView()],
+      ),
+    );
   }
 
   @override
   SharedTypeView extensionTypeErasure(SharedTypeView type) {
     return new SharedTypeView(
-        type.unwrapTypeView<DartType>().extensionTypeErasure);
+      type.unwrapTypeView<DartType>().extensionTypeErasure,
+    );
   }
 
   @override
@@ -930,31 +999,41 @@ class OperationsCfe
   }
 
   @override
+  FutureOrType futureOrTypeInternal(DartType argumentType) {
+    return new FutureOrType(argumentType, Nullability.nonNullable);
+  }
+
+  @override
   InterfaceType futureTypeInternal(DartType argumentType) {
-    return new InterfaceType(typeEnvironment.coreTypes.futureClass,
-        Nullability.nonNullable, <DartType>[argumentType]);
+    return new InterfaceType(
+      typeEnvironment.coreTypes.futureClass,
+      Nullability.nonNullable,
+      <DartType>[argumentType],
+    );
   }
 
   @override
   TypeDeclarationMatchResult<TypeDeclarationType, TypeDeclaration>?
-      matchTypeDeclarationTypeInternal(DartType type) {
+  matchTypeDeclarationTypeInternal(DartType type) {
     if (type is TypeDeclarationType) {
       switch (type) {
         case InterfaceType(:List<DartType> typeArguments, :Class classNode):
           return new TypeDeclarationMatchResult(
-              typeDeclarationKind: TypeDeclarationKind.interfaceDeclaration,
-              typeDeclaration: classNode,
-              typeDeclarationType: type,
-              typeArguments: typeArguments);
+            typeDeclarationKind: TypeDeclarationKind.interfaceDeclaration,
+            typeDeclaration: classNode,
+            typeDeclarationType: type,
+            typeArguments: typeArguments,
+          );
         case ExtensionType(
-            :List<DartType> typeArguments,
-            :ExtensionTypeDeclaration extensionTypeDeclaration
-          ):
+          :List<DartType> typeArguments,
+          :ExtensionTypeDeclaration extensionTypeDeclaration,
+        ):
           return new TypeDeclarationMatchResult(
-              typeDeclarationKind: TypeDeclarationKind.extensionTypeDeclaration,
-              typeDeclaration: extensionTypeDeclaration,
-              typeDeclarationType: type,
-              typeArguments: typeArguments);
+            typeDeclarationKind: TypeDeclarationKind.extensionTypeDeclaration,
+            typeDeclaration: extensionTypeDeclaration,
+            typeDeclarationType: type,
+            typeArguments: typeArguments,
+          );
       }
     } else {
       return null;
@@ -963,7 +1042,9 @@ class OperationsCfe
 
   @override
   Variance getTypeParameterVariance(
-      TypeDeclaration typeDeclaration, int parameterIndex) {
+    TypeDeclaration typeDeclaration,
+    int parameterIndex,
+  ) {
     return typeDeclaration.typeParameters[parameterIndex].variance;
   }
 
@@ -979,16 +1060,22 @@ class OperationsCfe
 
   @override
   DartType greatestClosureOfTypeInternal(
-      DartType type, List<SharedTypeParameter> typeParametersToEliminate) {
-    return new FreeTypeParameterEliminator(coreTypes: typeEnvironment.coreTypes)
-        .eliminateToGreatest(type);
+    DartType type,
+    List<SharedTypeParameter> typeParametersToEliminate,
+  ) {
+    return new FreeTypeParameterEliminator(
+      coreTypes: typeEnvironment.coreTypes,
+    ).eliminateToGreatest(type);
   }
 
   @override
   DartType leastClosureOfTypeInternal(
-      DartType type, List<SharedTypeParameter> typeParametersToEliminate) {
-    return new FreeTypeParameterEliminator(coreTypes: typeEnvironment.coreTypes)
-        .eliminateToLeast(type);
+    DartType type,
+    List<SharedTypeParameter> typeParametersToEliminate,
+  ) {
+    return new FreeTypeParameterEliminator(
+      coreTypes: typeEnvironment.coreTypes,
+    ).eliminateToLeast(type);
   }
 
   @override
@@ -1019,33 +1106,99 @@ class OperationsCfe
   }
 
   @override
-  TypeConstraintGenerator<VariableDeclaration, TypeDeclarationType,
-          TypeDeclaration, TreeNode>
-      createTypeConstraintGenerator(
-          {required covariant TypeInferenceResultForTesting?
-              typeConstraintGenerationDataForTesting,
-          required List<SharedTypeParameterView> typeParametersToInfer,
-          required covariant OperationsCfe typeAnalyzerOperations,
-          required bool inferenceUsingBoundsIsEnabled}) {
+  TypeConstraintGenerator<
+    VariableDeclaration,
+    TypeDeclarationType,
+    TypeDeclaration,
+    TreeNode
+  >
+  createTypeConstraintGenerator({
+    required covariant TypeInferenceResultForTesting?
+    typeConstraintGenerationDataForTesting,
+    required List<SharedTypeParameterView> typeParametersToInfer,
+    required covariant OperationsCfe typeAnalyzerOperations,
+    required bool inferenceUsingBoundsIsEnabled,
+  }) {
     // TODO(cstefantsova): Pass [typeConstraintGenerationDataForTesting] when
     // [InferenceDataForTesting] is merged with [TypeInferenceResultForTesting].
     return new TypeConstraintGatherer(
-        typeAnalyzerOperations.typeEnvironment as TypeSchemaEnvironment,
-        typeParametersToInfer.cast<StructuralParameter>(),
-        typeOperations: typeAnalyzerOperations,
-        inferenceResultForTesting: null,
-        inferenceUsingBoundsIsEnabled: inferenceUsingBoundsIsEnabled);
+      typeAnalyzerOperations.typeEnvironment as TypeSchemaEnvironment,
+      typeParametersToInfer.cast<StructuralParameter>(),
+      typeOperations: typeAnalyzerOperations,
+      inferenceResultForTesting: null,
+      inferenceUsingBoundsIsEnabled: inferenceUsingBoundsIsEnabled,
+    );
   }
 
   @override
   bool isKnownType(SharedTypeSchemaView typeSchema) {
     return isKnown(typeSchema.unwrapTypeSchemaView());
   }
+
+  @override
+  SharedTypeView greatestClosureOfSchema(
+    SharedTypeSchemaView schema, {
+    SharedTypeView? topType,
+  }) {
+    return new SharedTypeView(
+      type_schema_elimination.greatestClosure(
+        schema.unwrapTypeSchemaView(),
+        topType:
+            topType?.unwrapTypeView() ??
+            typeEnvironment.coreTypes.objectNullableRawType,
+      ),
+    );
+  }
+
+  @override
+  SharedTypeView leastClosureOfSchema(SharedTypeSchemaView schema) {
+    return new SharedTypeView(
+      type_schema_elimination.leastClosure(
+        schema.unwrapTypeSchemaView(),
+        coreTypes: typeEnvironment.coreTypes,
+      ),
+    );
+  }
+
+  @override
+  bool isBoundOmitted(covariant StructuralParameter structuralParameter) {
+    // If the bound was omitted by the programmer, the Kernel representation for
+    // the parameter will look similar to the following:
+    //
+    //     T extends Object = dynamic
+    //
+    // Note that it's not possible to receive [Object] as [TypeParameter.bound]
+    // and `dynamic` as [TypeParameter.defaultType] from the front end in any
+    // other way.
+    DartType bound = structuralParameter.bound;
+    return bound is InterfaceType &&
+        identical(
+          bound.classReference,
+          typeEnvironment.coreTypes.objectClass.reference,
+        ) &&
+        structuralParameter.defaultType is DynamicType;
+  }
+
+  @override
+  DartType substituteTypeFromIterables(
+    covariant DartType typeToSubstitute,
+    List<SharedTypeParameter> typeParameters,
+    List<SharedType> types,
+  ) {
+    return new FunctionTypeInstantiator.fromIterables(
+      typeParameters.cast(),
+      types.cast(),
+    ).substitute(typeToSubstitute);
+  }
 }
 
 /// Type inference results used for testing.
-class TypeInferenceResultForTesting extends shared
-    .TypeConstraintGenerationDataForTesting<VariableDeclaration, TreeNode> {
+class TypeInferenceResultForTesting
+    extends
+        shared.TypeConstraintGenerationDataForTesting<
+          VariableDeclaration,
+          TreeNode
+        > {
   final Map<TreeNode, List<DartType>> inferredTypeArguments = {};
   final Map<TreeNode, DartType> inferredVariableTypes = {};
 }

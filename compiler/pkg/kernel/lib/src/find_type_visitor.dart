@@ -10,7 +10,8 @@ class FindTypeVisitor implements DartTypeVisitor<bool> {
   @override
   bool visitAuxiliaryType(AuxiliaryType node) {
     throw new UnsupportedError(
-        'Unsupported auxiliary type $node (${node.runtimeType}).');
+      'Unsupported auxiliary type $node (${node.runtimeType}).',
+    );
   }
 
   @override
@@ -31,7 +32,8 @@ class FindTypeVisitor implements DartTypeVisitor<bool> {
 
   @override
   bool visitInterfaceType(InterfaceType node) {
-    for (DartType typeArgument in node.typeArguments) {
+    for (int i = 0; i < node.typeArguments.length; i++) {
+      DartType typeArgument = node.typeArguments[i];
       if (typeArgument.accept(this)) return true;
     }
     return false;
@@ -96,4 +98,20 @@ class FindTypeVisitor implements DartTypeVisitor<bool> {
 
   @override
   bool visitVoidType(VoidType node) => false;
+
+  @override
+  bool visitFunctionTypeParameterType(FunctionTypeParameterType node) {
+    // TODO(cstefantsova): Implement visitFunctionTypeParameterType.
+    throw new UnimplementedError(
+      "Unimplemented support for $node (${node.runtimeType}).",
+    );
+  }
+
+  @override
+  bool visitClassTypeParameterType(ClassTypeParameterType node) {
+    // TODO(cstefantsova): Implement visitClassTypeParameterType.
+    throw new UnimplementedError(
+      "Unimplemented support for $node (${node.runtimeType}).",
+    );
+  }
 }

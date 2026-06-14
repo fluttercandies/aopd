@@ -2,7 +2,7 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-import '../builder/module.dart';
+import '../serialize/printer.dart';
 import '../serialize/serialize.dart';
 import 'ir.dart';
 
@@ -13,6 +13,15 @@ class Local {
 
   Local(this.index, this.type);
 
+  void printTo(IrPrinter p, Map<int, String> localNames,
+      {bool isParam = false}) {
+    p.write(isParam ? 'param' : 'local');
+    p.write(' ');
+    p.writeLocalIndexReference(index);
+    p.write(' ');
+    p.writeValueType(type);
+  }
+
   @override
   String toString() => "$index";
 }
@@ -22,12 +31,18 @@ abstract class BaseFunction with Indexable, Exportable {
   @override
   final FinalizableIndex finalizableIndex;
   final FunctionType type;
-  final String? functionName;
+  String? functionName;
   @override
-  final ModuleBuilder enclosingModule;
+  final Module enclosingModule;
+
+  /// Whether this function is pure and has no effect.
+  ///
+  /// If marked as spure, we'll emit metadata in the
+  /// `binaryen.removable.if.unused` custom section.
+  bool isPure = false;
 
   BaseFunction(this.enclosingModule, this.finalizableIndex, this.type,
-      this.functionName);
+      [this.functionName]);
 
   @override
   String get name => functionName ?? super.name;
@@ -41,7 +56,7 @@ abstract class BaseFunction with Indexable, Exportable {
 
 /// A function defined in a module.
 class DefinedFunction extends BaseFunction implements Serializable {
-  final Instructions body;
+  late final Instructions body;
 
   /// All local variables defined in the function, including its inputs.
   List<Local> get locals => body.locals;
@@ -50,6 +65,10 @@ class DefinedFunction extends BaseFunction implements Serializable {
 
   DefinedFunction(
       super.enclosingModule, this.body, super.finalizableIndex, super.type,
+      [super.functionName]);
+
+  DefinedFunction.withoutBody(
+      super.enclosingModule, super.finalizableIndex, super.type,
       [super.functionName]);
 
   @override
@@ -79,6 +98,51 @@ class DefinedFunction extends BaseFunction implements Serializable {
     s.writeData(localS);
   }
 
+  void printTo(IrPrinter p) {
+    if (isPure) {
+      p.writeln('(@binaryen.removable.if.unused)');
+    }
+    p.write('(func ');
+    p.writeFunctionReference(this);
+    String? exportName;
+    for (final f in enclosingModule.exports.exported) {
+      if (f is FunctionExport && f.function == this) {
+        exportName = f.name;
+        break;
+      }
+    }
+    if (exportName != null) {
+      p.write(' ');
+      p.writeExport(exportName);
+    }
+
+    p.withLocalNames(localNames, () {
+      if (type.inputs.isNotEmpty || type.outputs.isNotEmpty) {
+        p.write(' ');
+        type.printSignatureWithNamesTo(p, oneLine: true);
+      }
+      p.writeln('');
+      p.withIndent(() {
+        for (int i = type.inputs.length; i < locals.length; ++i) {
+          p.write('(');
+          locals[i].printTo(p, localNames);
+          p.writeln(')');
+        }
+        body.printTo(p);
+      });
+    });
+    p.write(')');
+  }
+
+  void printDeclarationTo(IrPrinter p) {
+    p.write('(func \$$functionName ');
+    p.withLocalNames(localNames, () {
+      type.printSignatureWithNamesTo(p, oneLine: true);
+    });
+    p.write(' <...>');
+    p.writeln(')');
+  }
+
   @override
   String toString() => functionName ?? "#$finalizableIndex";
 }
@@ -100,6 +164,19 @@ class ImportedFunction extends BaseFunction implements Import {
     s.writeName(name);
     s.writeByte(0x00);
     s.writeUnsigned(type.index);
+  }
+
+  void printTo(IrPrinter p) {
+    if (isPure) {
+      p.writeln('(@binaryen.removable.if.unused)');
+    }
+    p.write('(func ');
+    p.writeFunctionReference(this);
+    p.write(' ');
+    p.writeImport(module, name);
+    p.write(' ');
+    type.printOneLineSignatureTo(p);
+    p.write(')');
   }
 
   @override

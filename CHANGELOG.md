@@ -1,3 +1,7 @@
+## 0.2.0
+
+- Support Flutter 3.44.1.
+
 ## 0.1.0
 
 - Initial AOPD release.
@@ -5,4 +9,4 @@
 - Adds app-local frontend server snapshot generation for AOPD compiler transforms.
 - Keeps AOP logic outside `compiler/pkg/*`, which remains an upstream SDK mirror.
 - Supports AspectD-style `Call`, `Execute`, `Inject`, `Add`, and `FieldGet` transforms.
-- Support Flutter 3.35.7
+- Supports Flutter 3.35.7.

@@ -9,7 +9,6 @@ import 'package:kernel/target/targets.dart';
 import 'package:kernel/transformations/track_widget_constructor_locations.dart';
 import 'package:vm/modular/target/vm.dart' show VmTarget;
 
-
 class FlutterTarget extends VmTarget {
   FlutterTarget(TargetFlags flags) : super(flags);
 
@@ -37,6 +36,7 @@ class FlutterTarget extends VmTarget {
     'dart:mirrors',
 
     'dart:typed_data',
+    'dart:_vm',
     'dart:nativewrappers',
     'dart:io',
 
@@ -61,7 +61,6 @@ class FlutterTarget extends VmTarget {
     void Function(String msg)? logger,
     ChangedStructureNotifier? changedStructureNotifier,
   }) {
-    
     super.performPreConstantEvaluationTransformations(
       component,
       coreTypes,

@@ -3,6 +3,9 @@
 // BSD-style license that can be found in the LICENSE file.
 
 // ignore: implementation_imports
+import 'package:_js_interop_checks/src/js_interop.dart'
+    show getDartJSInteropJSName;
+// ignore: implementation_imports
 import 'package:front_end/src/api_prototype/static_weak_references.dart'
     as ir
     show StaticWeakReferences;
@@ -33,8 +36,8 @@ import '../js/js.dart' as js;
 import '../js_backend/backend.dart' show FunctionInlineCache;
 import '../js_backend/field_analysis.dart'
     show FieldAnalysisData, JFieldAnalysis;
-import '../js_backend/interceptor_data.dart';
 import '../js_backend/inferred_data.dart';
+import '../js_backend/interceptor_data.dart';
 import '../js_backend/namer.dart' show ModularNamer;
 import '../js_backend/native_data.dart';
 import '../js_backend/runtime_types_resolution.dart';
@@ -45,8 +48,8 @@ import '../js_model/elements.dart' show JGeneratorBody, JParameterStub;
 import '../js_model/js_strategy.dart';
 import '../js_model/js_world.dart' show JClosedWorld;
 import '../js_model/locals.dart' show GlobalLocalsMap, JumpVisitor;
-import '../js_model/type_recipe.dart';
 import '../js_model/records.dart' show RecordData, JRecordGetter;
+import '../js_model/type_recipe.dart';
 import '../kernel/invocation_mirror.dart';
 import '../native/behavior.dart';
 import '../native/js.dart';
@@ -2166,20 +2169,20 @@ class KernelSsaGraphBuilder extends ir.VisitorDefault<void>
       closedWorld,
     );
 
+    final sourceInformation = _sourceInformationBuilder.buildCall(
+      functionNode,
+      functionNode,
+    );
     push(
       HInvokeExternal(
         targetElement as FunctionEntity,
         inputs,
         returnType,
         nativeBehavior,
-        sourceInformation: null,
+        sourceInformation: sourceInformation,
       ),
     );
     HInstruction value;
-    final sourceInformation = _sourceInformationBuilder.buildCall(
-      functionNode,
-      functionNode,
-    );
     if (options.nativeNullAssertions && nodeIsInWebLibrary(functionNode)) {
       value = pop();
       DartType type = _getDartTypeIfValid(functionNode.returnType);
@@ -7016,7 +7019,11 @@ class KernelSsaGraphBuilder extends ir.VisitorDefault<void>
         final argument = arguments[i];
         if (argument != null) {
           filteredArguments.add(argument);
-          var jsName = _nativeData.computeUnescapedJSInteropName(parameterName);
+          var customName = getDartJSInteropJSName(variable);
+
+          var jsName = (customName.isNotEmpty && isObjectLiteralConstructor)
+              ? customName
+              : _nativeData.computeUnescapedJSInteropName(parameterName);
           parameterNameMap[jsName] = js.InterpolatedExpression(positions++);
         }
         i++;

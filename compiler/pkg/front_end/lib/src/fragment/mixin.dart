@@ -17,13 +17,15 @@ class MixinFragment extends DeclarationFragmentImpl implements Fragment {
   late final TypeBuilder? supertype;
   late final List<TypeBuilder>? mixins;
   late final List<TypeBuilder>? interfaces;
-  late final List<ConstructorReferenceBuilder> constructorReferences;
   late final int startOffset;
   late final int endOffset;
 
   @override
-  late final UriOffsetLength uriOffset =
-      new UriOffsetLength(fileUri, nameOffset, name.length);
+  late final UriOffsetLength uriOffset = new UriOffsetLength(
+    fileUri,
+    nameOffset,
+    name.length,
+  );
 
   MixinFragment({
     required this.name,

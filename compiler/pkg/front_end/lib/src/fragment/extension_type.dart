@@ -14,7 +14,6 @@ class ExtensionTypeFragment extends DeclarationFragmentImpl
   late final List<MetadataBuilder>? metadata;
   late final Modifiers modifiers;
   late final List<TypeBuilder>? interfaces;
-  late final List<ConstructorReferenceBuilder> constructorReferences;
   late final int startOffset;
   late final int endOffset;
 
@@ -23,18 +22,22 @@ class ExtensionTypeFragment extends DeclarationFragmentImpl
   SourceExtensionTypeDeclarationBuilder? _builder;
 
   @override
-  late final UriOffsetLength uriOffset =
-      new UriOffsetLength(fileUri, nameOffset, name.length);
+  late final UriOffsetLength uriOffset = new UriOffsetLength(
+    fileUri,
+    nameOffset,
+    name.length,
+  );
 
-  ExtensionTypeFragment(
-      {required this.name,
-      required super.fileUri,
-      required this.nameOffset,
-      required super.typeParameters,
-      required super.enclosingScope,
-      required super.typeParameterScope,
-      required super.nominalParameterNameSpace,
-      required super.enclosingCompilationUnit});
+  ExtensionTypeFragment({
+    required this.name,
+    required super.fileUri,
+    required this.nameOffset,
+    required super.typeParameters,
+    required super.enclosingScope,
+    required super.typeParameterScope,
+    required super.nominalParameterNameSpace,
+    required super.enclosingCompilationUnit,
+  });
 
   @override
   // Coverage-ignore(suite): Not run.
@@ -59,7 +62,9 @@ class ExtensionTypeFragment extends DeclarationFragmentImpl
       DeclarationFragmentKind.extensionTypeDeclaration;
 
   @override
-  void addPrimaryConstructorField(PrimaryConstructorFieldFragment fragment) {
+  void registerPrimaryConstructorField(
+    PrimaryConstructorFieldFragment fragment,
+  ) {
     primaryConstructorFields.add(fragment);
   }
 

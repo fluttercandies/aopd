@@ -2,7 +2,7 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-import '../builder/module.dart';
+import '../serialize/printer.dart';
 import '../serialize/serialize.dart';
 import 'ir.dart';
 
@@ -16,7 +16,7 @@ class Table with Indexable, Exportable implements Serializable {
   int minSize;
   final int? maxSize;
   @override
-  final ModuleBuilder enclosingModule;
+  final Module enclosingModule;
 
   Table(this.enclosingModule, this.finalizableIndex, this.type, this.minSize,
       this.maxSize);
@@ -41,10 +41,28 @@ class Table with Indexable, Exportable implements Serializable {
 
 /// A table defined in a module.
 class DefinedTable extends Table {
-  final List<BaseFunction?> elements;
+  DefinedTable(super.enclosingModule, super.finalizableIndex, super.type,
+      super.minSize, super.maxSize);
 
-  DefinedTable(super.enclosingModule, this.elements, super.finalizableIndex,
-      super.type, super.minSize, super.maxSize);
+  void printTo(IrPrinter p) {
+    p.write('(table ');
+    p.writeTableReference(this, alwaysPrint: true);
+    String? exportName;
+    for (final e in enclosingModule.exports.exported) {
+      if (e is TableExport && e.table == this) {
+        exportName = e.name;
+        break;
+      }
+    }
+    if (exportName != null) {
+      p.write(' ');
+      p.writeExport(exportName);
+    }
+
+    p.write(' $minSize ');
+    p.writeValueType(type);
+    p.write(')');
+  }
 }
 
 /// An imported table.
@@ -53,9 +71,6 @@ class ImportedTable extends Table implements Import {
   final String module;
   @override
   final String name;
-
-  /// Functions to be inserted via the elements section.
-  final Map<int, BaseFunction> setElements = {};
 
   ImportedTable(super.enclosingModule, this.module, this.name,
       super.finalizableIndex, super.type, super.minSize, super.maxSize);
@@ -66,6 +81,16 @@ class ImportedTable extends Table implements Import {
     s.writeName(name);
     s.writeByte(0x01);
     super.serialize(s);
+  }
+
+  void printTo(IrPrinter p) {
+    p.write('(table ');
+    p.writeTableReference(this, alwaysPrint: true);
+    p.write(' ');
+    p.writeImport(module, name);
+    p.write(' $minSize ');
+    p.writeValueType(type);
+    p.write(')');
   }
 }
 

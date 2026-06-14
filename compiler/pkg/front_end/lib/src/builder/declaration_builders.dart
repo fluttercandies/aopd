@@ -2,8 +2,10 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
+import 'package:front_end/src/codes/diagnostic.dart' as diag;
 import 'package:kernel/ast.dart';
 import 'package:kernel/class_hierarchy.dart';
+import 'package:kernel/names.dart';
 import 'package:kernel/src/bounds_checks.dart';
 import 'package:kernel/src/unaliasing.dart';
 
@@ -33,7 +35,7 @@ part 'class_builder.dart';
 part 'declaration_builder.dart';
 part 'extension_builder.dart';
 part 'extension_type_declaration_builder.dart';
-part 'invalid_type_declaration_builder.dart';
+part 'invalid_builder.dart';
 part 'type_alias_builder.dart';
 part 'type_declaration_builder.dart';
 part 'type_parameter_builder.dart';

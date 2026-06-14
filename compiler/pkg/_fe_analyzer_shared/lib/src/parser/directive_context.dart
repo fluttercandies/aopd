@@ -2,17 +2,18 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-import '../messages/codes.dart';
+import 'package:_fe_analyzer_shared/src/messages/diagnostic.dart' as diag;
+
 import '../scanner/token.dart';
 import 'parser_impl.dart';
 
 class DirectiveContext {
-  /// Whether the `enhanced-parts` feature is enabled.
-  final bool enableFeatureEnhancedParts;
+  /// `true` if the 'enhanced-parts' feature is enabled.
+  final bool isEnhancedPartsFeatureEnabled;
 
   DirectiveState state = DirectiveState.Unknown;
 
-  DirectiveContext({required this.enableFeatureEnhancedParts});
+  DirectiveContext({required this.isEnhancedPartsFeatureEnabled});
 
   void checkScriptTag(Parser parser, Token token) {
     if (state == DirectiveState.Unknown) {
@@ -38,15 +39,15 @@ class DirectiveContext {
       case DirectiveState.ImportAndExport:
         state = DirectiveState.ImportAndExport;
       case DirectiveState.Part:
-        parser.reportRecoverableError(token, messageExportAfterPart);
+        parser.reportRecoverableError(token, diag.exportAfterPart);
       case DirectiveState.PartOf:
-        if (enableFeatureEnhancedParts) {
+        if (isEnhancedPartsFeatureEnabled) {
           state = DirectiveState.ImportAndExport;
         } else {
-          parser.reportRecoverableError(token, messageNonPartOfDirectiveInPart);
+          parser.reportRecoverableError(token, diag.nonPartOfDirectiveInPart);
         }
       case DirectiveState.Declarations:
-        parser.reportRecoverableError(token, messageDirectiveAfterDeclaration);
+        parser.reportRecoverableError(token, diag.directiveAfterDeclaration);
     }
   }
 
@@ -58,15 +59,15 @@ class DirectiveContext {
       case DirectiveState.ImportAndExport:
         state = DirectiveState.ImportAndExport;
       case DirectiveState.Part:
-        parser.reportRecoverableError(token, messageImportAfterPart);
+        parser.reportRecoverableError(token, diag.importAfterPart);
       case DirectiveState.PartOf:
-        if (enableFeatureEnhancedParts) {
+        if (isEnhancedPartsFeatureEnabled) {
           state = DirectiveState.ImportAndExport;
         } else {
-          parser.reportRecoverableError(token, messageNonPartOfDirectiveInPart);
+          parser.reportRecoverableError(token, diag.nonPartOfDirectiveInPart);
         }
       case DirectiveState.Declarations:
-        parser.reportRecoverableError(token, messageDirectiveAfterDeclaration);
+        parser.reportRecoverableError(token, diag.directiveAfterDeclaration);
     }
   }
 
@@ -77,11 +78,11 @@ class DirectiveContext {
     }
     // Recovery
     if (state == DirectiveState.Library) {
-      parser.reportRecoverableError(token, messageMultipleLibraryDirectives);
+      parser.reportRecoverableError(token, diag.multipleLibraryDirectives);
     } else if (state == DirectiveState.PartOf) {
-      parser.reportRecoverableError(token, messageNonPartOfDirectiveInPart);
+      parser.reportRecoverableError(token, diag.nonPartOfDirectiveInPart);
     } else {
-      parser.reportRecoverableError(token, messageLibraryDirectiveNotFirst);
+      parser.reportRecoverableError(token, diag.libraryDirectiveNotFirst);
     }
   }
 
@@ -94,13 +95,13 @@ class DirectiveContext {
       case DirectiveState.Part:
         state = DirectiveState.Part;
       case DirectiveState.PartOf:
-        if (enableFeatureEnhancedParts) {
+        if (isEnhancedPartsFeatureEnabled) {
           state = DirectiveState.ImportAndExport;
         } else {
-          parser.reportRecoverableError(token, messageNonPartOfDirectiveInPart);
+          parser.reportRecoverableError(token, diag.nonPartOfDirectiveInPart);
         }
       case DirectiveState.Declarations:
-        parser.reportRecoverableError(token, messageDirectiveAfterDeclaration);
+        parser.reportRecoverableError(token, diag.directiveAfterDeclaration);
     }
   }
 
@@ -111,9 +112,9 @@ class DirectiveContext {
     }
     // Recovery
     if (state == DirectiveState.PartOf) {
-      parser.reportRecoverableError(token, messagePartOfTwice);
+      parser.reportRecoverableError(token, diag.partOfTwice);
     } else {
-      parser.reportRecoverableError(token, messageNonPartOfDirectiveInPart);
+      parser.reportRecoverableError(token, diag.nonPartOfDirectiveInPart);
     }
   }
 

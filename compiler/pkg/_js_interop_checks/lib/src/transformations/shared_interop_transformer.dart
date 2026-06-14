@@ -7,15 +7,8 @@
 import 'package:_js_interop_checks/js_interop_checks.dart'
     show JsInteropDiagnosticReporter;
 import 'package:_js_interop_checks/src/js_interop.dart' as js_interop;
-import 'package:front_end/src/api_prototype/codes.dart'
-    show
-        messageJsInteropIsATearoff,
-        templateJsInteropExportClassNotMarkedExportable,
-        templateJsInteropExportInvalidInteropTypeArgument,
-        templateJsInteropExportInvalidTypeArgument,
-        templateJsInteropIsAInvalidTypeVariable,
-        templateJsInteropIsAObjectLiteralType,
-        templateJsInteropIsAPrimitiveExtensionType;
+
+import 'package:front_end/src/codes/diagnostic.dart' as diag;
 import 'package:kernel/ast.dart';
 import 'package:kernel/library_index.dart';
 import 'package:kernel/type_environment.dart';
@@ -25,10 +18,10 @@ import 'js_util_optimizer.dart';
 import 'static_interop_mock_validator.dart';
 
 class SharedInteropTransformer extends Transformer {
+  final bool _supportsJsUtil;
+
   final Procedure _callMethodVarArgs;
-  final Procedure _createDartExport;
   final Procedure _createJSInteropWrapper;
-  final Procedure _createStaticInteropMock;
   final JsInteropDiagnosticReporter _diagnosticReporter;
   final ExportChecker _exportChecker;
   final ExtensionIndex _extensionIndex;
@@ -41,14 +34,25 @@ class SharedInteropTransformer extends Transformer {
   late StaticInvocation? _invocation;
   final Procedure _isA;
   final Procedure _isATearoff;
+  final Procedure _isJSAny;
+  final Procedure _isJSBoxedDartObject;
+  final Procedure _isJSExportedDartFunction;
+  final Procedure _isJSObject;
+  final Procedure _isNullableJSAny;
+  final Procedure _isNullableJSBoxedDartObject;
+  final Procedure _isNullableJSExportedDartFunction;
+  final Procedure _isNullableJSObject;
   final ExtensionTypeDeclaration _jsAny;
   final ExtensionTypeDeclaration _jsFunction;
   final ExtensionTypeDeclaration _jsObject;
   final Procedure _setProperty;
   final Procedure _stringToJS;
   final StaticInteropMockValidator _staticInteropMockValidator;
+  final StatefulStaticTypeContext _staticTypeContext;
   final TypeEnvironment _typeEnvironment;
   final Procedure _typeofEquals;
+
+  int exportNameIdentifierCounter = 0;
 
   StaticInvocation get invocation => _invocation!;
 
@@ -57,19 +61,16 @@ class SharedInteropTransformer extends Transformer {
     this._diagnosticReporter,
     this._exportChecker,
     this._extensionIndex,
-  ) : _callMethodVarArgs = _typeEnvironment.coreTypes.index
+  ) : _supportsJsUtil = _typeEnvironment.coreTypes.index.containsLibrary(
+        'dart:js_util',
+      ),
+      _callMethodVarArgs = _typeEnvironment.coreTypes.index
           .getTopLevelProcedure(
             'dart:js_interop_unsafe',
             'JSObjectUnsafeUtilExtension|callMethodVarArgs',
           ),
-      _createDartExport = _typeEnvironment.coreTypes.index.getTopLevelProcedure(
-        'dart:js_util',
-        'createDartExport',
-      ),
       _createJSInteropWrapper = _typeEnvironment.coreTypes.index
           .getTopLevelProcedure('dart:js_interop', 'createJSInteropWrapper'),
-      _createStaticInteropMock = _typeEnvironment.coreTypes.index
-          .getTopLevelProcedure('dart:js_util', 'createStaticInteropMock'),
       _functionToJS = _typeEnvironment.coreTypes.index.getTopLevelProcedure(
         'dart:js_interop',
         'FunctionToJSExportedDartFunction|get#toJS',
@@ -92,12 +93,40 @@ class SharedInteropTransformer extends Transformer {
       ),
       _isA = _typeEnvironment.coreTypes.index.getTopLevelProcedure(
         'dart:js_interop',
-        'JSAnyUtilityExtension|isA',
+        'NullableObjectUtilExtension|isA',
       ),
       _isATearoff = _typeEnvironment.coreTypes.index.getTopLevelProcedure(
         'dart:js_interop',
-        'JSAnyUtilityExtension|${LibraryIndex.tearoffPrefix}isA',
+        'NullableObjectUtilExtension|${LibraryIndex.tearoffPrefix}isA',
       ),
+      _isJSAny = _typeEnvironment.coreTypes.index.getTopLevelProcedure(
+        'dart:js_interop',
+        '_isJSAny',
+      ),
+      _isJSBoxedDartObject = _typeEnvironment.coreTypes.index
+          .getTopLevelProcedure('dart:js_interop', '_isJSBoxedDartObject'),
+      _isJSExportedDartFunction = _typeEnvironment.coreTypes.index
+          .getTopLevelProcedure('dart:js_interop', '_isJSExportedDartFunction'),
+      _isJSObject = _typeEnvironment.coreTypes.index.getTopLevelProcedure(
+        'dart:js_interop',
+        '_isJSObject',
+      ),
+      _isNullableJSAny = _typeEnvironment.coreTypes.index.getTopLevelProcedure(
+        'dart:js_interop',
+        '_isNullableJSAny',
+      ),
+      _isNullableJSBoxedDartObject = _typeEnvironment.coreTypes.index
+          .getTopLevelProcedure(
+            'dart:js_interop',
+            '_isNullableJSBoxedDartObject',
+          ),
+      _isNullableJSExportedDartFunction = _typeEnvironment.coreTypes.index
+          .getTopLevelProcedure(
+            'dart:js_interop',
+            '_isNullableJSExportedDartFunction',
+          ),
+      _isNullableJSObject = _typeEnvironment.coreTypes.index
+          .getTopLevelProcedure('dart:js_interop', '_isNullableJSObject'),
       _jsAny = _typeEnvironment.coreTypes.index.getExtensionType(
         'dart:js_interop',
         'JSAny',
@@ -123,30 +152,53 @@ class SharedInteropTransformer extends Transformer {
         _exportChecker,
         _typeEnvironment,
       ),
+      _staticTypeContext = StatefulStaticTypeContext.stacked(_typeEnvironment),
       _typeofEquals = _typeEnvironment.coreTypes.index.getTopLevelProcedure(
         'dart:js_interop',
         'JSAnyUtilityExtension|typeofEquals',
       );
+
+  late final Procedure _createDartExport = _typeEnvironment.coreTypes.index
+      .getTopLevelProcedure('dart:js_util', 'createDartExport');
+  late final Procedure _createStaticInteropMock = _typeEnvironment
+      .coreTypes
+      .index
+      .getTopLevelProcedure('dart:js_util', 'createStaticInteropMock');
+
+  @override
+  TreeNode visitLibrary(Library node) {
+    _staticTypeContext.enterLibrary(node);
+    node.transformChildren(this);
+    _staticTypeContext.leaveLibrary(node);
+    return node;
+  }
 
   @override
   TreeNode visitStaticInvocation(StaticInvocation node) {
     _invocation = node;
     TreeNode replacement = invocation;
     final target = invocation.target;
-    if (target == _createDartExport || target == _createJSInteropWrapper) {
+    if (_supportsJsUtil && target == _createDartExport) {
       final typeArguments = invocation.arguments.types;
       assert(typeArguments.length == 1);
       if (_verifyExportable(typeArguments[0])) {
         final interface = typeArguments[0] as InterfaceType;
-        if (target == _createJSInteropWrapper) {
-          replacement = _createExport(
-            interface,
-            ExtensionType(_jsObject, Nullability.nonNullable),
-          );
-        }
         replacement = _createExport(interface);
       }
-    } else if (target == _createStaticInteropMock) {
+    } else if (target == _createJSInteropWrapper) {
+      final typeArguments = invocation.arguments.types;
+      assert(typeArguments.length == 1);
+      if (_verifyExportable(typeArguments[0])) {
+        final interface = typeArguments[0] as InterfaceType;
+        final arguments = invocation.arguments.positional;
+        assert(arguments.length == 1 || arguments.length == 2);
+        replacement = _createExport(
+          interface,
+          ExtensionType(_jsObject, Nullability.nonNullable),
+          arguments.length == 2 ? arguments[1] : null,
+        );
+      }
+    } else if (_supportsJsUtil && target == _createStaticInteropMock) {
       final typeArguments = invocation.arguments.types;
       assert(typeArguments.length == 2);
       final staticInteropType = typeArguments[0];
@@ -192,7 +244,9 @@ class SharedInteropTransformer extends Transformer {
         if (!_inIsATearoff) {
           assert(interopType is TypeParameterType);
           _diagnosticReporter.report(
-            templateJsInteropIsAInvalidTypeVariable.withArguments(interopType),
+            diag.jsInteropIsAInvalidTypeVariable.withArguments(
+              type: interopType,
+            ),
             invocation.fileOffset,
             invocation.name.text.length,
             invocation.location?.file,
@@ -203,7 +257,7 @@ class SharedInteropTransformer extends Transformer {
     } else if (target == _isATearoff) {
       // Calling the generated tear-off is still bad, however.
       _diagnosticReporter.report(
-        messageJsInteropIsATearoff,
+        diag.jsInteropIsATearoff,
         invocation.fileOffset,
         invocation.name.text.length,
         invocation.location?.file,
@@ -216,9 +270,11 @@ class SharedInteropTransformer extends Transformer {
 
   @override
   TreeNode visitProcedure(Procedure node) {
+    _staticTypeContext.enterMember(node);
     _inIsATearoff = node == _isATearoff;
     node.transformChildren(this);
     _inIsATearoff = false;
+    _staticTypeContext.leaveMember(node);
     return node;
   }
 
@@ -235,7 +291,7 @@ class SharedInteropTransformer extends Transformer {
   bool _verifyExportable(DartType dartType) {
     if (dartType is! InterfaceType) {
       _diagnosticReporter.report(
-        templateJsInteropExportInvalidTypeArgument.withArguments(dartType),
+        diag.jsInteropExportInvalidTypeArgument.withArguments(type: dartType),
         invocation.fileOffset,
         invocation.name.text.length,
         invocation.location?.file,
@@ -247,8 +303,8 @@ class SharedInteropTransformer extends Transformer {
         js_interop.hasStaticInteropAnnotation(dartClass) ||
         js_interop.hasAnonymousAnnotation(dartClass)) {
       _diagnosticReporter.report(
-        templateJsInteropExportInvalidInteropTypeArgument.withArguments(
-          dartType,
+        diag.jsInteropExportInvalidInteropTypeArgument.withArguments(
+          type: dartType,
         ),
         invocation.fileOffset,
         invocation.name.text.length,
@@ -271,8 +327,8 @@ class SharedInteropTransformer extends Transformer {
     var exportStatus = _exportChecker.exportStatus[dartClass.reference];
     if (exportStatus == ExportStatus.nonExportable) {
       _diagnosticReporter.report(
-        templateJsInteropExportClassNotMarkedExportable.withArguments(
-          dartClass.name,
+        diag.jsInteropExportClassNotMarkedExportable.withArguments(
+          className: dartClass.name,
         ),
         invocation.fileOffset,
         invocation.name.text.length,
@@ -287,7 +343,7 @@ class SharedInteropTransformer extends Transformer {
   /// interface in [dartType].
   ///
   /// [dartType] is assumed to be a valid exportable class. [returnType] is the
-  /// type that the object literal will be casted to. [proto] is an optional
+  /// type that the object literal will be cast to. [proto] is an optional
   /// prototype object that users can pass to instantiate the object literal.
   ///
   /// The export map is already validated, so this method simply iterates over
@@ -395,7 +451,9 @@ class SharedInteropTransformer extends Transformer {
         // A new map VariableDeclaration is created and added to the block of
         // statements for each export name.
         var getSetMap = VariableDeclaration(
-          '#${exportName}Mapping',
+          // Don't use the exportName here because it might not be a valid JS
+          // identifier.
+          '#${exportNameIdentifierCounter++}Mapping',
           initializer: getLiteral(),
           type: ExtensionType(_jsObject, Nullability.nonNullable),
           isSynthesized: true,
@@ -512,24 +570,60 @@ class SharedInteropTransformer extends Transformer {
     ExtensionType interopType,
     ExtensionTypeDeclaration jsType,
   ) {
-    // In the case where the receiver wasn't a variable to begin with,
-    // synthesize a var so that we don't evaluate the receiver multiple times.
-    final any = receiver is VariableGet
+    final receiverStaticType = receiver.getStaticType(_staticTypeContext);
+    final receiverInteropTypeDeclaration = _extensionIndex
+        .getCoreInteropType(receiverStaticType)
+        ?.node;
+    final receiverIsJSType =
+        receiverInteropTypeDeclaration is ExtensionTypeDeclaration
+        ? _extensionIndex.isJSType(receiverInteropTypeDeclaration)
+        : false;
+    final receiverVar = receiver is VariableGet
         ? receiver.variable
+        // Synthesize declaration to avoid re-evaluating expressions.
         : (VariableDeclaration.forValue(
             receiver,
-            type: ExtensionType(_jsAny, Nullability.nullable),
+            type: receiverIsJSType
+                ? ExtensionType(_jsAny, Nullability.nullable)
+                : receiverStaticType,
           )..fileOffset = invocation.fileOffset);
+    final receiverVarAsJSAny =
+        receiverIsJSType
+              ? VariableGet(receiverVar)
+              : AsExpression(
+                  VariableGet(receiverVar),
+                  ExtensionType(_jsAny, Nullability.nullable),
+                )
+          ..fileOffset = invocation.fileOffset
+          ..parent = invocation.parent;
 
-    Expression? check;
     final interopTypeDecl = interopType.extensionTypeDeclaration;
+    final interopTypeNullable = interopType.nullability == Nullability.nullable;
     final jsTypeName = jsType.name;
+    // If not a subtype of `JSAny`, check that it's a valid `JSAny` first.
+    Expression? isJSAnyCheck = !receiverIsJSType
+        ? StaticInvocation(_isJSAny, Arguments([VariableGet(receiverVar)]))
+        : null;
+    // In the cases where we only call helper methods, they should do the
+    // null-related checks instead of the transformation to reduce code size.
+    var nullChecksNeeded = true;
+    Expression? check;
     String? typeofString;
     String? instanceOfString;
+    // TODO(srujzs): Maybe use `Array.isArray` for `JSArray`.
+    // https://github.com/dart-lang/sdk/issues/62699
     switch (jsTypeName) {
       case 'JSAny' when interopTypeDecl == jsType:
-        // Only avoids any non null-related checks when users are referring
-        // directly to the `dart:js_interop` type and not some wrapper.
+        // In the case where it is == `JSAny`, it is possible the user may have
+        // cast an incorrect value to `JSAny` due to the type-system. While an
+        // incorrect cast could occur in some way for other JS interop types as
+        // well, their checks would avoid erroneously returning true for
+        // unrelated Dart values and `ExternalDartReference`s.
+        isJSAnyCheck = StaticInvocation(
+          interopTypeNullable ? _isNullableJSAny : _isJSAny,
+          Arguments([VariableGet(receiverVar)]),
+        );
+        nullChecksNeeded = false;
         break;
       case 'JSNumber':
         typeofString = 'number';
@@ -546,19 +640,56 @@ class SharedInteropTransformer extends Transformer {
       case 'JSSymbol':
         typeofString = 'symbol';
         break;
+      case 'JSObject' when interopTypeDecl == jsType:
+        // Only do this special case when users are referring directly to the
+        // `dart:js_interop` type and not some wrapper.
+        isJSAnyCheck = null;
+        nullChecksNeeded = false;
+        check = StaticInvocation(
+          interopTypeNullable ? _isNullableJSObject : _isJSObject,
+          Arguments([VariableGet(receiverVar)]),
+        );
+        break;
+      case 'JSExportedDartFunction' when interopTypeDecl == jsType:
+        // Only do this special case when users are referring directly to the
+        // `dart:js_interop` type and not some wrapper.
+        isJSAnyCheck = null;
+        nullChecksNeeded = false;
+        check = StaticInvocation(
+          interopTypeNullable
+              ? _isNullableJSExportedDartFunction
+              : _isJSExportedDartFunction,
+          Arguments([VariableGet(receiverVar)]),
+        );
+        break;
       case 'JSTypedArray' when interopTypeDecl == jsType:
-        // Only do this special case when users are referring directly to
-        // the `dart:js_interop` type and not some wrapper.
+        // Only do this special case when users are referring directly to the
+        // `dart:js_interop` type and not some wrapper.
 
         // `TypedArray` doesn't exist as a property in JS, but rather as a
         // superclass of all typed arrays. In order to do the most sensible
-        // thing here, we can use the prototype of some typed array, and
-        // check that the receiver is an `instanceof` that prototype.
-        // See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray#description
+        // thing here, we can use the prototype of some typed array, and check
+        // that the receiver is an `instanceof` that prototype. See
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray#description
         // for more details.
         check = StaticInvocation(
           _instanceof,
-          Arguments([VariableGet(any), getInt8ArrayPrototype()]),
+          Arguments([receiverVarAsJSAny, getInt8ArrayPrototype()]),
+        );
+        break;
+      case 'JSBoxedDartObject' when interopTypeDecl == jsType:
+        // Only do this special case when users are referring directly to the
+        // `dart:js_interop` type and not some wrapper.
+
+        // Check whether the given value is the result of a previous call to
+        // `toJSBox`.
+        isJSAnyCheck = null;
+        nullChecksNeeded = false;
+        check = StaticInvocation(
+          interopTypeNullable
+              ? _isNullableJSBoxedDartObject
+              : _isJSBoxedDartObject,
+          Arguments([VariableGet(receiverVar)]),
         );
         break;
       default:
@@ -567,7 +698,9 @@ class SharedInteropTransformer extends Transformer {
           if (descriptorNode is Procedure &&
               _extensionIndex.isLiteralConstructor(descriptorNode)) {
             _diagnosticReporter.report(
-              templateJsInteropIsAObjectLiteralType.withArguments(interopType),
+              diag.jsInteropIsAObjectLiteralType.withArguments(
+                type: interopType,
+              ),
               invocation.fileOffset,
               invocation.name.text.length,
               invocation.location?.file,
@@ -596,45 +729,67 @@ class SharedInteropTransformer extends Transformer {
     if (typeofString != null) {
       if (interopTypeDecl != jsType) {
         _diagnosticReporter.report(
-          templateJsInteropIsAPrimitiveExtensionType.withArguments(
-            interopType,
-            jsTypeName,
+          diag.jsInteropIsAPrimitiveExtensionType.withArguments(
+            interopType: interopType,
+            jsTypeName: jsTypeName,
           ),
           invocation.fileOffset,
           invocation.name.text.length,
           invocation.location?.file,
         );
       } else {
+        assert(check == null);
         check = StaticInvocation(
           _typeofEquals,
-          Arguments([VariableGet(any), StringLiteral(typeofString)]),
+          Arguments([receiverVarAsJSAny, StringLiteral(typeofString)]),
         );
       }
     } else if (instanceOfString != null) {
+      assert(check == null);
       check = StaticInvocation(
         _instanceOfString,
-        Arguments([VariableGet(any), StringLiteral(instanceOfString)]),
+        Arguments([receiverVarAsJSAny, StringLiteral(instanceOfString)]),
       );
     }
-    final nullable = interopType.nullability == Nullability.nullable;
-    Expression nullCheck = EqualsNull(VariableGet(any));
-    Expression notNullCheck = Not(EqualsNull(VariableGet(any)));
+    if (isJSAnyCheck != null) {
+      if (check != null) {
+        check = LogicalExpression(
+          isJSAnyCheck,
+          LogicalExpressionOperator.AND,
+          check,
+        );
+      } else {
+        check = isJSAnyCheck;
+      }
+    }
+
     if (check != null) {
-      check = nullable
-          ? LogicalExpression(nullCheck, LogicalExpressionOperator.OR, check)
-          : LogicalExpression(
-              notNullCheck,
-              LogicalExpressionOperator.AND,
-              check,
-            );
-    } else if (!nullable) {
-      // `JSAny`
-      check = notNullCheck;
+      if (nullChecksNeeded) {
+        if (interopTypeNullable) {
+          // == null || check
+          check = LogicalExpression(
+            EqualsNull(VariableGet(receiverVar)),
+            LogicalExpressionOperator.OR,
+            check,
+          );
+        } else {
+          assert(interopType.nullability == Nullability.nonNullable);
+          // != null && check
+          check = LogicalExpression(
+            Not(EqualsNull(VariableGet(receiverVar))),
+            LogicalExpressionOperator.AND,
+            check,
+          );
+        }
+      }
     } else {
-      // `JSAny?`
+      // Error condition. Return true as the simplest option since this code
+      // won't run anyways.
+      assert(_diagnosticReporter.hasJsInteropErrors);
       check = BoolLiteral(true);
     }
-    return receiver is VariableGet ? check : Let(any, check)
+
+    return receiver is VariableGet ? check : Let(receiverVar, check)
       ..fileOffset = invocation.fileOffset
       ..parent = invocation.parent;
   }

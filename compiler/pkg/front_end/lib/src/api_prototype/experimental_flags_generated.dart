@@ -30,346 +30,433 @@ class ExperimentalFlag {
   final bool isExpired;
   final Version enabledVersion;
 
-  /// The minimum version that supports this feature.
+  /// The minimum version that enables the feature by default.
   ///
   /// If the feature is not enabled by default, this is the current language
   /// version.
   final Version experimentEnabledVersion;
 
-  /// The minimum version that supports this feature in allowed libraries.
+  /// The minimum version that allows this feature to be enabled with a flag and
+  /// enables the experiment in allowed libraries.
   ///
   /// Allowed libraries are specified in
   ///
   ///    sdk/lib/_internal/allowed_experiments.json
   final Version experimentReleasedVersion;
 
-  const ExperimentalFlag(
-      {required this.name,
-      required this.isEnabledByDefault,
-      required this.isExpired,
-      required this.enabledVersion,
-      required this.experimentEnabledVersion,
-      required this.experimentReleasedVersion});
+  const ExperimentalFlag({
+    required this.name,
+    required this.isEnabledByDefault,
+    required this.isExpired,
+    required this.enabledVersion,
+    required this.experimentEnabledVersion,
+    required this.experimentReleasedVersion,
+  });
   static const ExperimentalFlag alternativeInvalidationStrategy =
       const ExperimentalFlag(
-          name: 'alternative-invalidation-strategy',
-          isEnabledByDefault: true,
-          isExpired: true,
-          enabledVersion: const Version(2, 18),
-          experimentEnabledVersion: const Version(2, 18),
-          experimentReleasedVersion: const Version(2, 18));
+        name: 'alternative-invalidation-strategy',
+        isEnabledByDefault: true,
+        isExpired: true,
+        enabledVersion: const Version(2, 18),
+        experimentEnabledVersion: const Version(2, 18),
+        experimentReleasedVersion: const Version(2, 18),
+      );
+
+  static const ExperimentalFlag anonymousMethods = const ExperimentalFlag(
+    name: 'anonymous-methods',
+    isEnabledByDefault: false,
+    isExpired: false,
+    enabledVersion: defaultLanguageVersion,
+    experimentEnabledVersion: defaultLanguageVersion,
+    experimentReleasedVersion: defaultLanguageVersion,
+  );
 
   static const ExperimentalFlag augmentations = const ExperimentalFlag(
-      name: 'augmentations',
-      isEnabledByDefault: false,
-      isExpired: false,
-      enabledVersion: defaultLanguageVersion,
-      experimentEnabledVersion: defaultLanguageVersion,
-      experimentReleasedVersion: const Version(3, 6));
+    name: 'augmentations',
+    isEnabledByDefault: false,
+    isExpired: false,
+    enabledVersion: defaultLanguageVersion,
+    experimentEnabledVersion: defaultLanguageVersion,
+    experimentReleasedVersion: const Version(3, 6),
+  );
 
   static const ExperimentalFlag classModifiers = const ExperimentalFlag(
-      name: 'class-modifiers',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(3, 0),
-      experimentEnabledVersion: const Version(3, 0),
-      experimentReleasedVersion: const Version(3, 0));
+    name: 'class-modifiers',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(3, 0),
+    experimentEnabledVersion: const Version(3, 0),
+    experimentReleasedVersion: const Version(3, 0),
+  );
 
   static const ExperimentalFlag constFunctions = const ExperimentalFlag(
-      name: 'const-functions',
-      isEnabledByDefault: false,
-      isExpired: false,
-      enabledVersion: defaultLanguageVersion,
-      experimentEnabledVersion: defaultLanguageVersion,
-      experimentReleasedVersion: defaultLanguageVersion);
+    name: 'const-functions',
+    isEnabledByDefault: false,
+    isExpired: false,
+    enabledVersion: defaultLanguageVersion,
+    experimentEnabledVersion: defaultLanguageVersion,
+    experimentReleasedVersion: defaultLanguageVersion,
+  );
 
   static const ExperimentalFlag constantUpdate2018 = const ExperimentalFlag(
-      name: 'constant-update-2018',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(2, 0),
-      experimentEnabledVersion: const Version(2, 0),
-      experimentReleasedVersion: const Version(2, 0));
+    name: 'constant-update-2018',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(2, 0),
+    experimentEnabledVersion: const Version(2, 0),
+    experimentReleasedVersion: const Version(2, 0),
+  );
 
   static const ExperimentalFlag constructorTearoffs = const ExperimentalFlag(
-      name: 'constructor-tearoffs',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(2, 15),
-      experimentEnabledVersion: const Version(2, 15),
-      experimentReleasedVersion: const Version(2, 15));
+    name: 'constructor-tearoffs',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(2, 15),
+    experimentEnabledVersion: const Version(2, 15),
+    experimentReleasedVersion: const Version(2, 15),
+  );
 
   static const ExperimentalFlag controlFlowCollections = const ExperimentalFlag(
-      name: 'control-flow-collections',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(2, 0),
-      experimentEnabledVersion: const Version(2, 0),
-      experimentReleasedVersion: const Version(2, 0));
+    name: 'control-flow-collections',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(2, 0),
+    experimentEnabledVersion: const Version(2, 0),
+    experimentReleasedVersion: const Version(2, 0),
+  );
+
+  static const ExperimentalFlag dataAssets = const ExperimentalFlag(
+    name: 'data-assets',
+    isEnabledByDefault: false,
+    isExpired: false,
+    enabledVersion: defaultLanguageVersion,
+    experimentEnabledVersion: defaultLanguageVersion,
+    experimentReleasedVersion: defaultLanguageVersion,
+  );
 
   static const ExperimentalFlag digitSeparators = const ExperimentalFlag(
-      name: 'digit-separators',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(3, 6),
-      experimentEnabledVersion: const Version(3, 6),
-      experimentReleasedVersion: const Version(3, 6));
+    name: 'digit-separators',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(3, 6),
+    experimentEnabledVersion: const Version(3, 6),
+    experimentReleasedVersion: const Version(3, 6),
+  );
 
   static const ExperimentalFlag dotShorthands = const ExperimentalFlag(
-      name: 'dot-shorthands',
-      isEnabledByDefault: false,
-      isExpired: false,
-      enabledVersion: defaultLanguageVersion,
-      experimentEnabledVersion: defaultLanguageVersion,
-      experimentReleasedVersion: defaultLanguageVersion);
+    name: 'dot-shorthands',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(3, 10),
+    experimentEnabledVersion: const Version(3, 10),
+    experimentReleasedVersion: const Version(3, 9),
+  );
 
   static const ExperimentalFlag enhancedEnums = const ExperimentalFlag(
-      name: 'enhanced-enums',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(2, 17),
-      experimentEnabledVersion: const Version(2, 17),
-      experimentReleasedVersion: const Version(2, 17));
+    name: 'enhanced-enums',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(2, 17),
+    experimentEnabledVersion: const Version(2, 17),
+    experimentReleasedVersion: const Version(2, 17),
+  );
 
   static const ExperimentalFlag enhancedParts = const ExperimentalFlag(
-      name: 'enhanced-parts',
-      isEnabledByDefault: false,
-      isExpired: false,
-      enabledVersion: defaultLanguageVersion,
-      experimentEnabledVersion: defaultLanguageVersion,
-      experimentReleasedVersion: const Version(3, 6));
+    name: 'enhanced-parts',
+    isEnabledByDefault: false,
+    isExpired: false,
+    enabledVersion: defaultLanguageVersion,
+    experimentEnabledVersion: defaultLanguageVersion,
+    experimentReleasedVersion: const Version(3, 6),
+  );
 
   static const ExperimentalFlag extensionMethods = const ExperimentalFlag(
-      name: 'extension-methods',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(2, 6),
-      experimentEnabledVersion: const Version(2, 6),
-      experimentReleasedVersion: const Version(2, 6));
+    name: 'extension-methods',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(2, 6),
+    experimentEnabledVersion: const Version(2, 6),
+    experimentReleasedVersion: const Version(2, 6),
+  );
 
   static const ExperimentalFlag genericMetadata = const ExperimentalFlag(
-      name: 'generic-metadata',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(2, 14),
-      experimentEnabledVersion: const Version(2, 14),
-      experimentReleasedVersion: const Version(2, 14));
+    name: 'generic-metadata',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(2, 14),
+    experimentEnabledVersion: const Version(2, 14),
+    experimentReleasedVersion: const Version(2, 14),
+  );
 
   static const ExperimentalFlag getterSetterError = const ExperimentalFlag(
-      name: 'getter-setter-error',
-      isEnabledByDefault: true,
-      isExpired: false,
-      enabledVersion: const Version(3, 9),
-      experimentEnabledVersion: const Version(3, 9),
-      experimentReleasedVersion: const Version(3, 9));
+    name: 'getter-setter-error',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(3, 9),
+    experimentEnabledVersion: const Version(3, 9),
+    experimentReleasedVersion: const Version(3, 9),
+  );
 
   static const ExperimentalFlag inferenceUpdate1 = const ExperimentalFlag(
-      name: 'inference-update-1',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(2, 18),
-      experimentEnabledVersion: const Version(2, 18),
-      experimentReleasedVersion: const Version(2, 18));
+    name: 'inference-update-1',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(2, 18),
+    experimentEnabledVersion: const Version(2, 18),
+    experimentReleasedVersion: const Version(2, 18),
+  );
 
   static const ExperimentalFlag inferenceUpdate2 = const ExperimentalFlag(
-      name: 'inference-update-2',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(3, 2),
-      experimentEnabledVersion: const Version(3, 2),
-      experimentReleasedVersion: const Version(3, 2));
+    name: 'inference-update-2',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(3, 2),
+    experimentEnabledVersion: const Version(3, 2),
+    experimentReleasedVersion: const Version(3, 2),
+  );
 
   static const ExperimentalFlag inferenceUpdate3 = const ExperimentalFlag(
-      name: 'inference-update-3',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(3, 4),
-      experimentEnabledVersion: const Version(3, 4),
-      experimentReleasedVersion: const Version(3, 4));
+    name: 'inference-update-3',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(3, 4),
+    experimentEnabledVersion: const Version(3, 4),
+    experimentReleasedVersion: const Version(3, 4),
+  );
 
   static const ExperimentalFlag inferenceUpdate4 = const ExperimentalFlag(
-      name: 'inference-update-4',
-      isEnabledByDefault: false,
-      isExpired: false,
-      enabledVersion: defaultLanguageVersion,
-      experimentEnabledVersion: defaultLanguageVersion,
-      experimentReleasedVersion: defaultLanguageVersion);
+    name: 'inference-update-4',
+    isEnabledByDefault: false,
+    isExpired: false,
+    enabledVersion: defaultLanguageVersion,
+    experimentEnabledVersion: defaultLanguageVersion,
+    experimentReleasedVersion: defaultLanguageVersion,
+  );
 
   static const ExperimentalFlag inferenceUsingBounds = const ExperimentalFlag(
-      name: 'inference-using-bounds',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(3, 7),
-      experimentEnabledVersion: const Version(3, 7),
-      experimentReleasedVersion: const Version(3, 7));
+    name: 'inference-using-bounds',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(3, 7),
+    experimentEnabledVersion: const Version(3, 7),
+    experimentReleasedVersion: const Version(3, 7),
+  );
 
   static const ExperimentalFlag inlineClass = const ExperimentalFlag(
-      name: 'inline-class',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(3, 3),
-      experimentEnabledVersion: const Version(3, 3),
-      experimentReleasedVersion: const Version(3, 3));
+    name: 'inline-class',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(3, 3),
+    experimentEnabledVersion: const Version(3, 3),
+    experimentReleasedVersion: const Version(3, 3),
+  );
 
   static const ExperimentalFlag macros = const ExperimentalFlag(
-      name: 'macros',
-      isEnabledByDefault: false,
-      isExpired: false,
-      enabledVersion: defaultLanguageVersion,
-      experimentEnabledVersion: defaultLanguageVersion,
-      experimentReleasedVersion: const Version(3, 3));
+    name: 'macros',
+    isEnabledByDefault: false,
+    isExpired: false,
+    enabledVersion: defaultLanguageVersion,
+    experimentEnabledVersion: defaultLanguageVersion,
+    experimentReleasedVersion: const Version(3, 3),
+  );
 
   static const ExperimentalFlag namedArgumentsAnywhere = const ExperimentalFlag(
-      name: 'named-arguments-anywhere',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(2, 17),
-      experimentEnabledVersion: const Version(2, 17),
-      experimentReleasedVersion: const Version(2, 17));
+    name: 'named-arguments-anywhere',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(2, 17),
+    experimentEnabledVersion: const Version(2, 17),
+    experimentReleasedVersion: const Version(2, 17),
+  );
 
   static const ExperimentalFlag nativeAssets = const ExperimentalFlag(
-      name: 'native-assets',
-      isEnabledByDefault: true,
-      isExpired: false,
-      enabledVersion: const Version(3, 9),
-      experimentEnabledVersion: const Version(3, 9),
-      experimentReleasedVersion: const Version(3, 9));
+    name: 'native-assets',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(3, 10),
+    experimentEnabledVersion: const Version(3, 10),
+    experimentReleasedVersion: const Version(3, 9),
+  );
 
   static const ExperimentalFlag nonNullable = const ExperimentalFlag(
-      name: 'non-nullable',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(2, 12),
-      experimentEnabledVersion: const Version(2, 12),
-      experimentReleasedVersion: const Version(2, 10));
+    name: 'non-nullable',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(2, 12),
+    experimentEnabledVersion: const Version(2, 12),
+    experimentReleasedVersion: const Version(2, 10),
+  );
 
   static const ExperimentalFlag nonfunctionTypeAliases = const ExperimentalFlag(
-      name: 'nonfunction-type-aliases',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(2, 13),
-      experimentEnabledVersion: const Version(2, 13),
-      experimentReleasedVersion: const Version(2, 13));
+    name: 'nonfunction-type-aliases',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(2, 13),
+    experimentEnabledVersion: const Version(2, 13),
+    experimentReleasedVersion: const Version(2, 13),
+  );
 
   static const ExperimentalFlag nullAwareElements = const ExperimentalFlag(
-      name: 'null-aware-elements',
-      isEnabledByDefault: true,
-      isExpired: false,
-      enabledVersion: const Version(3, 8),
-      experimentEnabledVersion: const Version(3, 8),
-      experimentReleasedVersion: const Version(3, 8));
+    name: 'null-aware-elements',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(3, 8),
+    experimentEnabledVersion: const Version(3, 8),
+    experimentReleasedVersion: const Version(3, 8),
+  );
 
   static const ExperimentalFlag patterns = const ExperimentalFlag(
-      name: 'patterns',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(3, 0),
-      experimentEnabledVersion: const Version(3, 0),
-      experimentReleasedVersion: const Version(3, 0));
+    name: 'patterns',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(3, 0),
+    experimentEnabledVersion: const Version(3, 0),
+    experimentReleasedVersion: const Version(3, 0),
+  );
+
+  static const ExperimentalFlag primaryConstructors = const ExperimentalFlag(
+    name: 'primary-constructors',
+    isEnabledByDefault: false,
+    isExpired: false,
+    enabledVersion: defaultLanguageVersion,
+    experimentEnabledVersion: defaultLanguageVersion,
+    experimentReleasedVersion: const Version(3, 12),
+  );
+
+  static const ExperimentalFlag privateNamedParameters = const ExperimentalFlag(
+    name: 'private-named-parameters',
+    isEnabledByDefault: true,
+    isExpired: false,
+    enabledVersion: const Version(3, 12),
+    experimentEnabledVersion: const Version(3, 12),
+    experimentReleasedVersion: const Version(3, 12),
+  );
 
   static const ExperimentalFlag recordUse = const ExperimentalFlag(
-      name: 'record-use',
-      isEnabledByDefault: false,
-      isExpired: false,
-      enabledVersion: defaultLanguageVersion,
-      experimentEnabledVersion: defaultLanguageVersion,
-      experimentReleasedVersion: defaultLanguageVersion);
+    name: 'record-use',
+    isEnabledByDefault: false,
+    isExpired: false,
+    enabledVersion: defaultLanguageVersion,
+    experimentEnabledVersion: defaultLanguageVersion,
+    experimentReleasedVersion: defaultLanguageVersion,
+  );
 
   static const ExperimentalFlag records = const ExperimentalFlag(
-      name: 'records',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(3, 0),
-      experimentEnabledVersion: const Version(3, 0),
-      experimentReleasedVersion: const Version(3, 0));
+    name: 'records',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(3, 0),
+    experimentEnabledVersion: const Version(3, 0),
+    experimentReleasedVersion: const Version(3, 0),
+  );
 
   static const ExperimentalFlag sealedClass = const ExperimentalFlag(
-      name: 'sealed-class',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(3, 0),
-      experimentEnabledVersion: const Version(3, 0),
-      experimentReleasedVersion: const Version(3, 0));
+    name: 'sealed-class',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(3, 0),
+    experimentEnabledVersion: const Version(3, 0),
+    experimentReleasedVersion: const Version(3, 0),
+  );
 
   static const ExperimentalFlag setLiterals = const ExperimentalFlag(
-      name: 'set-literals',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(2, 0),
-      experimentEnabledVersion: const Version(2, 0),
-      experimentReleasedVersion: const Version(2, 0));
+    name: 'set-literals',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(2, 0),
+    experimentEnabledVersion: const Version(2, 0),
+    experimentReleasedVersion: const Version(2, 0),
+  );
 
   static const ExperimentalFlag soundFlowAnalysis = const ExperimentalFlag(
-      name: 'sound-flow-analysis',
-      isEnabledByDefault: true,
-      isExpired: false,
-      enabledVersion: const Version(3, 9),
-      experimentEnabledVersion: const Version(3, 9),
-      experimentReleasedVersion: const Version(3, 9));
+    name: 'sound-flow-analysis',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(3, 9),
+    experimentEnabledVersion: const Version(3, 9),
+    experimentReleasedVersion: const Version(3, 9),
+  );
 
   static const ExperimentalFlag spreadCollections = const ExperimentalFlag(
-      name: 'spread-collections',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(2, 0),
-      experimentEnabledVersion: const Version(2, 0),
-      experimentReleasedVersion: const Version(2, 0));
+    name: 'spread-collections',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(2, 0),
+    experimentEnabledVersion: const Version(2, 0),
+    experimentReleasedVersion: const Version(2, 0),
+  );
+
+  static const ExperimentalFlag staticExtensions = const ExperimentalFlag(
+    name: 'static-extensions',
+    isEnabledByDefault: false,
+    isExpired: false,
+    enabledVersion: defaultLanguageVersion,
+    experimentEnabledVersion: defaultLanguageVersion,
+    experimentReleasedVersion: defaultLanguageVersion,
+  );
 
   static const ExperimentalFlag superParameters = const ExperimentalFlag(
-      name: 'super-parameters',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(2, 17),
-      experimentEnabledVersion: const Version(2, 17),
-      experimentReleasedVersion: const Version(2, 17));
+    name: 'super-parameters',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(2, 17),
+    experimentEnabledVersion: const Version(2, 17),
+    experimentReleasedVersion: const Version(2, 17),
+  );
 
   static const ExperimentalFlag testExperiment = const ExperimentalFlag(
-      name: 'test-experiment',
-      isEnabledByDefault: false,
-      isExpired: false,
-      enabledVersion: defaultLanguageVersion,
-      experimentEnabledVersion: defaultLanguageVersion,
-      experimentReleasedVersion: defaultLanguageVersion);
+    name: 'test-experiment',
+    isEnabledByDefault: false,
+    isExpired: false,
+    enabledVersion: defaultLanguageVersion,
+    experimentEnabledVersion: defaultLanguageVersion,
+    experimentReleasedVersion: defaultLanguageVersion,
+  );
 
   static const ExperimentalFlag tripleShift = const ExperimentalFlag(
-      name: 'triple-shift',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(2, 14),
-      experimentEnabledVersion: const Version(2, 14),
-      experimentReleasedVersion: const Version(2, 14));
+    name: 'triple-shift',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(2, 14),
+    experimentEnabledVersion: const Version(2, 14),
+    experimentReleasedVersion: const Version(2, 14),
+  );
 
   static const ExperimentalFlag unnamedLibraries = const ExperimentalFlag(
-      name: 'unnamed-libraries',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(2, 19),
-      experimentEnabledVersion: const Version(2, 19),
-      experimentReleasedVersion: const Version(2, 19));
+    name: 'unnamed-libraries',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(2, 19),
+    experimentEnabledVersion: const Version(2, 19),
+    experimentReleasedVersion: const Version(2, 19),
+  );
 
   static const ExperimentalFlag unquotedImports = const ExperimentalFlag(
-      name: 'unquoted-imports',
-      isEnabledByDefault: false,
-      isExpired: false,
-      enabledVersion: defaultLanguageVersion,
-      experimentEnabledVersion: defaultLanguageVersion,
-      experimentReleasedVersion: defaultLanguageVersion);
+    name: 'unquoted-imports',
+    isEnabledByDefault: false,
+    isExpired: false,
+    enabledVersion: defaultLanguageVersion,
+    experimentEnabledVersion: defaultLanguageVersion,
+    experimentReleasedVersion: defaultLanguageVersion,
+  );
 
   static const ExperimentalFlag variance = const ExperimentalFlag(
-      name: 'variance',
-      isEnabledByDefault: false,
-      isExpired: false,
-      enabledVersion: defaultLanguageVersion,
-      experimentEnabledVersion: defaultLanguageVersion,
-      experimentReleasedVersion: defaultLanguageVersion);
+    name: 'variance',
+    isEnabledByDefault: false,
+    isExpired: false,
+    enabledVersion: defaultLanguageVersion,
+    experimentEnabledVersion: defaultLanguageVersion,
+    experimentReleasedVersion: defaultLanguageVersion,
+  );
 
   static const ExperimentalFlag wildcardVariables = const ExperimentalFlag(
-      name: 'wildcard-variables',
-      isEnabledByDefault: true,
-      isExpired: true,
-      enabledVersion: const Version(3, 7),
-      experimentEnabledVersion: const Version(3, 7),
-      experimentReleasedVersion: const Version(3, 7));
+    name: 'wildcard-variables',
+    isEnabledByDefault: true,
+    isExpired: true,
+    enabledVersion: const Version(3, 7),
+    experimentEnabledVersion: const Version(3, 7),
+    experimentReleasedVersion: const Version(3, 7),
+  );
 }
 
 /// Interface for accessing the global state of experimental features.
@@ -380,59 +467,83 @@ class GlobalFeatures {
   final Map<ExperimentalFlag, Version>? experimentEnabledVersionForTesting;
   final Map<ExperimentalFlag, Version>? experimentReleasedVersionForTesting;
 
-  GlobalFeatures(this.explicitExperimentalFlags,
-      {this.allowedExperimentalFlags,
-      this.defaultExperimentFlagsForTesting,
-      this.experimentEnabledVersionForTesting,
-      this.experimentReleasedVersionForTesting});
+  GlobalFeatures(
+    this.explicitExperimentalFlags, {
+    this.allowedExperimentalFlags,
+    this.defaultExperimentFlagsForTesting,
+    this.experimentEnabledVersionForTesting,
+    this.experimentReleasedVersionForTesting,
+  });
 
   GlobalFeature _computeGlobalFeature(ExperimentalFlag flag) {
     return new GlobalFeature(
+      flag,
+      isExperimentEnabled(
         flag,
-        isExperimentEnabled(flag,
-            defaultExperimentFlagsForTesting: defaultExperimentFlagsForTesting,
-            explicitExperimentalFlags: explicitExperimentalFlags));
+        defaultExperimentFlagsForTesting: defaultExperimentFlagsForTesting,
+        explicitExperimentalFlags: explicitExperimentalFlags,
+      ),
+    );
   }
 
   LibraryFeature _computeLibraryFeature(
-      ExperimentalFlag flag, Uri canonicalUri, Version libraryVersion) {
+    ExperimentalFlag flag,
+    Uri canonicalUri,
+    Version libraryVersion,
+  ) {
     return new LibraryFeature(
+      flag,
+      isExperimentEnabledInLibrary(
         flag,
-        isExperimentEnabledInLibrary(flag, canonicalUri,
-            defaultExperimentFlagsForTesting: defaultExperimentFlagsForTesting,
-            explicitExperimentalFlags: explicitExperimentalFlags,
-            allowedExperimentalFlags: allowedExperimentalFlags),
-        getExperimentEnabledVersionInLibrary(
-            flag, canonicalUri, explicitExperimentalFlags,
-            allowedExperimentalFlags: allowedExperimentalFlags,
-            defaultExperimentFlagsForTesting: defaultExperimentFlagsForTesting,
-            experimentEnabledVersionForTesting:
-                experimentEnabledVersionForTesting,
-            experimentReleasedVersionForTesting:
-                experimentReleasedVersionForTesting),
-        isExperimentEnabledInLibraryByVersion(
-            flag, canonicalUri, libraryVersion,
-            defaultExperimentFlagsForTesting: defaultExperimentFlagsForTesting,
-            explicitExperimentalFlags: explicitExperimentalFlags,
-            allowedExperimentalFlags: allowedExperimentalFlags));
+        canonicalUri,
+        defaultExperimentFlagsForTesting: defaultExperimentFlagsForTesting,
+        explicitExperimentalFlags: explicitExperimentalFlags,
+        allowedExperimentalFlags: allowedExperimentalFlags,
+      ),
+      getExperimentEnabledVersionInLibrary(
+        flag,
+        canonicalUri,
+        explicitExperimentalFlags,
+        allowedExperimentalFlags: allowedExperimentalFlags,
+        defaultExperimentFlagsForTesting: defaultExperimentFlagsForTesting,
+        experimentEnabledVersionForTesting: experimentEnabledVersionForTesting,
+        experimentReleasedVersionForTesting:
+            experimentReleasedVersionForTesting,
+      ),
+      isExperimentEnabledInLibraryByVersion(
+        flag,
+        canonicalUri,
+        libraryVersion,
+        defaultExperimentFlagsForTesting: defaultExperimentFlagsForTesting,
+        explicitExperimentalFlags: explicitExperimentalFlags,
+        allowedExperimentalFlags: allowedExperimentalFlags,
+      ),
+    );
   }
 
   GlobalFeature? _alternativeInvalidationStrategy;
   GlobalFeature get alternativeInvalidationStrategy =>
       _alternativeInvalidationStrategy ??= _computeGlobalFeature(
-          ExperimentalFlag.alternativeInvalidationStrategy);
+        ExperimentalFlag.alternativeInvalidationStrategy,
+      );
+
+  GlobalFeature? _anonymousMethods;
+  GlobalFeature get anonymousMethods => _anonymousMethods ??=
+      _computeGlobalFeature(ExperimentalFlag.anonymousMethods);
 
   GlobalFeature? _augmentations;
   GlobalFeature get augmentations =>
       _augmentations ??= _computeGlobalFeature(ExperimentalFlag.augmentations);
 
   GlobalFeature? _classModifiers;
-  GlobalFeature get classModifiers => _classModifiers ??=
-      _computeGlobalFeature(ExperimentalFlag.classModifiers);
+  GlobalFeature get classModifiers => _classModifiers ??= _computeGlobalFeature(
+    ExperimentalFlag.classModifiers,
+  );
 
   GlobalFeature? _constFunctions;
-  GlobalFeature get constFunctions => _constFunctions ??=
-      _computeGlobalFeature(ExperimentalFlag.constFunctions);
+  GlobalFeature get constFunctions => _constFunctions ??= _computeGlobalFeature(
+    ExperimentalFlag.constFunctions,
+  );
 
   GlobalFeature? _constantUpdate2018;
   GlobalFeature get constantUpdate2018 => _constantUpdate2018 ??=
@@ -445,6 +556,10 @@ class GlobalFeatures {
   GlobalFeature? _controlFlowCollections;
   GlobalFeature get controlFlowCollections => _controlFlowCollections ??=
       _computeGlobalFeature(ExperimentalFlag.controlFlowCollections);
+
+  GlobalFeature? _dataAssets;
+  GlobalFeature get dataAssets =>
+      _dataAssets ??= _computeGlobalFeature(ExperimentalFlag.dataAssets);
 
   GlobalFeature? _digitSeparators;
   GlobalFeature get digitSeparators => _digitSeparators ??=
@@ -526,6 +641,14 @@ class GlobalFeatures {
   GlobalFeature get patterns =>
       _patterns ??= _computeGlobalFeature(ExperimentalFlag.patterns);
 
+  GlobalFeature? _primaryConstructors;
+  GlobalFeature get primaryConstructors => _primaryConstructors ??=
+      _computeGlobalFeature(ExperimentalFlag.primaryConstructors);
+
+  GlobalFeature? _privateNamedParameters;
+  GlobalFeature get privateNamedParameters => _privateNamedParameters ??=
+      _computeGlobalFeature(ExperimentalFlag.privateNamedParameters);
+
   GlobalFeature? _recordUse;
   GlobalFeature get recordUse =>
       _recordUse ??= _computeGlobalFeature(ExperimentalFlag.recordUse);
@@ -550,13 +673,18 @@ class GlobalFeatures {
   GlobalFeature get spreadCollections => _spreadCollections ??=
       _computeGlobalFeature(ExperimentalFlag.spreadCollections);
 
+  GlobalFeature? _staticExtensions;
+  GlobalFeature get staticExtensions => _staticExtensions ??=
+      _computeGlobalFeature(ExperimentalFlag.staticExtensions);
+
   GlobalFeature? _superParameters;
   GlobalFeature get superParameters => _superParameters ??=
       _computeGlobalFeature(ExperimentalFlag.superParameters);
 
   GlobalFeature? _testExperiment;
-  GlobalFeature get testExperiment => _testExperiment ??=
-      _computeGlobalFeature(ExperimentalFlag.testExperiment);
+  GlobalFeature get testExperiment => _testExperiment ??= _computeGlobalFeature(
+    ExperimentalFlag.testExperiment,
+  );
 
   GlobalFeature? _tripleShift;
   GlobalFeature get tripleShift =>
@@ -590,217 +718,372 @@ class LibraryFeatures {
 
   LibraryFeature? _alternativeInvalidationStrategy;
   LibraryFeature get alternativeInvalidationStrategy =>
-      _alternativeInvalidationStrategy ??=
-          globalFeatures._computeLibraryFeature(
-              ExperimentalFlag.alternativeInvalidationStrategy,
-              canonicalUri,
-              libraryVersion);
+      _alternativeInvalidationStrategy ??= globalFeatures
+          ._computeLibraryFeature(
+            ExperimentalFlag.alternativeInvalidationStrategy,
+            canonicalUri,
+            libraryVersion,
+          );
+
+  LibraryFeature? _anonymousMethods;
+  LibraryFeature get anonymousMethods =>
+      _anonymousMethods ??= globalFeatures._computeLibraryFeature(
+        ExperimentalFlag.anonymousMethods,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _augmentations;
   LibraryFeature get augmentations =>
       _augmentations ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.augmentations, canonicalUri, libraryVersion);
+        ExperimentalFlag.augmentations,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _classModifiers;
   LibraryFeature get classModifiers =>
       _classModifiers ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.classModifiers, canonicalUri, libraryVersion);
+        ExperimentalFlag.classModifiers,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _constFunctions;
   LibraryFeature get constFunctions =>
       _constFunctions ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.constFunctions, canonicalUri, libraryVersion);
+        ExperimentalFlag.constFunctions,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _constantUpdate2018;
   LibraryFeature get constantUpdate2018 =>
       _constantUpdate2018 ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.constantUpdate2018, canonicalUri, libraryVersion);
+        ExperimentalFlag.constantUpdate2018,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _constructorTearoffs;
   LibraryFeature get constructorTearoffs =>
       _constructorTearoffs ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.constructorTearoffs, canonicalUri, libraryVersion);
+        ExperimentalFlag.constructorTearoffs,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _controlFlowCollections;
   LibraryFeature get controlFlowCollections =>
       _controlFlowCollections ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.controlFlowCollections,
-          canonicalUri,
-          libraryVersion);
+        ExperimentalFlag.controlFlowCollections,
+        canonicalUri,
+        libraryVersion,
+      );
+
+  LibraryFeature? _dataAssets;
+  LibraryFeature get dataAssets =>
+      _dataAssets ??= globalFeatures._computeLibraryFeature(
+        ExperimentalFlag.dataAssets,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _digitSeparators;
   LibraryFeature get digitSeparators =>
       _digitSeparators ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.digitSeparators, canonicalUri, libraryVersion);
+        ExperimentalFlag.digitSeparators,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _dotShorthands;
   LibraryFeature get dotShorthands =>
       _dotShorthands ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.dotShorthands, canonicalUri, libraryVersion);
+        ExperimentalFlag.dotShorthands,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _enhancedEnums;
   LibraryFeature get enhancedEnums =>
       _enhancedEnums ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.enhancedEnums, canonicalUri, libraryVersion);
+        ExperimentalFlag.enhancedEnums,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _enhancedParts;
   LibraryFeature get enhancedParts =>
       _enhancedParts ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.enhancedParts, canonicalUri, libraryVersion);
+        ExperimentalFlag.enhancedParts,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _extensionMethods;
   LibraryFeature get extensionMethods =>
       _extensionMethods ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.extensionMethods, canonicalUri, libraryVersion);
+        ExperimentalFlag.extensionMethods,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _genericMetadata;
   LibraryFeature get genericMetadata =>
       _genericMetadata ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.genericMetadata, canonicalUri, libraryVersion);
+        ExperimentalFlag.genericMetadata,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _getterSetterError;
   LibraryFeature get getterSetterError =>
       _getterSetterError ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.getterSetterError, canonicalUri, libraryVersion);
+        ExperimentalFlag.getterSetterError,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _inferenceUpdate1;
   LibraryFeature get inferenceUpdate1 =>
       _inferenceUpdate1 ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.inferenceUpdate1, canonicalUri, libraryVersion);
+        ExperimentalFlag.inferenceUpdate1,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _inferenceUpdate2;
   LibraryFeature get inferenceUpdate2 =>
       _inferenceUpdate2 ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.inferenceUpdate2, canonicalUri, libraryVersion);
+        ExperimentalFlag.inferenceUpdate2,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _inferenceUpdate3;
   LibraryFeature get inferenceUpdate3 =>
       _inferenceUpdate3 ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.inferenceUpdate3, canonicalUri, libraryVersion);
+        ExperimentalFlag.inferenceUpdate3,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _inferenceUpdate4;
   LibraryFeature get inferenceUpdate4 =>
       _inferenceUpdate4 ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.inferenceUpdate4, canonicalUri, libraryVersion);
+        ExperimentalFlag.inferenceUpdate4,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _inferenceUsingBounds;
   LibraryFeature get inferenceUsingBounds =>
       _inferenceUsingBounds ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.inferenceUsingBounds, canonicalUri, libraryVersion);
+        ExperimentalFlag.inferenceUsingBounds,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _inlineClass;
   LibraryFeature get inlineClass =>
       _inlineClass ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.inlineClass, canonicalUri, libraryVersion);
+        ExperimentalFlag.inlineClass,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _macros;
   LibraryFeature get macros =>
       _macros ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.macros, canonicalUri, libraryVersion);
+        ExperimentalFlag.macros,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _namedArgumentsAnywhere;
   LibraryFeature get namedArgumentsAnywhere =>
       _namedArgumentsAnywhere ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.namedArgumentsAnywhere,
-          canonicalUri,
-          libraryVersion);
+        ExperimentalFlag.namedArgumentsAnywhere,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _nativeAssets;
   LibraryFeature get nativeAssets =>
       _nativeAssets ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.nativeAssets, canonicalUri, libraryVersion);
+        ExperimentalFlag.nativeAssets,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _nonNullable;
   LibraryFeature get nonNullable =>
       _nonNullable ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.nonNullable, canonicalUri, libraryVersion);
+        ExperimentalFlag.nonNullable,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _nonfunctionTypeAliases;
   LibraryFeature get nonfunctionTypeAliases =>
       _nonfunctionTypeAliases ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.nonfunctionTypeAliases,
-          canonicalUri,
-          libraryVersion);
+        ExperimentalFlag.nonfunctionTypeAliases,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _nullAwareElements;
   LibraryFeature get nullAwareElements =>
       _nullAwareElements ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.nullAwareElements, canonicalUri, libraryVersion);
+        ExperimentalFlag.nullAwareElements,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _patterns;
   LibraryFeature get patterns =>
       _patterns ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.patterns, canonicalUri, libraryVersion);
+        ExperimentalFlag.patterns,
+        canonicalUri,
+        libraryVersion,
+      );
+
+  LibraryFeature? _primaryConstructors;
+  LibraryFeature get primaryConstructors =>
+      _primaryConstructors ??= globalFeatures._computeLibraryFeature(
+        ExperimentalFlag.primaryConstructors,
+        canonicalUri,
+        libraryVersion,
+      );
+
+  LibraryFeature? _privateNamedParameters;
+  LibraryFeature get privateNamedParameters =>
+      _privateNamedParameters ??= globalFeatures._computeLibraryFeature(
+        ExperimentalFlag.privateNamedParameters,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _recordUse;
   LibraryFeature get recordUse =>
       _recordUse ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.recordUse, canonicalUri, libraryVersion);
+        ExperimentalFlag.recordUse,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _records;
   LibraryFeature get records =>
       _records ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.records, canonicalUri, libraryVersion);
+        ExperimentalFlag.records,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _sealedClass;
   LibraryFeature get sealedClass =>
       _sealedClass ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.sealedClass, canonicalUri, libraryVersion);
+        ExperimentalFlag.sealedClass,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _setLiterals;
   LibraryFeature get setLiterals =>
       _setLiterals ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.setLiterals, canonicalUri, libraryVersion);
+        ExperimentalFlag.setLiterals,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _soundFlowAnalysis;
   LibraryFeature get soundFlowAnalysis =>
       _soundFlowAnalysis ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.soundFlowAnalysis, canonicalUri, libraryVersion);
+        ExperimentalFlag.soundFlowAnalysis,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _spreadCollections;
   LibraryFeature get spreadCollections =>
       _spreadCollections ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.spreadCollections, canonicalUri, libraryVersion);
+        ExperimentalFlag.spreadCollections,
+        canonicalUri,
+        libraryVersion,
+      );
+
+  LibraryFeature? _staticExtensions;
+  LibraryFeature get staticExtensions =>
+      _staticExtensions ??= globalFeatures._computeLibraryFeature(
+        ExperimentalFlag.staticExtensions,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _superParameters;
   LibraryFeature get superParameters =>
       _superParameters ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.superParameters, canonicalUri, libraryVersion);
+        ExperimentalFlag.superParameters,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _testExperiment;
   LibraryFeature get testExperiment =>
       _testExperiment ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.testExperiment, canonicalUri, libraryVersion);
+        ExperimentalFlag.testExperiment,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _tripleShift;
   LibraryFeature get tripleShift =>
       _tripleShift ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.tripleShift, canonicalUri, libraryVersion);
+        ExperimentalFlag.tripleShift,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _unnamedLibraries;
   LibraryFeature get unnamedLibraries =>
       _unnamedLibraries ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.unnamedLibraries, canonicalUri, libraryVersion);
+        ExperimentalFlag.unnamedLibraries,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _unquotedImports;
   LibraryFeature get unquotedImports =>
       _unquotedImports ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.unquotedImports, canonicalUri, libraryVersion);
+        ExperimentalFlag.unquotedImports,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _variance;
   LibraryFeature get variance =>
       _variance ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.variance, canonicalUri, libraryVersion);
+        ExperimentalFlag.variance,
+        canonicalUri,
+        libraryVersion,
+      );
 
   LibraryFeature? _wildcardVariables;
   LibraryFeature get wildcardVariables =>
       _wildcardVariables ??= globalFeatures._computeLibraryFeature(
-          ExperimentalFlag.wildcardVariables, canonicalUri, libraryVersion);
+        ExperimentalFlag.wildcardVariables,
+        canonicalUri,
+        libraryVersion,
+      );
 
   /// Returns the [LibraryFeature] corresponding to [experimentalFlag].
   LibraryFeature fromSharedExperimentalFlags(
-      shared.ExperimentalFlag experimentalFlag) {
+    shared.ExperimentalFlag experimentalFlag,
+  ) {
     switch (experimentalFlag) {
+      case shared.ExperimentalFlag.anonymousMethods:
+        return anonymousMethods;
       case shared.ExperimentalFlag.augmentations:
         return augmentations;
       case shared.ExperimentalFlag.classModifiers:
@@ -813,6 +1096,8 @@ class LibraryFeatures {
         return constructorTearoffs;
       case shared.ExperimentalFlag.controlFlowCollections:
         return controlFlowCollections;
+      case shared.ExperimentalFlag.dataAssets:
+        return dataAssets;
       case shared.ExperimentalFlag.digitSeparators:
         return digitSeparators;
       case shared.ExperimentalFlag.dotShorthands:
@@ -853,6 +1138,10 @@ class LibraryFeatures {
         return nullAwareElements;
       case shared.ExperimentalFlag.patterns:
         return patterns;
+      case shared.ExperimentalFlag.primaryConstructors:
+        return primaryConstructors;
+      case shared.ExperimentalFlag.privateNamedParameters:
+        return privateNamedParameters;
       case shared.ExperimentalFlag.recordUse:
         return recordUse;
       case shared.ExperimentalFlag.records:
@@ -865,6 +1154,8 @@ class LibraryFeatures {
         return soundFlowAnalysis;
       case shared.ExperimentalFlag.spreadCollections:
         return spreadCollections;
+      case shared.ExperimentalFlag.staticExtensions:
+        return staticExtensions;
       case shared.ExperimentalFlag.superParameters:
         return superParameters;
       case shared.ExperimentalFlag.testExperiment:
@@ -887,6 +1178,8 @@ ExperimentalFlag? parseExperimentalFlag(String flag) {
   switch (flag) {
     case "alternative-invalidation-strategy":
       return ExperimentalFlag.alternativeInvalidationStrategy;
+    case "anonymous-methods":
+      return ExperimentalFlag.anonymousMethods;
     case "augmentations":
       return ExperimentalFlag.augmentations;
     case "class-modifiers":
@@ -899,6 +1192,8 @@ ExperimentalFlag? parseExperimentalFlag(String flag) {
       return ExperimentalFlag.constructorTearoffs;
     case "control-flow-collections":
       return ExperimentalFlag.controlFlowCollections;
+    case "data-assets":
+      return ExperimentalFlag.dataAssets;
     case "digit-separators":
       return ExperimentalFlag.digitSeparators;
     case "dot-shorthands":
@@ -939,6 +1234,10 @@ ExperimentalFlag? parseExperimentalFlag(String flag) {
       return ExperimentalFlag.nullAwareElements;
     case "patterns":
       return ExperimentalFlag.patterns;
+    case "primary-constructors":
+      return ExperimentalFlag.primaryConstructors;
+    case "private-named-parameters":
+      return ExperimentalFlag.privateNamedParameters;
     case "record-use":
       return ExperimentalFlag.recordUse;
     case "records":
@@ -951,6 +1250,8 @@ ExperimentalFlag? parseExperimentalFlag(String flag) {
       return ExperimentalFlag.soundFlowAnalysis;
     case "spread-collections":
       return ExperimentalFlag.spreadCollections;
+    case "static-extensions":
+      return ExperimentalFlag.staticExtensions;
     case "super-parameters":
       return ExperimentalFlag.superParameters;
     case "test-experiment":
@@ -972,6 +1273,8 @@ ExperimentalFlag? parseExperimentalFlag(String flag) {
 final Map<ExperimentalFlag, bool> defaultExperimentalFlags = {
   ExperimentalFlag.alternativeInvalidationStrategy:
       ExperimentalFlag.alternativeInvalidationStrategy.isEnabledByDefault,
+  ExperimentalFlag.anonymousMethods:
+      ExperimentalFlag.anonymousMethods.isEnabledByDefault,
   ExperimentalFlag.augmentations:
       ExperimentalFlag.augmentations.isEnabledByDefault,
   ExperimentalFlag.classModifiers:
@@ -984,6 +1287,7 @@ final Map<ExperimentalFlag, bool> defaultExperimentalFlags = {
       ExperimentalFlag.constructorTearoffs.isEnabledByDefault,
   ExperimentalFlag.controlFlowCollections:
       ExperimentalFlag.controlFlowCollections.isEnabledByDefault,
+  ExperimentalFlag.dataAssets: ExperimentalFlag.dataAssets.isEnabledByDefault,
   ExperimentalFlag.digitSeparators:
       ExperimentalFlag.digitSeparators.isEnabledByDefault,
   ExperimentalFlag.dotShorthands:
@@ -1020,6 +1324,10 @@ final Map<ExperimentalFlag, bool> defaultExperimentalFlags = {
   ExperimentalFlag.nullAwareElements:
       ExperimentalFlag.nullAwareElements.isEnabledByDefault,
   ExperimentalFlag.patterns: ExperimentalFlag.patterns.isEnabledByDefault,
+  ExperimentalFlag.primaryConstructors:
+      ExperimentalFlag.primaryConstructors.isEnabledByDefault,
+  ExperimentalFlag.privateNamedParameters:
+      ExperimentalFlag.privateNamedParameters.isEnabledByDefault,
   ExperimentalFlag.recordUse: ExperimentalFlag.recordUse.isEnabledByDefault,
   ExperimentalFlag.records: ExperimentalFlag.records.isEnabledByDefault,
   ExperimentalFlag.sealedClass: ExperimentalFlag.sealedClass.isEnabledByDefault,
@@ -1028,6 +1336,8 @@ final Map<ExperimentalFlag, bool> defaultExperimentalFlags = {
       ExperimentalFlag.soundFlowAnalysis.isEnabledByDefault,
   ExperimentalFlag.spreadCollections:
       ExperimentalFlag.spreadCollections.isEnabledByDefault,
+  ExperimentalFlag.staticExtensions:
+      ExperimentalFlag.staticExtensions.isEnabledByDefault,
   ExperimentalFlag.superParameters:
       ExperimentalFlag.superParameters.isEnabledByDefault,
   ExperimentalFlag.testExperiment:
@@ -1043,58 +1353,70 @@ final Map<ExperimentalFlag, bool> defaultExperimentalFlags = {
 };
 const AllowedExperimentalFlags defaultAllowedExperimentalFlags =
     const AllowedExperimentalFlags(
-        sdkDefaultExperiments: {},
-        sdkLibraryExperiments: {},
-        packageExperiments: {
-      "json": {
-        ExperimentalFlag.enhancedParts,
-        ExperimentalFlag.macros,
+      sdkDefaultExperiments: {},
+      sdkLibraryExperiments: {},
+      packageExperiments: {
+        "json": {ExperimentalFlag.enhancedParts, ExperimentalFlag.macros},
       },
-    });
-const Map<shared.ExperimentalFlag, ExperimentalFlag> sharedExperimentalFlags = {
-  shared.ExperimentalFlag.augmentations: ExperimentalFlag.augmentations,
-  shared.ExperimentalFlag.classModifiers: ExperimentalFlag.classModifiers,
-  shared.ExperimentalFlag.constFunctions: ExperimentalFlag.constFunctions,
-  shared.ExperimentalFlag.constantUpdate2018:
-      ExperimentalFlag.constantUpdate2018,
-  shared.ExperimentalFlag.constructorTearoffs:
-      ExperimentalFlag.constructorTearoffs,
-  shared.ExperimentalFlag.controlFlowCollections:
-      ExperimentalFlag.controlFlowCollections,
-  shared.ExperimentalFlag.digitSeparators: ExperimentalFlag.digitSeparators,
-  shared.ExperimentalFlag.dotShorthands: ExperimentalFlag.dotShorthands,
-  shared.ExperimentalFlag.enhancedEnums: ExperimentalFlag.enhancedEnums,
-  shared.ExperimentalFlag.enhancedParts: ExperimentalFlag.enhancedParts,
-  shared.ExperimentalFlag.extensionMethods: ExperimentalFlag.extensionMethods,
-  shared.ExperimentalFlag.genericMetadata: ExperimentalFlag.genericMetadata,
-  shared.ExperimentalFlag.getterSetterError: ExperimentalFlag.getterSetterError,
-  shared.ExperimentalFlag.inferenceUpdate1: ExperimentalFlag.inferenceUpdate1,
-  shared.ExperimentalFlag.inferenceUpdate2: ExperimentalFlag.inferenceUpdate2,
-  shared.ExperimentalFlag.inferenceUpdate3: ExperimentalFlag.inferenceUpdate3,
-  shared.ExperimentalFlag.inferenceUpdate4: ExperimentalFlag.inferenceUpdate4,
-  shared.ExperimentalFlag.inferenceUsingBounds:
-      ExperimentalFlag.inferenceUsingBounds,
-  shared.ExperimentalFlag.inlineClass: ExperimentalFlag.inlineClass,
-  shared.ExperimentalFlag.macros: ExperimentalFlag.macros,
-  shared.ExperimentalFlag.namedArgumentsAnywhere:
-      ExperimentalFlag.namedArgumentsAnywhere,
-  shared.ExperimentalFlag.nativeAssets: ExperimentalFlag.nativeAssets,
-  shared.ExperimentalFlag.nonNullable: ExperimentalFlag.nonNullable,
-  shared.ExperimentalFlag.nonfunctionTypeAliases:
-      ExperimentalFlag.nonfunctionTypeAliases,
-  shared.ExperimentalFlag.nullAwareElements: ExperimentalFlag.nullAwareElements,
-  shared.ExperimentalFlag.patterns: ExperimentalFlag.patterns,
-  shared.ExperimentalFlag.recordUse: ExperimentalFlag.recordUse,
-  shared.ExperimentalFlag.records: ExperimentalFlag.records,
-  shared.ExperimentalFlag.sealedClass: ExperimentalFlag.sealedClass,
-  shared.ExperimentalFlag.setLiterals: ExperimentalFlag.setLiterals,
-  shared.ExperimentalFlag.soundFlowAnalysis: ExperimentalFlag.soundFlowAnalysis,
-  shared.ExperimentalFlag.spreadCollections: ExperimentalFlag.spreadCollections,
-  shared.ExperimentalFlag.superParameters: ExperimentalFlag.superParameters,
-  shared.ExperimentalFlag.testExperiment: ExperimentalFlag.testExperiment,
-  shared.ExperimentalFlag.tripleShift: ExperimentalFlag.tripleShift,
-  shared.ExperimentalFlag.unnamedLibraries: ExperimentalFlag.unnamedLibraries,
-  shared.ExperimentalFlag.unquotedImports: ExperimentalFlag.unquotedImports,
-  shared.ExperimentalFlag.variance: ExperimentalFlag.variance,
-  shared.ExperimentalFlag.wildcardVariables: ExperimentalFlag.wildcardVariables,
+    );
+ExperimentalFlag fromSharedExperimentalFlag(
+  shared.ExperimentalFlag flag,
+) => switch (flag) {
+  shared.ExperimentalFlag.anonymousMethods => ExperimentalFlag.anonymousMethods,
+  shared.ExperimentalFlag.augmentations => ExperimentalFlag.augmentations,
+  shared.ExperimentalFlag.classModifiers => ExperimentalFlag.classModifiers,
+  shared.ExperimentalFlag.constFunctions => ExperimentalFlag.constFunctions,
+  shared.ExperimentalFlag.constantUpdate2018 =>
+    ExperimentalFlag.constantUpdate2018,
+  shared.ExperimentalFlag.constructorTearoffs =>
+    ExperimentalFlag.constructorTearoffs,
+  shared.ExperimentalFlag.controlFlowCollections =>
+    ExperimentalFlag.controlFlowCollections,
+  shared.ExperimentalFlag.dataAssets => ExperimentalFlag.dataAssets,
+  shared.ExperimentalFlag.digitSeparators => ExperimentalFlag.digitSeparators,
+  shared.ExperimentalFlag.dotShorthands => ExperimentalFlag.dotShorthands,
+  shared.ExperimentalFlag.enhancedEnums => ExperimentalFlag.enhancedEnums,
+  shared.ExperimentalFlag.enhancedParts => ExperimentalFlag.enhancedParts,
+  shared.ExperimentalFlag.extensionMethods => ExperimentalFlag.extensionMethods,
+  shared.ExperimentalFlag.genericMetadata => ExperimentalFlag.genericMetadata,
+  shared.ExperimentalFlag.getterSetterError =>
+    ExperimentalFlag.getterSetterError,
+  shared.ExperimentalFlag.inferenceUpdate1 => ExperimentalFlag.inferenceUpdate1,
+  shared.ExperimentalFlag.inferenceUpdate2 => ExperimentalFlag.inferenceUpdate2,
+  shared.ExperimentalFlag.inferenceUpdate3 => ExperimentalFlag.inferenceUpdate3,
+  shared.ExperimentalFlag.inferenceUpdate4 => ExperimentalFlag.inferenceUpdate4,
+  shared.ExperimentalFlag.inferenceUsingBounds =>
+    ExperimentalFlag.inferenceUsingBounds,
+  shared.ExperimentalFlag.inlineClass => ExperimentalFlag.inlineClass,
+  shared.ExperimentalFlag.macros => ExperimentalFlag.macros,
+  shared.ExperimentalFlag.namedArgumentsAnywhere =>
+    ExperimentalFlag.namedArgumentsAnywhere,
+  shared.ExperimentalFlag.nativeAssets => ExperimentalFlag.nativeAssets,
+  shared.ExperimentalFlag.nonNullable => ExperimentalFlag.nonNullable,
+  shared.ExperimentalFlag.nonfunctionTypeAliases =>
+    ExperimentalFlag.nonfunctionTypeAliases,
+  shared.ExperimentalFlag.nullAwareElements =>
+    ExperimentalFlag.nullAwareElements,
+  shared.ExperimentalFlag.patterns => ExperimentalFlag.patterns,
+  shared.ExperimentalFlag.primaryConstructors =>
+    ExperimentalFlag.primaryConstructors,
+  shared.ExperimentalFlag.privateNamedParameters =>
+    ExperimentalFlag.privateNamedParameters,
+  shared.ExperimentalFlag.recordUse => ExperimentalFlag.recordUse,
+  shared.ExperimentalFlag.records => ExperimentalFlag.records,
+  shared.ExperimentalFlag.sealedClass => ExperimentalFlag.sealedClass,
+  shared.ExperimentalFlag.setLiterals => ExperimentalFlag.setLiterals,
+  shared.ExperimentalFlag.soundFlowAnalysis =>
+    ExperimentalFlag.soundFlowAnalysis,
+  shared.ExperimentalFlag.spreadCollections =>
+    ExperimentalFlag.spreadCollections,
+  shared.ExperimentalFlag.staticExtensions => ExperimentalFlag.staticExtensions,
+  shared.ExperimentalFlag.superParameters => ExperimentalFlag.superParameters,
+  shared.ExperimentalFlag.testExperiment => ExperimentalFlag.testExperiment,
+  shared.ExperimentalFlag.tripleShift => ExperimentalFlag.tripleShift,
+  shared.ExperimentalFlag.unnamedLibraries => ExperimentalFlag.unnamedLibraries,
+  shared.ExperimentalFlag.unquotedImports => ExperimentalFlag.unquotedImports,
+  shared.ExperimentalFlag.variance => ExperimentalFlag.variance,
+  shared.ExperimentalFlag.wildcardVariables =>
+    ExperimentalFlag.wildcardVariables,
 };

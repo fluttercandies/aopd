@@ -6,26 +6,33 @@
 // TODO(joshualitt): Make all of the ir types full immutable.
 library;
 
-export 'data_segments.dart' show DataSegments;
 export 'data_segment.dart' show BaseDataSegment, DataSegment;
+export 'data_segments.dart' show DataSegments;
+export 'element.dart'
+    show
+        ActiveElementSegment,
+        ActiveExpressionElementSegment,
+        ActiveFunctionElementSegment,
+        DeclarativeElementSegment,
+        ElementSegment;
+export 'elements.dart' show Elements;
 export 'exports.dart' show Export, Exportable, Exports;
 export 'finalizable.dart' show Finalizable, FinalizableIndex;
-export 'indexable.dart' show Indexable;
-export 'imports.dart' show Import;
-export 'globals.dart' show Globals;
-export 'global.dart' show DefinedGlobal, Global, ImportedGlobal;
-export 'functions.dart' show Functions;
 export 'function.dart'
-    show BaseFunction, DefinedFunction, ImportedFunction, Local;
-export 'memories.dart' show Memories;
-export 'memory.dart' show DefinedMemory, ImportedMemory, Memory;
-export 'module.dart' show Module;
-export 'tables.dart' show Tables;
-export 'table.dart' show DefinedTable, ImportedTable, Table;
-export 'tags.dart' show DefinedTag, ImportedTag, Tag, Tags;
-export 'types.dart' show Types;
-export 'instructions.dart' show Instructions;
+    show BaseFunction, DefinedFunction, FunctionExport, ImportedFunction, Local;
+export 'functions.dart' show Functions;
+export 'global.dart' show DefinedGlobal, Global, GlobalExport, ImportedGlobal;
+export 'globals.dart' show Globals;
+export 'imports.dart' show Import, Imports;
+export 'indexable.dart' show Indexable;
 export 'instruction.dart';
+export 'instructions.dart' show Instructions;
+export 'memories.dart' show Memories;
+export 'memory.dart' show DefinedMemory, ImportedMemory, Memory, MemoryExport;
+export 'module.dart' show Module;
+export 'table.dart' show DefinedTable, ImportedTable, Table, TableExport;
+export 'tables.dart' show Tables;
+export 'tags.dart' show DefinedTag, ImportedTag, Tag, TagExport, Tags;
 export 'type.dart'
     show
         ArrayType,
@@ -41,3 +48,4 @@ export 'type.dart'
         StorageType,
         StructType,
         ValueType;
+export 'types.dart' show Types;

@@ -8,18 +8,16 @@ import 'package:kernel/core_types.dart';
 import 'package:kernel/transformations/flags.dart';
 
 import '../base/constant_context.dart' show ConstantContext;
-import '../base/identifiers.dart' show Identifier;
 import '../base/local_scope.dart';
-import '../builder/builder.dart';
+import '../base/lookup_result.dart';
 import '../builder/declaration_builders.dart';
 import '../builder/formal_parameter_builder.dart';
 import '../builder/library_builder.dart';
+import '../builder/member_builder.dart';
 import '../builder/named_type_builder.dart';
 import '../builder/type_builder.dart';
 import '../dill/dill_class_builder.dart';
-import '../source/diet_listener.dart';
 import '../source/source_class_builder.dart';
-import '../source/source_constructor_builder.dart';
 import '../source/source_enum_builder.dart';
 import '../source/source_extension_builder.dart';
 import '../source/source_extension_type_declaration_builder.dart';
@@ -27,10 +25,11 @@ import '../source/source_library_builder.dart';
 import '../source/source_member_builder.dart';
 import '../source/source_property_builder.dart';
 import '../source/source_type_alias_builder.dart';
+import '../type_inference/context_allocation_strategy.dart';
 import '../type_inference/inference_results.dart'
     show InitializerInferenceResult;
 import '../type_inference/type_inferrer.dart' show TypeInferrer;
-import 'expression_generator_helper.dart';
+import '../util/helpers.dart';
 import 'internal_ast.dart';
 
 /// Interface that defines the interface between the [BodyBuilder] and the
@@ -41,11 +40,14 @@ abstract class BodyBuilderContext {
   final bool _isDeclarationInstanceMember;
 
   BodyBuilderContext(
-      LibraryBuilder libraryBuilder, DeclarationBuilder? declarationBuilder,
-      {required bool isDeclarationInstanceMember})
-      : _isDeclarationInstanceMember = isDeclarationInstanceMember,
-        declarationContext = new BodyBuilderDeclarationContext(
-            libraryBuilder, declarationBuilder);
+    LibraryBuilder libraryBuilder,
+    DeclarationBuilder? declarationBuilder, {
+    required bool isDeclarationInstanceMember,
+  }) : _isDeclarationInstanceMember = isDeclarationInstanceMember,
+       declarationContext = new BodyBuilderDeclarationContext(
+         libraryBuilder,
+         declarationBuilder,
+       );
 
   /// Returns `true` if the enclosing declaration declares a const constructor.
   bool get declarationDeclaresConstConstructor =>
@@ -78,14 +80,20 @@ abstract class BodyBuilderContext {
   ///
   /// If [isSetter] is `true`, a setable is returned, otherwise a getable is
   /// returned.
-  Member? lookupSuperMember(ClassHierarchy hierarchy, Name name,
-      {bool isSetter = false}) {
-    return declarationContext.lookupSuperMember(hierarchy, name,
-        isSetter: isSetter);
+  Member? lookupSuperMember(
+    ClassHierarchy hierarchy,
+    Name name, {
+    bool isSetter = false,
+  }) {
+    return declarationContext.lookupSuperMember(
+      hierarchy,
+      name,
+      isSetter: isSetter,
+    );
   }
 
   /// Looks up the constructor by the given [name] in the enclosing declaration.
-  Builder? lookupConstructor(Name name) {
+  MemberLookupResult? lookupConstructor(Name name) {
     return declarationContext.lookupConstructor(name);
   }
 
@@ -93,25 +101,30 @@ abstract class BodyBuilderContext {
   /// [constructorBuilder] with the given [arguments] from within a constructor
   /// in the same class.
   Initializer buildRedirectingInitializer(
-      Builder constructorBuilder, Arguments arguments,
-      {required int fileOffset}) {
+    MemberBuilder constructorBuilder,
+    ActualArguments arguments, {
+    required int fileOffset,
+  }) {
     return declarationContext.buildRedirectingInitializer(
-        constructorBuilder, arguments,
-        fileOffset: fileOffset);
+      constructorBuilder,
+      arguments,
+      fileOffset: fileOffset,
+    );
   }
 
   /// Looks up the constructor by the given [name] in the superclass of the
   /// enclosing class.
-  Constructor? lookupSuperConstructor(Name name) {
-    return declarationContext.lookupSuperConstructor(name);
+  MemberLookupResult? lookupSuperConstructor(
+    String name,
+    LibraryBuilder accessingLibrary,
+  ) {
+    return declarationContext.lookupSuperConstructor(name, accessingLibrary);
   }
 
   /// Looks up the member by the given [name] declared in the enclosing
   /// declaration or library.
-  ///
-  /// If [required] is `true`, an error is thrown if the member is not found.
-  NamedBuilder? lookupLocalMember(String name, {bool required = false}) {
-    return declarationContext.lookupLocalMember(name, required: required);
+  LookupResult? lookupLocalMember(String name) {
+    return declarationContext.lookupLocalMember(name);
   }
 
   /// Returns `true` if the enclosing entity is an extension type.
@@ -121,33 +134,22 @@ abstract class BodyBuilderContext {
   /// Returns `true` if the enclosing entity is an extension.
   bool get isExtensionDeclaration => declarationContext.isExtensionDeclaration;
 
-  /// Returns the [FormalParameterBuilder] by the given [name] declared in the
-  /// member whose body is being built.
-  FormalParameterBuilder? getFormalParameterByName(Identifier identifier) {
+  /// Returns the [FormalParameterBuilder] by the given [nameOffset] declared in
+  /// the member whose body is being built.
+  FormalParameterBuilder? getFormalParameterByNameOffset(int nameOffset) {
     if (formals != null) {
       List<FormalParameterBuilder> formals = this.formals!;
       for (int i = 0; i < formals.length; i++) {
         FormalParameterBuilder formal = formals[i];
-        if (formal.isWildcard &&
-            identifier.name == '_' &&
-            formal.fileOffset == identifier.nameOffset) {
-          return formal;
-        }
-        if (formal.name == identifier.name &&
-            formal.fileOffset == identifier.nameOffset) {
+        if (formal.nameOffset == nameOffset) {
           return formal;
         }
       }
       // Coverage-ignore(suite): Not run.
       // If we have any formals we should find the one we're looking for.
-      assert(false, "$identifier not found in $formals");
+      assert(false, "Formal @ $nameOffset not found in $formals");
     }
     return null;
-  }
-
-  /// Returns the [FunctionNode] for the function body currently being built.
-  FunctionNode get function {
-    throw new UnsupportedError('${runtimeType}.function');
   }
 
   /// Returns `true` if the member whose body is being built is a non-factory
@@ -163,10 +165,6 @@ abstract class BodyBuilderContext {
   /// Returns `true` if the member whose body is being built is a constructor,
   /// factory, method, getter, or setter marked as `external`.
   bool get isExternalFunction => false;
-
-  /// Returns `true` if the member whose body is being built is a setter
-  /// declaration.
-  bool get isSetter => false;
 
   // Coverage-ignore(suite): Not run.
   /// Returns `true` if the member whose body is being built is a non-factory
@@ -215,6 +213,7 @@ abstract class BodyBuilderContext {
     }
   }
 
+  // Coverage-ignore(suite): Not run.
   /// Returns `true` if the constructor whose initializers is being built, needs
   /// to include an implicit super initializer.
   bool needsImplicitSuperInitializer(CoreTypes coreTypes) => false;
@@ -277,16 +276,14 @@ abstract class BodyBuilderContext {
   }
 
   /// Registers that the field [builder] has been initialized in generative
-  /// constructor whose body is being built.
-  void registerInitializedField(SourcePropertyBuilder builder) {
+  /// constructor whose body is being built with [fromInitializingFormal]
+  /// whether the field was initialized through an initializing formal, or from
+  /// and explicit field initializer in the initializer list.
+  void registerInitializedField(
+    SourcePropertyBuilder builder,
+    FieldInitialization fieldInitialization,
+  ) {
     throw new UnsupportedError('${runtimeType}.registerInitializedField');
-  }
-
-  /// Returns the [VariableDeclaration] for the [index]th formal parameter
-  /// declared in the constructor, factory, method, or setter currently being
-  /// built.
-  VariableDeclaration getFormalParameter(int index) {
-    throw new UnsupportedError('${runtimeType}.getFormalParameter');
   }
 
   /// Returns the [VariableDeclaration] for the [index]th formal parameter
@@ -304,7 +301,7 @@ abstract class BodyBuilderContext {
 
   /// Returns the return type of the constructor, factory, method, getter or
   /// setter currently being built.
-  TypeBuilder get returnType {
+  TypeBuilder get returnTypeBuilder {
     throw new UnsupportedError('${runtimeType}.returnType');
   }
 
@@ -315,6 +312,10 @@ abstract class BodyBuilderContext {
     throw new UnsupportedError('${runtimeType}.formals');
   }
 
+  /// Returns `true` if the member whose body is currently being built is a
+  /// noSuchMethod forwarder.
+  bool get isNoSuchMethodForwarder => false;
+
   /// Computes the scope containing the initializing formals or super
   /// parameters of the constructor currently being built, using [parent] as
   /// the parent scope.
@@ -322,7 +323,29 @@ abstract class BodyBuilderContext {
   /// If a constructor is not currently being built, [parent] is returned.
   LocalScope computeFormalParameterInitializerScope(LocalScope parent) {
     throw new UnsupportedError(
-        '${runtimeType}.computeFormalParameterInitializerScope');
+      '${runtimeType}.computeFormalParameterInitializerScope',
+    );
+  }
+
+  /// Returns `true` if the member being built is a non-late instance field
+  /// in a declaration with a primary constructor.
+  ///
+  /// Field initializers in this context have access to primary constructor
+  /// parameters and should be built as if they occur in a constructor
+  /// initializer.
+  bool get inPrimaryConstructorFieldInitializer => false;
+
+  /// Returns the primary constructor parameters available in the initializer
+  /// scope for instance field initializers.
+  ///
+  /// If a non-late instance field is not currently being built, or if the
+  /// enclosing declaration doesn't have any primary constructor with
+  /// parameters, `null` is returned.
+  List<FormalParameterBuilder>?
+  get primaryConstructorInitializerScopeParameters {
+    throw new UnsupportedError(
+      '${runtimeType}.primaryConstructorInitializerScopeParameters',
+    );
   }
 
   /// This is called before parsing constructor initializers.
@@ -334,15 +357,27 @@ abstract class BodyBuilderContext {
     throw new UnsupportedError('${runtimeType}.prepareInitializers');
   }
 
-  /// Adds [initializer] to generative constructor currently being built.
-  void addInitializer(Initializer initializer, ExpressionGeneratorHelper helper,
-      {required InitializerInferenceResult? inferenceResult}) {
-    throw new UnsupportedError('${runtimeType}.addInitializer');
+  /// This registers [initializers] as the fully resolved initializers of a
+  /// constructor.
+  void registerInitializers(
+    List<Initializer> initializers, {
+    required bool isErroneous,
+  }) {
+    throw new UnsupportedError('${runtimeType}.initializers');
+  }
+
+  /// This marks a constructor as erroneous.
+  // TODO(johnniwinther): Avoid this.
+  void markAsErroneous() {
+    throw new UnsupportedError('${runtimeType}.markAsErroneous');
   }
 
   /// Infers the [initializer].
-  InitializerInferenceResult inferInitializer(Initializer initializer,
-      ExpressionGeneratorHelper helper, TypeInferrer typeInferrer) {
+  InitializerInferenceResult inferInitializer({
+    required TypeInferrer typeInferrer,
+    required Uri fileUri,
+    required Initializer initializer,
+  }) {
     throw new UnsupportedError('${runtimeType}.inferInitializer');
   }
 
@@ -353,15 +388,13 @@ abstract class BodyBuilderContext {
     return null;
   }
 
-  /// Sets the [asyncModifier] of the function currently being built.
-  // TODO(johnniwinther): Do we need this? Isn't this already available from the
-  // outline?
-  void setAsyncModifier(AsyncMarker asyncModifier) {
-    throw new UnsupportedError("${runtimeType}.setAsyncModifier");
-  }
-
   /// Registers [body] as the result of the body building.
-  void registerFunctionBody(Statement body) {
+  void registerFunctionBody({
+    required Statement? body,
+    required ScopeProviderInfo? scopeProviderInfo,
+    required AsyncMarker asyncMarker,
+    required DartType? emittedValueType,
+  }) {
     throw new UnsupportedError("${runtimeType}.registerFunctionBody");
   }
 
@@ -375,6 +408,17 @@ abstract class BodyBuilderContext {
   /// This is only used for classes. For extensions and extension types, `this`
   /// is handled via a synthetic this variable.
   InterfaceType? get thisType => declarationContext.thisType;
+
+  /// Variable representing `this` in member bodies of classes and similar.
+  ///
+  /// Declarations with synthesized `this`, such as extensions and extension
+  /// types, don't have an internal [ThisVariable] because `this` is desugared
+  /// as a parameter in that case.
+  ThisVariable? createInternalThisVariable() {
+    return thisType != null && isDeclarationInstanceContext
+        ? new ThisVariable(type: thisType!)
+        : null;
+  }
 }
 
 /// Interface that provides information for a [BodyBuilderContext] from the
@@ -383,21 +427,31 @@ abstract class BodyBuilderDeclarationContext {
   final LibraryBuilder _libraryBuilder;
 
   factory BodyBuilderDeclarationContext(
-      LibraryBuilder libraryBuilder, DeclarationBuilder? declarationBuilder) {
+    LibraryBuilder libraryBuilder,
+    DeclarationBuilder? declarationBuilder,
+  ) {
     if (declarationBuilder != null) {
       if (declarationBuilder is SourceClassBuilder) {
         return new _SourceClassBodyBuilderDeclarationContext(
-            libraryBuilder, declarationBuilder);
+          libraryBuilder,
+          declarationBuilder,
+        );
       } else if (declarationBuilder is DillClassBuilder) {
         // Coverage-ignore-block(suite): Not run.
         return new _DillClassBodyBuilderDeclarationContext(
-            libraryBuilder, declarationBuilder);
+          libraryBuilder,
+          declarationBuilder,
+        );
       } else if (declarationBuilder is SourceExtensionTypeDeclarationBuilder) {
         return new _SourceExtensionTypeDeclarationBodyBuilderDeclarationContext(
-            libraryBuilder, declarationBuilder);
+          libraryBuilder,
+          declarationBuilder,
+        );
       } else {
         return new _DeclarationBodyBuilderDeclarationContext(
-            libraryBuilder, declarationBuilder);
+          libraryBuilder,
+          declarationBuilder,
+        );
       }
     } else {
       return new _TopLevelBodyBuilderDeclarationContext(libraryBuilder);
@@ -406,26 +460,34 @@ abstract class BodyBuilderDeclarationContext {
 
   BodyBuilderDeclarationContext._(this._libraryBuilder);
 
-  Member? lookupSuperMember(ClassHierarchy hierarchy, Name name,
-      {bool isSetter = false}) {
+  Member? lookupSuperMember(
+    ClassHierarchy hierarchy,
+    Name name, {
+    bool isSetter = false,
+  }) {
     throw new UnsupportedError('${runtimeType}.lookupSuperMember');
   }
 
-  Builder? lookupConstructor(Name name) {
+  MemberLookupResult? lookupConstructor(Name name) {
     throw new UnsupportedError('${runtimeType}.lookupConstructor');
   }
 
   Initializer buildRedirectingInitializer(
-      Builder constructorBuilder, Arguments arguments,
-      {required int fileOffset}) {
+    MemberBuilder constructorBuilder,
+    ActualArguments arguments, {
+    required int fileOffset,
+  }) {
     throw new UnsupportedError('${runtimeType}.buildRedirectingInitializer');
   }
 
-  Constructor? lookupSuperConstructor(Name name) {
+  MemberLookupResult? lookupSuperConstructor(
+    String name,
+    LibraryBuilder accessingLibrary,
+  ) {
     throw new UnsupportedError('${runtimeType}.lookupSuperConstructor');
   }
 
-  NamedBuilder? lookupLocalMember(String name, {bool required = false});
+  LookupResult? lookupLocalMember(String name);
 
   bool get isExtensionTypeDeclaration => false;
 
@@ -462,8 +524,8 @@ mixin _DeclarationBodyBuilderDeclarationContextMixin
   DeclarationBuilder get _declarationBuilder;
 
   @override
-  NamedBuilder? lookupLocalMember(String name, {bool required = false}) {
-    return _declarationBuilder.lookupLocalMember(name, required: required);
+  LookupResult? lookupLocalMember(String name) {
+    return _declarationBuilder.lookupLocalMember(name, required: false);
   }
 
   @override
@@ -479,8 +541,9 @@ class _SourceClassBodyBuilderDeclarationContext
   final SourceClassBuilder _sourceClassBuilder;
 
   _SourceClassBodyBuilderDeclarationContext(
-      LibraryBuilder libraryBuilder, this._sourceClassBuilder)
-      : super._(libraryBuilder);
+    LibraryBuilder libraryBuilder,
+    this._sourceClassBuilder,
+  ) : super._(libraryBuilder);
 
   @override
   DeclarationBuilder get _declarationBuilder => _sourceClassBuilder;
@@ -500,30 +563,42 @@ class _SourceClassBodyBuilderDeclarationContext
   }
 
   @override
-  Member? lookupSuperMember(ClassHierarchy hierarchy, Name name,
-      {bool isSetter = false}) {
-    return _sourceClassBuilder.lookupInstanceMember(hierarchy, name,
-        isSetter: isSetter, isSuper: true);
+  Member? lookupSuperMember(
+    ClassHierarchy hierarchy,
+    Name name, {
+    bool isSetter = false,
+  }) {
+    return _sourceClassBuilder.lookupInstanceMember(
+      hierarchy,
+      name,
+      isSetter: isSetter,
+      isSuper: true,
+    );
   }
 
   @override
-  SourceConstructorBuilder? lookupConstructor(Name name) {
+  MemberLookupResult? lookupConstructor(Name name) {
     return _sourceClassBuilder.lookupConstructor(name);
   }
 
   @override
   Initializer buildRedirectingInitializer(
-      covariant SourceConstructorBuilder constructorBuilder,
-      Arguments arguments,
-      {required int fileOffset}) {
-    return new RedirectingInitializer(
-        constructorBuilder.invokeTarget as Constructor, arguments)
-      ..fileOffset = fileOffset;
+    MemberBuilder constructorBuilder,
+    ActualArguments arguments, {
+    required int fileOffset,
+  }) {
+    return new InternalRedirectingInitializer(
+      constructorBuilder.invokeTarget as Constructor,
+      arguments,
+    )..fileOffset = fileOffset;
   }
 
   @override
-  Constructor? lookupSuperConstructor(Name name) {
-    return _sourceClassBuilder.lookupSuperConstructor(name);
+  MemberLookupResult? lookupSuperConstructor(
+    String name,
+    LibraryBuilder accessingLibrary,
+  ) {
+    return _sourceClassBuilder.lookupSuperConstructor(name, accessingLibrary);
   }
 
   @override
@@ -543,8 +618,7 @@ class _SourceClassBodyBuilderDeclarationContext
 
   @override
   String get superClassName {
-    if (_sourceClassBuilder.supertypeBuilder?.declaration
-        is InvalidTypeDeclarationBuilder) {
+    if (_sourceClassBuilder.supertypeBuilder?.declaration is InvalidBuilder) {
       // Coverage-ignore-block(suite): Not run.
       // TODO(johnniwinther): Avoid reporting errors on missing constructors
       // on invalid super types.
@@ -567,14 +641,22 @@ class _DillClassBodyBuilderDeclarationContext
   final DillClassBuilder _declarationBuilder;
 
   _DillClassBodyBuilderDeclarationContext(
-      LibraryBuilder libraryBuilder, this._declarationBuilder)
-      : super._(libraryBuilder);
+    LibraryBuilder libraryBuilder,
+    this._declarationBuilder,
+  ) : super._(libraryBuilder);
 
   @override
-  Member? lookupSuperMember(ClassHierarchy hierarchy, Name name,
-      {bool isSetter = false}) {
-    return _declarationBuilder.lookupInstanceMember(hierarchy, name,
-        isSetter: isSetter, isSuper: true);
+  Member? lookupSuperMember(
+    ClassHierarchy hierarchy,
+    Name name, {
+    bool isSetter = false,
+  }) {
+    return _declarationBuilder.lookupInstanceMember(
+      hierarchy,
+      name,
+      isSetter: isSetter,
+      isSuper: true,
+    );
   }
 }
 
@@ -582,19 +664,19 @@ class _SourceExtensionTypeDeclarationBodyBuilderDeclarationContext
     extends BodyBuilderDeclarationContext
     with _DeclarationBodyBuilderDeclarationContextMixin {
   final SourceExtensionTypeDeclarationBuilder
-      _sourceExtensionTypeDeclarationBuilder;
+  _sourceExtensionTypeDeclarationBuilder;
 
   _SourceExtensionTypeDeclarationBodyBuilderDeclarationContext(
-      LibraryBuilder libraryBuilder,
-      this._sourceExtensionTypeDeclarationBuilder)
-      : super._(libraryBuilder);
+    LibraryBuilder libraryBuilder,
+    this._sourceExtensionTypeDeclarationBuilder,
+  ) : super._(libraryBuilder);
 
   @override
   DeclarationBuilder get _declarationBuilder =>
       _sourceExtensionTypeDeclarationBuilder;
 
   @override
-  SourceConstructorBuilder? lookupConstructor(Name name) {
+  MemberLookupResult? lookupConstructor(Name name) {
     return _sourceExtensionTypeDeclarationBuilder.lookupConstructor(name);
   }
 
@@ -606,12 +688,14 @@ class _SourceExtensionTypeDeclarationBodyBuilderDeclarationContext
 
   @override
   Initializer buildRedirectingInitializer(
-      covariant SourceConstructorBuilder constructorBuilder,
-      Arguments arguments,
-      {required int fileOffset}) {
+    MemberBuilder constructorBuilder,
+    ActualArguments arguments, {
+    required int fileOffset,
+  }) {
     return new ExtensionTypeRedirectingInitializer(
-        constructorBuilder.invokeTarget as Procedure, arguments)
-      ..fileOffset = fileOffset;
+      constructorBuilder.invokeTarget as Procedure,
+      arguments,
+    )..fileOffset = fileOffset;
   }
 
   @override
@@ -630,25 +714,26 @@ class _DeclarationBodyBuilderDeclarationContext
   final DeclarationBuilder _declarationBuilder;
 
   _DeclarationBodyBuilderDeclarationContext(
-      LibraryBuilder libraryBuilder, this._declarationBuilder)
-      : super._(libraryBuilder);
+    LibraryBuilder libraryBuilder,
+    this._declarationBuilder,
+  ) : super._(libraryBuilder);
 }
 
 class _TopLevelBodyBuilderDeclarationContext
     extends BodyBuilderDeclarationContext {
   _TopLevelBodyBuilderDeclarationContext(LibraryBuilder libraryBuilder)
-      : super._(libraryBuilder);
+    : super._(libraryBuilder);
 
   @override
   // Coverage-ignore(suite): Not run.
-  NamedBuilder? lookupLocalMember(String name, {bool required = false}) {
-    return _libraryBuilder.lookupLocalMember(name, required: required);
+  LookupResult? lookupLocalMember(String name) {
+    return _libraryBuilder.lookupLocalMember(name);
   }
 }
 
 class LibraryBodyBuilderContext extends BodyBuilderContext {
   LibraryBodyBuilderContext(SourceLibraryBuilder libraryBuilder)
-      : super(libraryBuilder, null, isDeclarationInstanceMember: false);
+    : super(libraryBuilder, null, isDeclarationInstanceMember: false);
 }
 
 mixin _DeclarationBodyBuilderContext<T extends DeclarationBuilder>
@@ -662,56 +747,76 @@ mixin _DeclarationBodyBuilderContext<T extends DeclarationBuilder>
 class ClassBodyBuilderContext extends BodyBuilderContext
     with _DeclarationBodyBuilderContext<SourceClassBuilder> {
   ClassBodyBuilderContext(SourceClassBuilder sourceClassBuilder)
-      : super(sourceClassBuilder.libraryBuilder, sourceClassBuilder,
-            isDeclarationInstanceMember: false);
+    : super(
+        sourceClassBuilder.libraryBuilder,
+        sourceClassBuilder,
+        isDeclarationInstanceMember: false,
+      );
 }
 
 class EnumBodyBuilderContext extends BodyBuilderContext
     with _DeclarationBodyBuilderContext<SourceEnumBuilder> {
   EnumBodyBuilderContext(SourceEnumBuilder sourceEnumBuilder)
-      : super(sourceEnumBuilder.libraryBuilder, sourceEnumBuilder,
-            isDeclarationInstanceMember: false);
+    : super(
+        sourceEnumBuilder.libraryBuilder,
+        sourceEnumBuilder,
+        isDeclarationInstanceMember: false,
+      );
 }
 
 class ExtensionBodyBuilderContext extends BodyBuilderContext
     with _DeclarationBodyBuilderContext<SourceExtensionBuilder> {
   ExtensionBodyBuilderContext(SourceExtensionBuilder sourceExtensionBuilder)
-      : super(sourceExtensionBuilder.libraryBuilder, sourceExtensionBuilder,
-            isDeclarationInstanceMember: false);
+    : super(
+        sourceExtensionBuilder.libraryBuilder,
+        sourceExtensionBuilder,
+        isDeclarationInstanceMember: false,
+      );
 }
 
 class ExtensionTypeBodyBuilderContext extends BodyBuilderContext
     with _DeclarationBodyBuilderContext<SourceExtensionTypeDeclarationBuilder> {
   ExtensionTypeBodyBuilderContext(
-      SourceExtensionTypeDeclarationBuilder
-          sourceExtensionTypeDeclarationBuilder)
-      : super(sourceExtensionTypeDeclarationBuilder.libraryBuilder,
-            sourceExtensionTypeDeclarationBuilder,
-            isDeclarationInstanceMember: false);
+    SourceExtensionTypeDeclarationBuilder sourceExtensionTypeDeclarationBuilder,
+  ) : super(
+        sourceExtensionTypeDeclarationBuilder.libraryBuilder,
+        sourceExtensionTypeDeclarationBuilder,
+        isDeclarationInstanceMember: false,
+      );
 }
 
 class TypedefBodyBuilderContext extends BodyBuilderContext {
   TypedefBodyBuilderContext(SourceTypeAliasBuilder sourceTypeAliasBuilder)
-      : super(sourceTypeAliasBuilder.libraryBuilder, null,
-            isDeclarationInstanceMember: false);
+    : super(
+        sourceTypeAliasBuilder.libraryBuilder,
+        null,
+        isDeclarationInstanceMember: false,
+      );
 }
 
 class ParameterBodyBuilderContext extends BodyBuilderContext {
   factory ParameterBodyBuilderContext(
-      LibraryBuilder libraryBuilder,
-      DeclarationBuilder? declarationBuilder,
-      FormalParameterBuilder formalParameterBuilder) {
+    LibraryBuilder libraryBuilder,
+    DeclarationBuilder? declarationBuilder,
+    FormalParameterBuilder formalParameterBuilder,
+  ) {
     return new ParameterBodyBuilderContext._(
-        libraryBuilder, declarationBuilder, formalParameterBuilder);
+      libraryBuilder,
+      declarationBuilder,
+      formalParameterBuilder,
+    );
   }
 
   ParameterBodyBuilderContext._(
-      LibraryBuilder libraryBuilder,
-      DeclarationBuilder? declarationBuilder,
-      FormalParameterBuilder formalParameterBuilder)
-      : super(libraryBuilder, declarationBuilder,
-            isDeclarationInstanceMember:
-                formalParameterBuilder.isDeclarationInstanceMember);
+    LibraryBuilder libraryBuilder,
+    DeclarationBuilder? declarationBuilder,
+    FormalParameterBuilder formalParameterBuilder,
+  ) : super(
+        libraryBuilder,
+        declarationBuilder,
+        isDeclarationInstanceMember:
+            formalParameterBuilder.isDeclarationInstanceMember,
+      );
 }
 
 // Coverage-ignore(suite): Not run.
@@ -719,13 +824,15 @@ class ExpressionCompilerProcedureBodyBuildContext extends BodyBuilderContext {
   final Procedure _procedure;
 
   ExpressionCompilerProcedureBodyBuildContext(
-      DietListener listener,
-      this._procedure,
-      SourceLibraryBuilder libraryBuilder,
-      DeclarationBuilder? declarationBuilder,
-      {required bool isDeclarationInstanceMember})
-      : super(libraryBuilder, declarationBuilder,
-            isDeclarationInstanceMember: isDeclarationInstanceMember);
+    this._procedure,
+    SourceLibraryBuilder libraryBuilder,
+    DeclarationBuilder? declarationBuilder, {
+    required bool isDeclarationInstanceMember,
+  }) : super(
+         libraryBuilder,
+         declarationBuilder,
+         isDeclarationInstanceMember: isDeclarationInstanceMember,
+       );
 
   @override
   AugmentSuperTarget? get augmentSuperTarget {

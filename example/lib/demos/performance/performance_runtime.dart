@@ -87,20 +87,17 @@ class PerformanceRuntime {
       if (_pendingEvents.isEmpty) {
         return;
       }
-      events.value = <PerformanceEvent>[..._pendingEvents, ...events.value]
-          .take(60)
-          .toList(growable: false);
+      events.value = <PerformanceEvent>[
+        ..._pendingEvents,
+        ...events.value,
+      ].take(60).toList(growable: false);
       _pendingEvents.clear();
     });
   }
 }
 
 class _BuildMonitor {
-  _BuildMonitor({
-    required RouteTracker routeTracker,
-    required void Function(PerformanceEvent event) emit,
-  })  : _routeTracker = routeTracker,
-        _emit = emit;
+  _BuildMonitor({required this._routeTracker, required this._emit});
 
   final RouteTracker _routeTracker;
   final void Function(PerformanceEvent event) _emit;
@@ -120,7 +117,8 @@ class _BuildMonitor {
 
   void onPerformRebuild(Element element, VoidCallback proceed) {
     final SchedulerPhase phase = SchedulerBinding.instance.schedulerPhase;
-    final bool inFrame = phase != SchedulerPhase.idle &&
+    final bool inFrame =
+        phase != SchedulerPhase.idle &&
         phase != SchedulerPhase.transientCallbacks;
 
     if (inFrame) {
@@ -179,12 +177,10 @@ class _BuildMonitor {
 
 class _FrameMonitor {
   _FrameMonitor({
-    required RouteTracker routeTracker,
-    required List<String> Function() widgetDrainer,
-    required void Function(PerformanceEvent event) emit,
-  })  : _routeTracker = routeTracker,
-        _widgetDrainer = widgetDrainer,
-        _emit = emit;
+    required this._routeTracker,
+    required this._widgetDrainer,
+    required this._emit,
+  });
 
   static const double _frameBudget60HzMs = 1000.0 / 60.0;
 
@@ -275,7 +271,8 @@ class _FrameMonitor {
 
   int? _currentFrameKeyMicros() {
     final SchedulerPhase phase = SchedulerBinding.instance.schedulerPhase;
-    final bool inFrame = phase != SchedulerPhase.idle &&
+    final bool inFrame =
+        phase != SchedulerPhase.idle &&
         phase != SchedulerPhase.transientCallbacks;
     if (!inFrame) {
       return null;
@@ -307,11 +304,7 @@ class _FrameMonitor {
 }
 
 class _ImageMonitor {
-  _ImageMonitor({
-    required RouteTracker routeTracker,
-    required void Function(PerformanceEvent event) emit,
-  })  : _routeTracker = routeTracker,
-        _emit = emit;
+  _ImageMonitor({required this._routeTracker, required this._emit});
 
   final RouteTracker _routeTracker;
   final void Function(PerformanceEvent event) _emit;

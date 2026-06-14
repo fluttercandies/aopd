@@ -60,6 +60,10 @@ ArgParser argParser = new ArgParser(allowTrailingOptions: true)
       help: 'Whether dart:mirrors is supported. By default dart:mirrors is '
           'supported when --aot and --minimal-kernel are not used.',
       defaultsTo: null)
+  ..addFlag('include-unsupported-platform-library-stubs',
+      help: 'Whether platform specific dart:* libraries should be importable '
+          'from unsupported runtimes.',
+      hide: true)
   ..addFlag('compact-async', help: 'Obsolete, ignored.', hide: true)
   ..addFlag('tfa',
       help: 'Enable global type flow analysis and related transformations '
@@ -73,6 +77,9 @@ ArgParser argParser = new ArgParser(allowTrailingOptions: true)
       defaultsTo: true)
   ..addFlag('protobuf-tree-shaker-v2',
       help: 'Enable protobuf tree shaker v2 in AOT mode.', defaultsTo: false)
+  ..addFlag('protobuf-tree-shaker-mixins',
+      help: 'Include protobuf messages with mixins in the tree shaker pass.',
+      defaultsTo: false)
   ..addFlag('minimal-kernel',
       help: 'Produce minimal tree-shaken kernel file.', defaultsTo: false)
   ..addFlag('link-platform',
@@ -214,7 +221,10 @@ ArgParser argParser = new ArgParser(allowTrailingOptions: true)
   ..addOption('libraries-spec',
       help: 'A path or uri to the libraries specification JSON file')
   ..addFlag('debugger-module-names',
-      help: 'Use debugger-friendly modules names', defaultsTo: false)
+      help: "Use debugger-friendly modules names that assume the 'lib/' "
+          "directories of packages are present in the served directory "
+          "structure at runtime.",
+      defaultsTo: false)
   ..addFlag('experimental-emit-debug-metadata',
       help: 'Emit module and library metadata for the debugger',
       defaultsTo: false)
@@ -228,6 +238,11 @@ ArgParser argParser = new ArgParser(allowTrailingOptions: true)
   ..addFlag('print-incremental-dependencies',
       help: 'Print list of sources added and removed from compilation',
       defaultsTo: true)
+  ..addFlag('js-strongly-connected-components',
+      help: 'Whether or not to combine JavaScript libraries into '
+          'strongly connected components',
+      defaultsTo: true,
+      hide: true)
   ..addOption('resident-info-file-name',
       help: 'Allowing for incremental compilation of changes when using the '
           'Dart CLI. '
@@ -469,17 +484,17 @@ class FrontendCompiler implements CompilerInterface {
   final ProgramTransformer? transformer;
   bool? unsafePackageSerialization;
 
-  void _onDiagnostic(DiagnosticMessage message) {
+  void _onDiagnostic(CfeDiagnosticMessage message) {
     switch (message.severity) {
-      case Severity.error:
-      case Severity.internalProblem:
+      case CfeSeverity.error:
+      case CfeSeverity.internalProblem:
         errors.addAll(message.plainTextFormatted);
         break;
-      case Severity.warning:
-      case Severity.info:
+      case CfeSeverity.warning:
+      case CfeSeverity.info:
         break;
-      case Severity.context:
-      case Severity.ignored:
+      case CfeSeverity.context:
+      case CfeSeverity.ignored:
         throw 'Unexpected severity: ${message.severity}';
     }
     if (Verbosity.shouldPrint(_compilerOptions.verbosity, message)) {
@@ -614,11 +629,15 @@ class FrontendCompiler implements CompilerInterface {
 
     // Initialize additional supported kernel targets.
     _installDartdevcTarget();
+    final bool aot = options['aot'];
+    final bool minimalKernel = options['minimal-kernel'];
     compilerOptions.target = createFrontEndTarget(
       options['target'],
       trackWidgetCreation: options['track-widget-creation'],
-      supportMirrors: options['support-mirrors'] ??
-          !(options['aot'] || options['minimal-kernel']),
+      supportMirrors: options['support-mirrors'] ?? !(aot || minimalKernel),
+      includeUnsupportedPlatformLibraryStubs:
+          options['include-unsupported-platform-library-stubs'],
+      constKeepLocalsIndicator: !(aot || minimalKernel),
     );
     if (compilerOptions.target == null) {
       print('Failed to create front-end target ${options['target']}.');
@@ -694,6 +713,7 @@ class FrontendCompiler implements CompilerInterface {
               environmentDefines: environmentDefines,
               enableAsserts: options['enable-asserts'],
               useProtobufTreeShakerV2: options['protobuf-tree-shaker-v2'],
+              protobufTreeShakerMixins: options['protobuf-tree-shaker-mixins'],
               minimalKernel: options['minimal-kernel'],
               treeShakeWriteOnlyFields: options['tree-shake-write-only-fields'],
               fromDillFile: options['from-dill'])));
@@ -709,6 +729,8 @@ class FrontendCompiler implements CompilerInterface {
             options['filesystem-scheme'], options['dartdevc-module-format'],
             fullComponent: true,
             recompileRestart: false,
+            useStronglyConnectedComponents:
+                options['js-strongly-connected-components'],
             extraDdcOptions: extraDdcOptions);
       }
       await writeDillFile(
@@ -853,6 +875,7 @@ class FrontendCompiler implements CompilerInterface {
       String filename, String fileSystemScheme, String moduleFormat,
       {required bool fullComponent,
       required bool recompileRestart,
+      required bool useStronglyConnectedComponents,
       List<String>? extraDdcOptions}) async {
     PackageConfig packageConfig = await loadPackageConfigUri(
         _compilerOptions.packagesFileUri ??
@@ -866,6 +889,7 @@ class FrontendCompiler implements CompilerInterface {
       fileSystemScheme,
       useDebuggerModuleNames: useDebuggerModuleNames,
       emitDebugMetadata: emitDebugMetadata,
+      useStronglyConnectedComponents: useStronglyConnectedComponents,
       moduleFormat: moduleFormat,
       canaryFeatures: canaryFeatures,
       extraDdcOptions: extraDdcOptions ?? [],
@@ -1071,6 +1095,8 @@ class FrontendCompiler implements CompilerInterface {
             _options['filesystem-scheme'], _options['dartdevc-module-format'],
             fullComponent: false,
             recompileRestart: recompileRestart,
+            useStronglyConnectedComponents:
+                _options['js-strongly-connected-components'],
             extraDdcOptions: extraDdcOptions);
       } catch (e) {
         _outputStream.writeln('$e');

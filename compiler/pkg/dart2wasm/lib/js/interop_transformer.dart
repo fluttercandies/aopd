@@ -34,24 +34,38 @@ class InteropTransformer extends Transformer {
   final MethodCollector _methodCollector;
   final CoreTypesUtil _util;
 
-  InteropTransformer._(this._staticTypeContext, this._util,
-      this._methodCollector, extensionIndex)
-      : _callbackSpecializer =
-            CallbackSpecializer(_staticTypeContext, _util, _methodCollector),
-        _inlineExpander =
-            InlineExpander(_staticTypeContext, _util, _methodCollector),
-        _interopSpecializerFactory = InteropSpecializerFactory(
-            _staticTypeContext, _util, _methodCollector, extensionIndex);
+  InteropTransformer._(
+    this._staticTypeContext,
+    this._util,
+    this._methodCollector,
+    extensionIndex,
+  ) : _callbackSpecializer = CallbackSpecializer(
+        _staticTypeContext,
+        _util,
+        _methodCollector,
+      ),
+      _inlineExpander = InlineExpander(
+        _staticTypeContext,
+        _util,
+        _methodCollector,
+      ),
+      _interopSpecializerFactory = InteropSpecializerFactory(
+        _staticTypeContext,
+        _util,
+        _methodCollector,
+        extensionIndex,
+      );
 
   factory InteropTransformer(CoreTypes coreTypes, ClassHierarchy hierarchy) {
     final typeEnvironment = TypeEnvironment(coreTypes, hierarchy);
     final extensionIndex = ExtensionIndex(coreTypes, typeEnvironment);
     final util = CoreTypesUtil(coreTypes, extensionIndex);
     return InteropTransformer._(
-        StatefulStaticTypeContext.stacked(typeEnvironment),
-        util,
-        MethodCollector(util),
-        extensionIndex);
+      StatefulStaticTypeContext.stacked(typeEnvironment),
+      util,
+      MethodCollector(util),
+      extensionIndex,
+    );
   }
 
   @override
@@ -75,9 +89,7 @@ class InteropTransformer extends Transformer {
   Expression visitStaticInvocation(StaticInvocation node) {
     node = super.visitStaticInvocation(node) as StaticInvocation;
     Procedure target = node.target;
-    if (target == _util.allowInteropTarget) {
-      return _callbackSpecializer.allowInterop(node);
-    } else if (target == _util.functionToJSTarget) {
+    if (target == _util.functionToJSTarget) {
       return _callbackSpecializer.functionToJS(node);
     } else if (target == _util.functionToJSCaptureThisTarget) {
       return _callbackSpecializer.functionToJS(node, captureThis: true);
@@ -85,7 +97,9 @@ class InteropTransformer extends Transformer {
       return _inlineExpander.expand(node);
     } else {
       return _interopSpecializerFactory.maybeSpecializeInvocation(
-              target, node) ??
+            target,
+            node,
+          ) ??
           node;
     }
   }

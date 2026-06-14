@@ -3,6 +3,7 @@
 // BSD-style license that can be found in the LICENSE file.
 
 import 'package:_fe_analyzer_shared/src/scanner/token.dart' show Token;
+import 'package:front_end/src/codes/diagnostic.dart' as diag;
 import 'package:kernel/ast.dart';
 import 'package:kernel/class_hierarchy.dart';
 import 'package:kernel/src/assumptions.dart';
@@ -11,7 +12,6 @@ import 'package:kernel/src/printer.dart';
 import '../base/problems.dart' show unsupported;
 import '../builder/inferable_type_builder.dart';
 import '../builder/type_builder.dart';
-import '../codes/cfe_codes.dart';
 import '../source/source_library_builder.dart';
 
 abstract class InferredType extends AuxiliaryType {
@@ -20,16 +20,17 @@ abstract class InferredType extends AuxiliaryType {
 
   InferredType._();
 
-  factory InferredType(
-      {required SourceLibraryBuilder libraryBuilder,
-      required TypeBuilder typeBuilder,
-      required InferTypeFunction inferType,
-      required ComputeTypeFunction computeType,
-      required Uri fileUri,
-      required String name,
-      required int nameOffset,
-      required int nameLength,
-      required Token? token}) = _ImplicitType;
+  factory InferredType({
+    required SourceLibraryBuilder libraryBuilder,
+    required TypeBuilder typeBuilder,
+    required InferTypeFunction inferType,
+    required ComputeTypeFunction computeType,
+    required Uri fileUri,
+    required String name,
+    required int nameOffset,
+    required int nameLength,
+    required Token? token,
+  }) = _ImplicitType;
 
   factory InferredType.fromInferableTypeUse(InferableTypeUse inferableTypeUse) =
       _InferredTypeUse;
@@ -89,16 +90,22 @@ abstract class InferredType extends AuxiliaryType {
 
   DartType inferType(ClassHierarchyBase hierarchy);
 
-  DartType computeType(ClassHierarchyBase hierarchy);
+  (DartType, Expression?) computeType(ClassHierarchyBase hierarchy);
 }
 
 /// Signature for function called to trigger the inference of the type of
 /// [_ImplicitType], if it hasn't already been computed.
 typedef InferTypeFunction = DartType Function(ClassHierarchyBase hierarchy);
 
-/// Signature for function called to compute the type for [_ImplicitType]
-typedef ComputeTypeFunction = DartType Function(
-    ClassHierarchyBase hierarchy, Token? token);
+/// Signature for function called to compute the type for [_ImplicitType].
+///
+/// The function returns the compute type along with the inferred initializer,
+/// if any.
+typedef ComputeTypeFunction =
+    (DartType, Expression?) Function(
+      ClassHierarchyBase hierarchy,
+      Token? token,
+    );
 
 /// [InferredType] implementation that infers the type of [_typeBuilder] using
 /// [_computeType] and [_token].
@@ -115,26 +122,26 @@ class _ImplicitType extends InferredType {
 
   bool isStarted = false;
 
-  _ImplicitType(
-      {required SourceLibraryBuilder libraryBuilder,
-      required TypeBuilder typeBuilder,
-      required InferTypeFunction inferType,
-      required ComputeTypeFunction computeType,
-      required Uri fileUri,
-      required String name,
-      required int nameOffset,
-      required int nameLength,
-      required Token? token})
-      : _libraryBuilder = libraryBuilder,
-        _typeBuilder = typeBuilder,
-        _inferType = inferType,
-        _computeType = computeType,
-        _fileUri = fileUri,
-        _name = name,
-        _nameOffset = nameOffset,
-        _nameLength = nameLength,
-        _token = token,
-        super._();
+  _ImplicitType({
+    required SourceLibraryBuilder libraryBuilder,
+    required TypeBuilder typeBuilder,
+    required InferTypeFunction inferType,
+    required ComputeTypeFunction computeType,
+    required Uri fileUri,
+    required String name,
+    required int nameOffset,
+    required int nameLength,
+    required Token? token,
+  }) : _libraryBuilder = libraryBuilder,
+       _typeBuilder = typeBuilder,
+       _inferType = inferType,
+       _computeType = computeType,
+       _fileUri = fileUri,
+       _name = name,
+       _nameOffset = nameOffset,
+       _nameLength = nameLength,
+       _token = token,
+       super._();
 
   @override
   // Coverage-ignore(suite): Not run.
@@ -150,16 +157,17 @@ class _ImplicitType extends InferredType {
   }
 
   @override
-  DartType computeType(ClassHierarchyBase hierarchy) {
+  (DartType, Expression?) computeType(ClassHierarchyBase hierarchy) {
     if (isStarted) {
       _libraryBuilder.addProblem(
-          templateCantInferTypeDueToCircularity.withArguments(_name),
-          _nameOffset,
-          _nameLength,
-          _fileUri);
+        diag.cantInferTypeDueToCircularity.withArguments(name: _name),
+        _nameOffset,
+        _nameLength,
+        _fileUri,
+      );
       DartType type = const InvalidType();
       _typeBuilder.registerInferredType(type);
-      return type;
+      return (type, null);
     }
     isStarted = true;
     Token? token = _token;
@@ -202,8 +210,8 @@ class _InferredTypeUse extends InferredType {
 
   @override
   // Coverage-ignore(suite): Not run.
-  DartType computeType(ClassHierarchyBase hierarchy) {
-    return inferType(hierarchy);
+  (DartType, Expression?) computeType(ClassHierarchyBase hierarchy) {
+    return (inferType(hierarchy), null);
   }
 
   @override

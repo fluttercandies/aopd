@@ -4,15 +4,11 @@
 
 // ignore_for_file: implementation_imports
 
-import 'package:_fe_analyzer_shared/src/messages/codes.dart'
-    show
-        templateJsInteropExportDartInterfaceHasNonEmptyJSExportValue,
-        templateJsInteropExportDisallowedMember,
-        templateJsInteropExportMemberCollision,
-        templateJsInteropExportNoExportableMembers;
 import 'package:_js_interop_checks/js_interop_checks.dart'
     show JsInteropDiagnosticReporter;
 import 'package:_js_interop_checks/src/js_interop.dart' as js_interop;
+
+import 'package:front_end/src/codes/diagnostic.dart' as diag;
 import 'package:kernel/ast.dart';
 
 enum ExportStatus { exportError, exportable, nonExportable }
@@ -118,13 +114,13 @@ class ExportChecker {
 
     if (classHasJSExport && js_interop.getJSExportName(cls).isNotEmpty) {
       _diagnosticReporter.report(
-        templateJsInteropExportDartInterfaceHasNonEmptyJSExportValue
-            .withArguments(cls.name),
+        diag.jsInteropExportDartInterfaceHasNonEmptyJSExportValue.withArguments(
+          className: cls.name,
+        ),
         cls.fileOffset,
         cls.name.length,
         cls.location?.file,
       );
-      exportStatus[cls.reference] = ExportStatus.exportError;
     }
 
     _collectOverrides(cls);
@@ -181,9 +177,9 @@ class ExportChecker {
       var sortedExistingMembers =
           existingMembers.map((member) => member.toString()).toList()..sort();
       _diagnosticReporter.report(
-        templateJsInteropExportMemberCollision.withArguments(
-          exportName,
-          sortedExistingMembers.join(', '),
+        diag.jsInteropExportMemberCollision.withArguments(
+          exportName: exportName,
+          members: sortedExistingMembers.join(', '),
         ),
         cls.fileOffset,
         cls.name.length,
@@ -194,7 +190,9 @@ class ExportChecker {
 
     if (exports.isEmpty) {
       _diagnosticReporter.report(
-        templateJsInteropExportNoExportableMembers.withArguments(cls.name),
+        diag.jsInteropExportNoExportableMembers.withArguments(
+          className: cls.name,
+        ),
         cls.fileOffset,
         cls.name.length,
         cls.location?.file,
@@ -216,7 +214,7 @@ class ExportChecker {
         String name = member.name.text;
         if (name.isEmpty) name = '<unnamed>';
         _diagnosticReporter.report(
-          templateJsInteropExportDisallowedMember.withArguments(name),
+          diag.jsInteropExportDisallowedMember.withArguments(memberName: name),
           member.fileOffset,
           member.name.text.length,
           member.location?.file,

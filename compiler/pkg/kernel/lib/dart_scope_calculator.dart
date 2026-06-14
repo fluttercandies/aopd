@@ -9,15 +9,31 @@ import 'package:kernel/ast.dart';
 /// Provides information about symbols available inside a dart scope.
 class DartScope {
   final Library library;
+  final Uri? fileUri;
+  final int? offset;
   final Class? cls;
   final Member? member;
   final bool isStatic;
-  final Map<String, DartType> definitions;
+  final Map<String, VariableDeclaration> variables;
   final List<TypeParameter> typeParameters;
 
-  DartScope(this.library, this.cls, this.member, this.definitions,
-      this.typeParameters)
-      : isStatic = member is Procedure ? member.isStatic : false;
+  DartScope(
+    this.library,
+    this.fileUri,
+    this.offset,
+    this.cls,
+    this.member,
+    this.variables,
+    this.typeParameters,
+  ) : isStatic = member is Procedure ? member.isStatic : false;
+
+  Map<String, DartType> variablesAsMapToType() {
+    Map<String, DartType> result = {};
+    for (MapEntry<String, VariableDeclaration> entry in variables.entries) {
+      result[entry.key] = entry.value.type;
+    }
+    return result;
+  }
 
   @override
   String toString() {
@@ -26,7 +42,7 @@ class DartScope {
       Class: ${cls?.name},
       Procedure: $member,
       isStatic: $isStatic,
-      Scope: $definitions,
+      Scope: $variables,
       typeParameters: $typeParameters
     }
     ''';
@@ -42,12 +58,17 @@ class DartScope2 {
   final Class? cls;
   final Member? member;
   final bool isStatic;
-  final Map<String, VariableDeclaration> definitions;
+  final Map<String, VariableDeclaration> variables;
   final List<TypeParameter> typeParameters;
 
-  DartScope2(this.node, this.library, this.cls, this.member, this.definitions,
-      this.typeParameters)
-      : isStatic = member is Procedure ? member.isStatic : false;
+  DartScope2(
+    this.node,
+    this.library,
+    this.cls,
+    this.member,
+    this.variables,
+    this.typeParameters,
+  ) : isStatic = member is Procedure ? member.isStatic : false;
 
   @override
   String toString() {
@@ -56,206 +77,10 @@ class DartScope2 {
       Class: ${cls?.name},
       Procedure: $member,
       isStatic: $isStatic,
-      Scope: $definitions,
+      Scope: $variables,
       typeParameters: $typeParameters
     }
     ''';
-  }
-}
-
-/// DartScopeBuilder finds dart scope information for a location.
-///
-/// Find all definitions in scope at a given 1-based [line] and [column]:
-///
-/// - library
-/// - class
-/// - locals
-/// - formals
-/// - captured variables (for closures)
-class DartScopeBuilder extends VisitorDefault<void> with VisitorVoidMixin {
-  final Component _component;
-  final int _line;
-  final int _column;
-
-  Library? _library;
-  Class? _cls;
-  Member? _member;
-  int _offset = -1;
-
-  final List<FunctionNode> _functions = [];
-  final Map<String, DartType> _definitions = {};
-  final List<TypeParameter> _typeParameters = [];
-
-  DartScopeBuilder._(this._component, this._line, this._column);
-
-  static DartScope? findScope(
-      Component component, Library library, int line, int column) {
-    DartScopeBuilder builder = DartScopeBuilder._(component, line, column);
-    library.accept(builder);
-    return builder.build();
-  }
-
-  DartScope? build() {
-    if (_offset < 0 || _library == null) return null;
-
-    return DartScope(_library!, _cls, _member, _definitions, _typeParameters);
-  }
-
-  @override
-  void defaultTreeNode(Node node) {
-    node.visitChildren(this);
-  }
-
-  @override
-  void visitLibrary(Library library) {
-    _library = library;
-    _offset = 0;
-    if (_line > 0) {
-      _offset = _component.getOffset(_library!.fileUri, _line, _column);
-    }
-
-    // Exit early if the evaluation offset is not found.
-    // Note: the complete scope is not found in this case,
-    // so the expression compiler will report an error.
-    if (_offset >= 0) super.visitLibrary(library);
-  }
-
-  @override
-  void visitClass(Class cls) {
-    if (_scopeContainsOffset(cls.fileOffset, cls.fileEndOffset, _offset)) {
-      _cls = cls;
-      _typeParameters.addAll(cls.typeParameters);
-
-      super.visitClass(cls);
-    }
-  }
-
-  @override
-  void defaultMember(Member m) {
-    if (_scopeContainsOffset(m.fileOffset, m.fileEndOffset, _offset)) {
-      _member = m;
-
-      super.defaultMember(m);
-    }
-  }
-
-  @override
-  void visitFunctionNode(FunctionNode fun) {
-    if (_scopeContainsOffset(fun.fileOffset, fun.fileEndOffset, _offset)) {
-      _functions.add(fun);
-      _typeParameters.addAll(fun.typeParameters);
-
-      super.visitFunctionNode(fun);
-    }
-  }
-
-  @override
-  void visitVariableDeclaration(VariableDeclaration decl) {
-    String? name = decl.name;
-    // Collect locals and formals appearing before current breakpoint.
-    // Note that we include variables with no offset because the offset
-    // is not set in many cases in generated code, so omitting them would
-    // make expression evaluation fail in too many cases.
-    // Issue: https://github.com/dart-lang/sdk/issues/43966
-    //
-    // A null name signals that the variable was synthetically introduced by the
-    // compiler so they are skipped.
-    if ((decl.fileOffset < 0 || decl.fileOffset < _offset) &&
-        !decl.isWildcard &&
-        name != null) {
-      _definitions[name] = decl.type;
-    }
-    super.visitVariableDeclaration(decl);
-  }
-
-  @override
-  void visitBlock(Block block) {
-    int fileEndOffset = FileEndOffsetCalculator.calculateEndOffset(block);
-    if (_scopeContainsOffset(block.fileOffset, fileEndOffset, _offset)) {
-      super.visitBlock(block);
-    }
-  }
-
-  bool _scopeContainsOffset(int startOffset, int endOffset, int offset) {
-    if (offset < 0 || startOffset < 0 || endOffset < 0) {
-      return false;
-    }
-    return startOffset <= offset && offset <= endOffset;
-  }
-}
-
-/// File end offset calculator.
-///
-/// Helps calculate file end offsets for nodes with internal scope
-/// that do not have .fileEndOffset field.
-///
-/// For example - [Block]
-class FileEndOffsetCalculator extends VisitorDefault<int?>
-    with VisitorNullMixin<int> {
-  static const int noOffset = -1;
-
-  final int _startOffset;
-  final TreeNode _root;
-  final TreeNode _original;
-
-  int _endOffset = noOffset;
-
-  /// Create calculator for a scoping node with no .fileEndOffset.
-  ///
-  /// [_root] is the parent of the scoping node.
-  /// [_startOffset] is the start offset of the scoping node.
-  FileEndOffsetCalculator._(this._root, this._original)
-      : _startOffset = _original.fileOffset;
-
-  /// Calculate file end offset for a scoping node.
-  ///
-  /// This calculator finds the first node in the ancestor chain that
-  /// can give such information for a given [node], i.e. satisfies one
-  /// of the following conditions:
-  ///
-  /// - a node with a greater start offset that is a child of the
-  ///   closest ancestor. The start offset of this child is used as a
-  ///   file end offset of the [node].
-  ///
-  /// - the closest ancestor with .fileEndOffset information. The file
-  ///   end offset of the ancestor is used as the file end offset of
-  ///   the [node.]
-  ///
-  /// If none found, return [noOffset].
-  static int calculateEndOffset(TreeNode node) {
-    for (TreeNode? n = node.parent; n != null; n = n.parent) {
-      FileEndOffsetCalculator calculator = FileEndOffsetCalculator._(n, node);
-      int? offset = n.accept(calculator);
-      if (offset != noOffset) return offset!;
-    }
-    return noOffset;
-  }
-
-  @override
-  int defaultTreeNode(TreeNode node) {
-    if (node == _original) return _endOffset;
-    if (node == _root) {
-      node.visitChildren(this);
-      if (_endOffset != noOffset) return _endOffset;
-      return _endOffsetForNode(node);
-    }
-    // Skip synthesized variables as they could have offsets
-    // from later code (in case they are hoisted, for example).
-    if ((node is! VariableDeclaration || !node.isSynthesized) &&
-        _endOffset == noOffset &&
-        node.fileOffset > _startOffset) {
-      _endOffset = node.fileOffset;
-    }
-    return _endOffset;
-  }
-
-  static int _endOffsetForNode(TreeNode node) {
-    if (node is Class) return node.fileEndOffset;
-    if (node is Constructor) return node.fileEndOffset;
-    if (node is Procedure) return node.fileEndOffset;
-    if (node is Field) return node.fileEndOffset;
-    if (node is FunctionNode) return node.fileEndOffset;
-    return noOffset;
   }
 }
 
@@ -277,7 +102,7 @@ class DartScopeBuilder2 extends VisitorDefault<void> with VisitorVoidMixin {
   Uri _currentUri;
 
   DartScopeBuilder2._(this._library, this._scriptUri, this._offset)
-      : _currentUri = _library.fileUri;
+    : _currentUri = _library.fileUri;
 
   void clearScope() {
     scopes.clear();
@@ -297,14 +122,29 @@ class DartScopeBuilder2 extends VisitorDefault<void> with VisitorVoidMixin {
         }
       }
     }
-    // TODO(jensj): If the current member is static and we're in a class we have
-    // to skip the typeParameters from the class.
+    int fromIndex = 0;
+    if (_currentCls != null &&
+        _currentMember != null &&
+        !_currentMember!.isInstanceMember &&
+        _currentMember is! Constructor) {
+      // We're inside a class, but currently in a static member (that is not a
+      // constructor). The first list in [typeParameterScopes] are the class
+      // ones, so we'll skip those here.
+      fromIndex = 1;
+    }
     List<TypeParameter> typeParameters = [];
-    for (List<TypeParameter> typeParameterScope in typeParameterScopes) {
+    for (int i = fromIndex; i < typeParameterScopes.length; i++) {
+      List<TypeParameter> typeParameterScope = typeParameterScopes[i];
       typeParameters.addAll(typeParameterScope);
     }
-    DartScope2 findScope = new DartScope2(node, _library, _currentCls,
-        _currentMember, definitions, typeParameters);
+    DartScope2 findScope = new DartScope2(
+      node,
+      _library,
+      _currentCls,
+      _currentMember,
+      definitions,
+      typeParameters,
+    );
     findScopes.add(findScope);
   }
 
@@ -565,7 +405,11 @@ class DartScopeBuilder2 extends VisitorDefault<void> with VisitorVoidMixin {
   }
 
   static DartScope findScopeFromOffsetAndClass(
-      Library library, Uri scriptUri, Class? cls, int offset) {
+    Library library,
+    Uri scriptUri,
+    Class? cls,
+    int offset,
+  ) {
     DartScopeBuilder2 data = _raw(library, scriptUri, cls, offset);
     if (data.findScopes.isEmpty) {
       int? closestLessOrEqualFoundOffset = data.closestLessOrEqualFoundOffset;
@@ -574,15 +418,20 @@ class DartScopeBuilder2 extends VisitorDefault<void> with VisitorVoidMixin {
         data = _raw(library, scriptUri, cls, offset);
       }
     }
-    return _findScopePick(data.findScopes, library, cls, offset);
+    return _findScopePick(data.findScopes, scriptUri, library, cls, offset);
   }
 
   static DartScope _findScopePick(
-      List<DartScope2> scopes, Library library, Class? cls, int offset) {
+    List<DartScope2> scopes,
+    Uri scriptUri,
+    Library library,
+    Class? cls,
+    int offset,
+  ) {
     DartScope2 scope;
     if (scopes.length == 0) {
       // This shouldn't happen.
-      return new DartScope(library, cls, null, {}, []);
+      return new DartScope(library, null, null, cls, null, {}, []);
     } else if (scopes.length == 1) {
       scope = scopes.single;
     } else {
@@ -600,17 +449,22 @@ class DartScopeBuilder2 extends VisitorDefault<void> with VisitorVoidMixin {
       }
     }
 
-    Map<String, DartType> definitions = {};
-    for (MapEntry<String, VariableDeclaration> entry
-        in scope.definitions.entries) {
-      definitions[entry.key] = entry.value.type;
-    }
-    return new DartScope(scope.library, scope.cls, scope.member, definitions,
-        scope.typeParameters);
+    return new DartScope(
+      scope.library,
+      scriptUri,
+      offset,
+      scope.cls,
+      scope.member,
+      scope.variables,
+      scope.typeParameters,
+    );
   }
 
   static DartScope findScopeFromOffset(
-      Library library, Uri scriptUri, int offset) {
+    Library library,
+    Uri scriptUri,
+    int offset,
+  ) {
     DartScopeBuilder2 data = _rawNoClass(library, scriptUri, offset);
     if (data.findScopes.isEmpty) {
       int? closestLessOrEqualFoundOffset = data.closestLessOrEqualFoundOffset;
@@ -619,21 +473,29 @@ class DartScopeBuilder2 extends VisitorDefault<void> with VisitorVoidMixin {
         data = _rawNoClass(library, scriptUri, offset);
       }
     }
-    return _findScopePick(data.findScopes, library, null, offset);
+    return _findScopePick(data.findScopes, scriptUri, library, null, offset);
   }
 
   static List<DartScope2> _filterAll(
-      List<DartScope2> rawScopes, Library library, int offset) {
-    List<DartScope2> firstFilteredScopes =
-        _filterScopesWithArtificialNodes(rawScopes, library);
+    List<DartScope2> rawScopes,
+    Library library,
+    int offset,
+  ) {
+    List<DartScope2> firstFilteredScopes = _filterScopesWithArtificialNodes(
+      rawScopes,
+      library,
+    );
     if (firstFilteredScopes.isEmpty) {
       return rawScopes;
     }
     if (_allHaveTheSameDefinitions(firstFilteredScopes)) {
       return [firstFilteredScopes.first];
     }
-    List<DartScope2> filteredScopes =
-        _filter(firstFilteredScopes, library, offset);
+    List<DartScope2> filteredScopes = _filter(
+      firstFilteredScopes,
+      library,
+      offset,
+    );
     if (_allHaveTheSameDefinitions(filteredScopes)) {
       return [filteredScopes.first];
     }
@@ -641,12 +503,17 @@ class DartScopeBuilder2 extends VisitorDefault<void> with VisitorVoidMixin {
   }
 
   static List<DartScope2> filterAllForTesting(
-      List<DartScope2> rawScopes, Library library, int offset) {
+    List<DartScope2> rawScopes,
+    Library library,
+    int offset,
+  ) {
     return _filterAll(rawScopes, library, offset);
   }
 
   static List<DartScope2> _filterScopesWithArtificialNodes(
-      List<DartScope2> unfilteredScopes, Library library) {
+    List<DartScope2> unfilteredScopes,
+    Library library,
+  ) {
     Set<Member> skipMembers = {};
     for (Extension node in library.extensions) {
       for (ExtensionMemberDescriptor memberDescriptor
@@ -685,13 +552,13 @@ class DartScopeBuilder2 extends VisitorDefault<void> with VisitorVoidMixin {
 
   static bool _allHaveTheSameDefinitions(List<DartScope2> scopes) {
     if (scopes.isEmpty) return false;
-    Map<String, VariableDeclaration> definitions = scopes.first.definitions;
+    Map<String, VariableDeclaration> variables = scopes.first.variables;
     for (int i = 1; i < scopes.length; i++) {
       DartScope2 scope = scopes[i];
-      if (scope.definitions.length != definitions.length) return false;
+      if (scope.variables.length != variables.length) return false;
       for (MapEntry<String, VariableDeclaration> entry
-          in scope.definitions.entries) {
-        VariableDeclaration? existing = definitions[entry.key];
+          in scope.variables.entries) {
+        VariableDeclaration? existing = variables[entry.key];
         if (existing == null) {
           return false;
         } else {
@@ -705,7 +572,10 @@ class DartScopeBuilder2 extends VisitorDefault<void> with VisitorVoidMixin {
   }
 
   static List<DartScope2> _filter(
-      List<DartScope2> unfilteredScopes, Library library, int offset) {
+    List<DartScope2> unfilteredScopes,
+    Library library,
+    int offset,
+  ) {
     List<DartScope2> filtered = unfilteredScopes.toList();
     List<DartScope2> withoutEndOffset = [];
     for (DartScope2 scope in unfilteredScopes) {
@@ -915,7 +785,8 @@ class DartScopeBuilder2 extends VisitorDefault<void> with VisitorVoidMixin {
   }
 
   static DartScope2? _looksLikeVmForInTransformation(
-      List<DartScope2> filtered) {
+    List<DartScope2> filtered,
+  ) {
     // The VM has a transformation where
     // ```
     // void foo(String x) {
@@ -1148,7 +1019,8 @@ class DartScopeBuilder2 extends VisitorDefault<void> with VisitorVoidMixin {
   }
 
   static DartScope2? _looksLikeThrowPatternMatchingError(
-      List<DartScope2> filtered) {
+    List<DartScope2> filtered,
+  ) {
     if (filtered.length == 5 &&
         filtered[0].node is IfStatement &&
         filtered[1].node is ExpressionStatement &&
@@ -1182,7 +1054,11 @@ class DartScopeBuilder2 extends VisitorDefault<void> with VisitorVoidMixin {
   }
 
   static DartScopeBuilder2 _raw(
-      Library library, Uri scriptUri, Class? cls, int offset) {
+    Library library,
+    Uri scriptUri,
+    Class? cls,
+    int offset,
+  ) {
     DartScopeBuilder2 builder = DartScopeBuilder2._(library, scriptUri, offset);
     if (cls != null) {
       builder.visitClass(cls);
@@ -1195,13 +1071,19 @@ class DartScopeBuilder2 extends VisitorDefault<void> with VisitorVoidMixin {
   }
 
   static DartScopeBuilder2 _rawNoClass(
-      Library library, Uri scriptUri, int offset) {
+    Library library,
+    Uri scriptUri,
+    int offset,
+  ) {
     DartScopeBuilder2 builder = DartScopeBuilder2._(library, scriptUri, offset);
     builder.visitLibrary(library);
     return builder;
   }
 
   static List<DartScope2> findScopeFromOffsetAndClassRawForTesting(
-          Library library, Uri scriptUri, Class? cls, int offset) =>
-      _raw(library, scriptUri, cls, offset).findScopes;
+    Library library,
+    Uri scriptUri,
+    Class? cls,
+    int offset,
+  ) => _raw(library, scriptUri, cls, offset).findScopes;
 }

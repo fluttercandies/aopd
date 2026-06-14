@@ -34,6 +34,45 @@ abstract class Identifier {
   TypeName get typeName;
 }
 
+class OmittedIdentifier implements Identifier {
+  @override
+  final Token token;
+
+  OmittedIdentifier(this.token);
+
+  int get charOffset => token.charOffset;
+
+  @override
+  // Coverage-ignore(suite): Not run.
+  int get firstOffset => charOffset;
+
+  @override
+  // Coverage-ignore(suite): Not run.
+  Expression? get initializer => null;
+
+  @override
+  String get name => '';
+
+  @override
+  int get nameOffset => charOffset;
+
+  @override
+  // Coverage-ignore(suite): Not run.
+  Operator? get operator => null;
+
+  @override
+  int get qualifierOffset => charOffset;
+
+  @override
+  // Coverage-ignore(suite): Not run.
+  TypeName get typeName {
+    return unsupported("typeName", charOffset, null);
+  }
+
+  @override
+  String toString() => "OmittedIdentifier()";
+}
+
 abstract class IdentifierImpl implements Identifier {
   @override
   final Token token;
@@ -78,6 +117,7 @@ class SimpleIdentifier extends IdentifierImpl {
     return new QualifiedNameGenerator(qualifier, token);
   }
 
+  // Coverage-ignore(suite): Not run.
   QualifiedNameBuilder withBuilderQualifier(Builder qualifier) {
     return new QualifiedNameBuilder(qualifier, token);
   }
@@ -94,12 +134,11 @@ class OperatorIdentifier implements Identifier {
   final Operator operator;
 
   OperatorIdentifier(this.token)
-      : this.operator = Operator.fromText(token.stringValue!)!;
+    : this.operator = Operator.fromText(token.stringValue!)!;
 
   @override
   String get name => operator.text;
 
-  // Coverage-ignore(suite): Not run.
   int get charOffset => token.charOffset;
 
   @override
@@ -131,7 +170,7 @@ class InitializedIdentifier extends SimpleIdentifier {
   final Expression initializer;
 
   InitializedIdentifier(Identifier identifier, this.initializer)
-      : super(identifier.token);
+    : super(identifier.token);
 
   @override
   // Coverage-ignore(suite): Not run.
@@ -187,6 +226,7 @@ class QualifiedNameGenerator extends QualifiedName {
   String toString() => "qualified-name-generator($qualifier, $name)";
 }
 
+// Coverage-ignore(suite): Not run.
 class QualifiedNameBuilder extends QualifiedName {
   final Builder qualifier;
 
@@ -195,7 +235,6 @@ class QualifiedNameBuilder extends QualifiedName {
   Token get suffix => token;
 
   @override
-  // Coverage-ignore(suite): Not run.
   int get firstOffset => qualifier.fileOffset;
 
   @override
@@ -203,7 +242,11 @@ class QualifiedNameBuilder extends QualifiedName {
 }
 
 void flattenQualifiedNameOn(
-    QualifiedName name, StringBuffer buffer, int charOffset, Uri? fileUri) {
+  QualifiedName name,
+  StringBuffer buffer,
+  int charOffset,
+  Uri? fileUri,
+) {
   switch (name) {
     case QualifiedNameIdentifier():
       Identifier qualifier = name.qualifier;
@@ -216,7 +259,11 @@ void flattenQualifiedNameOn(
     case QualifiedNameGenerator():
     case QualifiedNameBuilder():
       unhandled(
-          "${name.runtimeType}", "flattenQualifiedNameOn", charOffset, fileUri);
+        "${name.runtimeType}",
+        "flattenQualifiedNameOn",
+        charOffset,
+        fileUri,
+      );
   }
   buffer.write(".");
   buffer.write(name.name);

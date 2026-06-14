@@ -5,12 +5,14 @@
 import 'dart:io' show exitCode;
 import 'dart:typed_data' show Uint8List;
 
-import 'package:_fe_analyzer_shared/src/messages/severity.dart' show Severity;
+import 'package:_fe_analyzer_shared/src/messages/severity.dart'
+    show CfeSeverity;
 import 'package:_fe_analyzer_shared/src/util/libraries_specification.dart'
     show
         LibrariesSpecification,
         LibrariesSpecificationException,
         TargetLibrariesSpecification;
+import 'package:front_end/src/codes/diagnostic.dart' as diag;
 import 'package:kernel/binary/ast_from_binary.dart' show BinaryBuilder;
 import 'package:kernel/kernel.dart'
     show CanonicalName, Component, Location, Version;
@@ -19,7 +21,7 @@ import 'package:kernel/target/targets.dart'
 import 'package:package_config/package_config.dart';
 
 import '../api_prototype/compiler_options.dart'
-    show CompilerOptions, HooksForTesting, Verbosity, DiagnosticMessage;
+    show CompilerOptions, HooksForTesting, Verbosity, CfeDiagnosticMessage;
 import '../api_prototype/experimental_flags.dart' as flags;
 import '../api_prototype/file_system.dart'
     show FileSystem, FileSystemEntity, FileSystemException;
@@ -31,23 +33,7 @@ import '../codes/cfe_codes.dart'
         LocatedMessage,
         Message,
         PlainAndColorizedString,
-        messageCantInferPackagesFromManyInputs,
-        messageCantInferPackagesFromPackageUri,
-        messageInternalProblemProvidedBothCompileSdkAndSdkSummary,
-        messageMissingInput,
-        noLength,
-        templateCannotReadSdkSpecification,
-        templateCantReadFile,
-        templateDebugTrace,
-        templateExceptionReadingFile,
-        templateExperimentExpiredDisabled,
-        templateExperimentExpiredEnabled,
-        templateInputFileNotFound,
-        templateInternalProblemUnsupported,
-        templatePackagesFileFormat,
-        templateSdkRootNotFound,
-        templateSdkSpecificationNotFound,
-        templateSdkSummaryNotFound;
+        noLength;
 import 'command_line_reporting.dart' as command_line_reporting;
 import 'compiler_context.dart';
 import 'messages.dart' show getLocation;
@@ -128,7 +114,6 @@ class ProcessedOptions {
   Uint8List? _sdkSummaryBytes;
   bool _triedLoadingSdkSummary = false;
 
-  // Coverage-ignore(suite): Not run.
   /// Get the bytes of the SDK outline, if any.
   Future<Uint8List?> loadSdkSummaryBytes() async {
     if (_sdkSummaryBytes == null && !_triedLoadingSdkSummary) {
@@ -158,8 +143,9 @@ class ProcessedOptions {
     if (dynamicInterfaceSpecificationUri == null) return null;
     if (_dynamicInterfaceSpecificationContents == null &&
         !_triedLoadingDynamicInterfaceSpecification) {
-      FileSystemEntity entry =
-          fileSystem.entityForUri(dynamicInterfaceSpecificationUri);
+      FileSystemEntity entry = fileSystem.entityForUri(
+        dynamicInterfaceSpecificationUri,
+      );
       _dynamicInterfaceSpecificationContents = await _readAsString(entry);
       _triedLoadingDynamicInterfaceSpecification = true;
     }
@@ -213,61 +199,88 @@ class ProcessedOptions {
 
   /// Initializes a [ProcessedOptions] object wrapping the given [rawOptions].
   ProcessedOptions({CompilerOptions? options, List<Uri>? inputs, this.output})
-      : this._raw = options ?? new CompilerOptions(),
-        this.inputs = inputs ?? <Uri>[],
-        // TODO(askesc): Copy the map when kernel_service supports that.
-        this.environmentDefines = options?.environmentDefines,
-        // TODO(sigmund, ahe): create ticker even earlier or pass in a stopwatch
-        // collecting time since the start of the VM.
-        this.ticker = new Ticker(isVerbose: options?.verbose ?? false);
+    : this._raw = options ?? new CompilerOptions(),
+      this.inputs = inputs ?? <Uri>[],
+      // TODO(askesc): Copy the map when kernel_service supports that.
+      this.environmentDefines = options?.environmentDefines,
+      // TODO(sigmund, ahe): create ticker even earlier or pass in a stopwatch
+      // collecting time since the start of the VM.
+      this.ticker = new Ticker(isVerbose: options?.verbose ?? false);
 
-  FormattedMessage format(CompilerContext compilerContext,
-      LocatedMessage message, Severity severity, List<LocatedMessage>? context,
-      {List<Uri>? involvedFiles}) {
+  FormattedMessage format(
+    CompilerContext compilerContext,
+    LocatedMessage message,
+    CfeSeverity severity,
+    List<LocatedMessage>? context, {
+    List<Uri>? involvedFiles,
+  }) {
     int offset = message.charOffset;
     Uri? uri = message.uri;
     Location? location = offset == -1 || uri == null
         ? null
         : getLocation(compilerContext, uri, offset);
-    PlainAndColorizedString formatted = command_line_reporting
-        .format(compilerContext, message, severity, location: location);
+    PlainAndColorizedString formatted = command_line_reporting.format(
+      compilerContext,
+      message,
+      severity,
+      location: location,
+    );
     List<FormattedMessage>? formattedContext;
     if (context != null && context.isNotEmpty) {
-      formattedContext =
-          new List<FormattedMessage>.generate(context.length, (int i) {
-        return format(compilerContext, context[i], Severity.context, null);
+      formattedContext = new List<FormattedMessage>.generate(context.length, (
+        int i,
+      ) {
+        return format(compilerContext, context[i], CfeSeverity.context, null);
       });
     }
-    return message.withFormatting(formatted, location?.line ?? -1,
-        location?.column ?? -1, severity, formattedContext,
-        involvedFiles: involvedFiles);
+    return message.withFormatting(
+      formatted,
+      location?.line ?? -1,
+      location?.column ?? -1,
+      severity,
+      formattedContext,
+      involvedFiles: involvedFiles,
+    );
   }
 
   FormattedMessage formatNoSourceLine(
-      LocatedMessage message, Severity severity, List<LocatedMessage>? context,
-      {List<Uri>? involvedFiles}) {
-    PlainAndColorizedString formatted =
-        command_line_reporting.formatNoSourceLine(message, severity);
+    LocatedMessage message,
+    CfeSeverity severity,
+    List<LocatedMessage>? context, {
+    List<Uri>? involvedFiles,
+  }) {
+    PlainAndColorizedString formatted = command_line_reporting
+        .formatNoSourceLine(message, severity);
     List<FormattedMessage>? formattedContext;
     // Coverage-ignore(suite): Not run.
     if (context != null && context.isNotEmpty) {
-      formattedContext =
-          new List<FormattedMessage>.generate(context.length, (int i) {
-        return formatNoSourceLine(context[i], Severity.context, null);
+      formattedContext = new List<FormattedMessage>.generate(context.length, (
+        int i,
+      ) {
+        return formatNoSourceLine(context[i], CfeSeverity.context, null);
       });
     }
-    return message.withFormatting(formatted, -1, -1, severity, formattedContext,
-        involvedFiles: involvedFiles);
+    return message.withFormatting(
+      formatted,
+      -1,
+      -1,
+      severity,
+      formattedContext,
+      involvedFiles: involvedFiles,
+    );
   }
 
   void _report(
     LocatedMessage message,
-    Severity severity, {
+    CfeSeverity severity, {
     required List<LocatedMessage>? context,
     required List<Uri>? involvedFiles,
-    required FormattedMessage format(LocatedMessage message, Severity severity,
-        List<LocatedMessage>? context,
-        {List<Uri>? involvedFiles}),
+    required FormattedMessage format(
+      LocatedMessage message,
+      CfeSeverity severity,
+      List<LocatedMessage>? context, {
+      List<Uri>? involvedFiles,
+    }),
   }) {
     if (command_line_reporting.isHidden(severity)) return;
     if (setExitCodeOnProblem) {
@@ -275,7 +288,8 @@ class ProcessedOptions {
       exitCode = 1;
     }
     reportDiagnosticMessage(
-        format(message, severity, context, involvedFiles: involvedFiles));
+      format(message, severity, context, involvedFiles: involvedFiles),
+    );
     if (command_line_reporting.shouldThrowOn(this, severity)) {
       // Coverage-ignore-block(suite): Not run.
       if (fatalDiagnosticCount++ < _raw.skipForDebugging) {
@@ -283,39 +297,63 @@ class ProcessedOptions {
         return;
       }
       if (_raw.skipForDebugging < 0) {
-        print(templateDebugTrace
-            .withArguments("$severity", "${StackTrace.current}")
-            .problemMessage);
+        print(
+          diag.debugTrace
+              .withArguments(
+                severity: "$severity",
+                stackTrace: "${StackTrace.current}",
+              )
+              .problemMessage,
+        );
       } else {
         throw new DebugAbort(
-            message.uri, message.charOffset, severity, StackTrace.current);
+          message.uri,
+          message.charOffset,
+          severity,
+          StackTrace.current,
+        );
       }
     }
   }
 
-  void report(CompilerContext compilerContext, LocatedMessage message,
-      Severity severity,
-      {List<LocatedMessage>? context, List<Uri>? involvedFiles}) {
+  void report(
+    CompilerContext compilerContext,
+    LocatedMessage message,
+    CfeSeverity severity, {
+    List<LocatedMessage>? context,
+    List<Uri>? involvedFiles,
+  }) {
     _report(
       message,
       severity,
       context: context,
       involvedFiles: involvedFiles,
       format: (message, severity, context, {involvedFiles}) => format(
-          compilerContext, message, severity, context,
-          involvedFiles: involvedFiles),
+        compilerContext,
+        message,
+        severity,
+        context,
+        involvedFiles: involvedFiles,
+      ),
     );
   }
 
-  void reportNoSourceLine(LocatedMessage message, Severity severity,
-      {List<LocatedMessage>? context, List<Uri>? involvedFiles}) {
-    _report(message, severity,
-        context: context,
-        involvedFiles: involvedFiles,
-        format: formatNoSourceLine);
+  void reportNoSourceLine(
+    LocatedMessage message,
+    CfeSeverity severity, {
+    List<LocatedMessage>? context,
+    List<Uri>? involvedFiles,
+  }) {
+    _report(
+      message,
+      severity,
+      context: context,
+      involvedFiles: involvedFiles,
+      format: formatNoSourceLine,
+    );
   }
 
-  void reportDiagnosticMessage(DiagnosticMessage message) {
+  void reportDiagnosticMessage(CfeDiagnosticMessage message) {
     (_raw.onDiagnostic ?? // Coverage-ignore(suite): Not run.
         defaultDiagnosticMessageHandler)(message);
   }
@@ -326,19 +364,18 @@ class ProcessedOptions {
   /// be a fixed string, otherwise the toString of [error] will be returned.
   String osErrorMessage(Object? error) {
     if (_raw.omitOsMessageForTesting) return '<os-message>';
-    // Coverage-ignore(suite): Not run.
     return '$error';
   }
 
   // Coverage-ignore(suite): Not run.
-  void defaultDiagnosticMessageHandler(DiagnosticMessage message) {
+  void defaultDiagnosticMessageHandler(CfeDiagnosticMessage message) {
     if (Verbosity.shouldPrint(_raw.verbosity, message)) {
       printDiagnosticMessage(message, print);
     }
   }
 
   // TODO(askesc): Remove this and direct callers directly to report.
-  void reportWithoutLocation(Message message, Severity severity) {
+  void reportWithoutLocation(Message message, CfeSeverity severity) {
     reportNoSourceLine(message.withoutLocation(), severity);
   }
 
@@ -359,7 +396,7 @@ class ProcessedOptions {
 
     if (errorOnMissingInput && inputs.isEmpty) {
       // Coverage-ignore-block(suite): Not run.
-      reportWithoutLocation(messageMissingInput, Severity.error);
+      reportWithoutLocation(diag.missingInput, CfeSeverity.error);
       return false;
     }
 
@@ -368,7 +405,9 @@ class ProcessedOptions {
         !await fileSystem.entityForUri(sdkRoot!).exists()) {
       // Coverage-ignore-block(suite): Not run.
       reportWithoutLocation(
-          templateSdkRootNotFound.withArguments(sdkRoot!), Severity.error);
+        diag.sdkRootNotFound.withArguments(uri: sdkRoot!),
+        CfeSeverity.error,
+      );
       return false;
     }
 
@@ -376,15 +415,18 @@ class ProcessedOptions {
     if (summary != null && !await fileSystem.entityForUri(summary).exists()) {
       // Coverage-ignore-block(suite): Not run.
       reportWithoutLocation(
-          templateSdkSummaryNotFound.withArguments(summary), Severity.error);
+        diag.sdkSummaryNotFound.withArguments(uri: summary),
+        CfeSeverity.error,
+      );
       return false;
     }
 
     if (compileSdk && summary != null) {
       // Coverage-ignore-block(suite): Not run.
       reportWithoutLocation(
-          messageInternalProblemProvidedBothCompileSdkAndSdkSummary,
-          Severity.internalProblem);
+        diag.internalProblemProvidedBothCompileSdkAndSdkSummary,
+        CfeSeverity.internalProblem,
+      );
       return false;
     }
 
@@ -394,7 +436,9 @@ class ProcessedOptions {
       // recover from this.
       if (!await fileSystem.entityForUri(source).exists()) {
         reportWithoutLocation(
-            templateInputFileNotFound.withArguments(source), Severity.error);
+          diag.inputFileNotFound.withArguments(uri: source),
+          CfeSeverity.error,
+        );
         return false;
       }
     }
@@ -408,14 +452,18 @@ class ProcessedOptions {
         // Coverage-ignore-block(suite): Not run.
         if (value) {
           reportWithoutLocation(
-              templateExperimentExpiredEnabled
-                  .withArguments(experimentalFlag.name),
-              Severity.error);
+            diag.experimentExpiredEnabled.withArguments(
+              experimentName: experimentalFlag.name,
+            ),
+            CfeSeverity.error,
+          );
         } else {
           reportWithoutLocation(
-              templateExperimentExpiredDisabled
-                  .withArguments(experimentalFlag.name),
-              Severity.error);
+            diag.experimentExpiredDisabled.withArguments(
+              experimentName: experimentalFlag.name,
+            ),
+            CfeSeverity.error,
+          );
         }
         return false;
       }
@@ -447,7 +495,8 @@ class ProcessedOptions {
   String get currentSdkVersion => _raw.currentSdkVersion;
 
   Target? _target;
-  Target get target => _target ??= _raw.target ??
+  Target get target => _target ??=
+      _raw.target ??
       // Coverage-ignore(suite): Not run.
       new NoneTarget(new TargetFlags());
 
@@ -461,14 +510,19 @@ class ProcessedOptions {
   /// Note that the experiment might not be enabled at all for the library, as
   /// computed by [isExperimentEnabledInLibrary].
   Version getExperimentEnabledVersionInLibrary(
-      flags.ExperimentalFlag flag, Uri importUri) {
+    flags.ExperimentalFlag flag,
+    Uri importUri,
+  ) {
     return _raw.getExperimentEnabledVersionInLibrary(flag, importUri);
   }
 
   /// Return `true` if the experiment with the given [flag] is enabled for the
   /// library with the given [importUri] and language [version].
   bool isExperimentEnabledInLibraryByVersion(
-      flags.ExperimentalFlag flag, Uri importUri, Version version) {
+    flags.ExperimentalFlag flag,
+    Uri importUri,
+    Version version,
+  ) {
     return _raw.isExperimentEnabledInLibraryByVersion(flag, importUri, version);
   }
 
@@ -476,12 +530,14 @@ class ProcessedOptions {
   // TODO(sigmund): move, this doesn't feel like an "option".
   Future<Component?> loadSdkSummary(CanonicalName? nameRoot) async {
     if (_sdkSummaryComponent == null) {
-      // Coverage-ignore-block(suite): Not run.
       if (sdkSummary == null) return null;
       Uint8List? bytes = await loadSdkSummaryBytes();
       if (bytes != null && bytes.isNotEmpty) {
-        _sdkSummaryComponent =
-            loadComponent(bytes, nameRoot, fileUri: sdkSummary);
+        _sdkSummaryComponent = loadComponent(
+          bytes,
+          nameRoot,
+          fileUri: sdkSummary,
+        );
       }
     }
     return _sdkSummaryComponent;
@@ -504,7 +560,8 @@ class ProcessedOptions {
       if (uris.isEmpty) return const <Component>[];
       // TODO(sigmund): throttle # of concurrent operations.
       List<Uint8List?> allBytes = await Future.wait(
-          uris.map((uri) => _readAsBytes(fileSystem.entityForUri(uri))));
+        uris.map((uri) => _readAsBytes(fileSystem.entityForUri(uri))),
+      );
       List<Component> result = [];
       for (int i = 0; i < uris.length; i++) {
         Uint8List? bytes = allBytes[i];
@@ -516,18 +573,23 @@ class ProcessedOptions {
     return _additionalDillComponents!;
   }
 
-  // Coverage-ignore(suite): Not run.
-  /// Helper to load a .dill file from [uri] using the existing [nameRoot].
-  Component loadComponent(Uint8List bytes, CanonicalName? nameRoot,
-      {bool? alwaysCreateNewNamedNodes, Uri? fileUri}) {
-    Component component =
-        target.configureComponent(new Component(nameRoot: nameRoot));
+  /// Helper to load a .dill file from [fileUri] using the existing [nameRoot].
+  Component loadComponent(
+    Uint8List bytes,
+    CanonicalName? nameRoot, {
+    bool? alwaysCreateNewNamedNodes,
+    Uri? fileUri,
+  }) {
+    Component component = target.configureComponent(
+      new Component(nameRoot: nameRoot),
+    );
     // TODO(ahe): Control lazy loading via an option.
-    new BinaryBuilder(bytes,
-            filename: fileUri == null ? null : '$fileUri',
-            disableLazyReading: false,
-            alwaysCreateNewNamedNodes: alwaysCreateNewNamedNodes)
-        .readComponent(component);
+    new BinaryBuilder(
+      bytes,
+      filename: fileUri == null ? null : '$fileUri',
+      disableLazyReading: false,
+      alwaysCreateNewNamedNodes: alwaysCreateNewNamedNodes,
+    ).readComponent(component);
     return component;
   }
 
@@ -560,24 +622,28 @@ class ProcessedOptions {
       if (compileSdk) {
         // Coverage-ignore-block(suite): Not run.
         reportWithoutLocation(
-            templateSdkSpecificationNotFound
-                .withArguments(librariesSpecificationUri!),
-            Severity.error);
+          diag.sdkSpecificationNotFound.withArguments(
+            uri: librariesSpecificationUri!,
+          ),
+          CfeSeverity.error,
+        );
       }
       return new TargetLibrariesSpecification(name);
     }
 
     try {
       LibrariesSpecification spec = await LibrariesSpecification.load(
-          librariesSpecificationUri!,
-          (Uri uri) => fileSystem.entityForUri(uri).readAsString());
+        librariesSpecificationUri!,
+        (Uri uri) => fileSystem.entityForUri(uri).readAsString(),
+      );
       return spec.specificationFor(name);
     }
     // Coverage-ignore(suite): Not run.
     on LibrariesSpecificationException catch (e) {
       reportWithoutLocation(
-          templateCannotReadSdkSpecification.withArguments('${e.error}'),
-          Severity.error);
+        diag.cannotReadSdkSpecification.withArguments(details: '${e.error}'),
+        CfeSeverity.error,
+      );
       return new TargetLibrariesSpecification(name);
     }
   }
@@ -593,8 +659,9 @@ class ProcessedOptions {
     }
     _packageConfigAndUri = null;
     if (_raw.packagesFileUri != null) {
-      _packageConfigAndUri =
-          await _createPackagesFromFile(_raw.packagesFileUri!);
+      _packageConfigAndUri = await _createPackagesFromFile(
+        _raw.packagesFileUri!,
+      );
       return _packages!;
     }
 
@@ -614,7 +681,9 @@ class ProcessedOptions {
       // TODO(sigmund): consider not reporting an error if we would infer
       // the same `package_config.json` file from all of the inputs.
       reportWithoutLocation(
-          messageCantInferPackagesFromManyInputs, Severity.error);
+        diag.cantInferPackagesFromManyInputs,
+        CfeSeverity.error,
+      );
       _packageConfigAndUri = _PackageConfigAndUri.empty;
       return _packages!;
     }
@@ -623,9 +692,9 @@ class ProcessedOptions {
 
     if (input.isScheme('package')) {
       reportNoSourceLine(
-          messageCantInferPackagesFromPackageUri.withLocation(
-              input, -1, noLength),
-          Severity.error);
+        diag.cantInferPackagesFromPackageUri.withLocation(input, -1, noLength),
+        CfeSeverity.error,
+      );
       _packageConfigAndUri = _PackageConfigAndUri.empty;
       return _packages!;
     }
@@ -649,12 +718,19 @@ class ProcessedOptions {
     // Coverage-ignore(suite): Not run.
     on FileSystemException catch (e) {
       reportWithoutLocation(
-          templateCantReadFile.withArguments(uri, osErrorMessage(e.message)),
-          Severity.error);
+        diag.cantReadFile.withArguments(
+          uri: uri,
+          details: osErrorMessage(e.message),
+        ),
+        CfeSeverity.error,
+      );
     } catch (e) {
       // Coverage-ignore-block(suite): Not run.
-      Message message = templateExceptionReadingFile.withArguments(uri, '$e');
-      reportWithoutLocation(message, Severity.error);
+      Message message = diag.exceptionReadingFile.withArguments(
+        uri: uri,
+        exception: '$e',
+      );
+      reportWithoutLocation(message, CfeSeverity.error);
       // We throw a new exception to ensure that the message include the uri
       // that led to the exception. Exceptions in Uri don't include the
       // offending uri in the exception message.
@@ -672,46 +748,58 @@ class ProcessedOptions {
   /// If the file does exist but is invalid (e.g. if it's an old `.packages`
   /// file) an error is always reported and an empty package config is returned.
   Future<_PackageConfigAndUri> _createPackagesFromFile(Uri requestedUri) async {
-    Uint8List? contents =
-        requestedUri == new Uri() ? null : await _readFile(requestedUri);
+    Uint8List? contents = requestedUri == new Uri()
+        ? null
+        : await _readFile(requestedUri);
     if (contents == null) {
       // Coverage-ignore-block(suite): Not run.
       return _PackageConfigAndUri.empty;
     }
 
     try {
-      void Function(Object error) onError =
-          // Coverage-ignore(suite): Not run.
-          (Object error) {
+      void Function(Object error) onError = (Object error) {
         if (error is FormatException) {
           reportNoSourceLine(
-              templatePackagesFileFormat
-                  .withArguments(error.message)
-                  .withLocation(requestedUri, error.offset ?? -1, noLength),
-              Severity.error);
+            diag.packagesFileFormat
+                .withArguments(details: error.message)
+                .withLocation(
+                  requestedUri,
+                  error.offset ?? // Coverage-ignore(suite): Not run.
+                      -1,
+                  noLength,
+                ),
+            CfeSeverity.error,
+          );
         } else {
+          // Coverage-ignore-block(suite): Not run.
           reportWithoutLocation(
-              templateCantReadFile.withArguments(
-                  requestedUri, osErrorMessage(error)),
-              Severity.error);
+            diag.cantReadFile.withArguments(
+              uri: requestedUri,
+              details: osErrorMessage(error),
+            ),
+            CfeSeverity.error,
+          );
         }
       };
       return new _PackageConfigAndUri(
-          PackageConfig.parseBytes(contents, requestedUri, onError: onError),
-          requestedUri);
+        PackageConfig.parseBytes(contents, requestedUri, onError: onError),
+        requestedUri,
+      );
     }
     // Coverage-ignore(suite): Not run.
     on FormatException catch (e) {
       reportNoSourceLine(
-          templatePackagesFileFormat
-              .withArguments(e.message)
-              .withLocation(requestedUri, e.offset ?? -1, noLength),
-          Severity.error);
+        diag.packagesFileFormat
+            .withArguments(details: e.message)
+            .withLocation(requestedUri, e.offset ?? -1, noLength),
+        CfeSeverity.error,
+      );
     } catch (e) {
       // Coverage-ignore-block(suite): Not run.
       reportWithoutLocation(
-          templateCantReadFile.withArguments(requestedUri, "$e"),
-          Severity.error);
+        diag.cantReadFile.withArguments(uri: requestedUri, details: "$e"),
+        CfeSeverity.error,
+      );
     }
     // Coverage-ignore(suite): Not run.
     return _PackageConfigAndUri.empty;
@@ -745,9 +833,11 @@ class ProcessedOptions {
     Uri dir = scriptUri.resolve('.');
     if (!dir.isAbsolute) {
       reportWithoutLocation(
-          templateInternalProblemUnsupported
-              .withArguments("Expected input Uri to be absolute: $scriptUri."),
-          Severity.internalProblem);
+        diag.internalProblemUnsupported.withArguments(
+          operation: "Expected input Uri to be absolute: $scriptUri.",
+        ),
+        CfeSeverity.internalProblem,
+      );
       return _PackageConfigAndUri.empty;
     }
 
@@ -758,9 +848,11 @@ class ProcessedOptions {
         if (await fileSystem.entityForUri(candidate).exists()) return candidate;
         return null;
       } catch (e) {
-        Message message =
-            templateExceptionReadingFile.withArguments(candidate!, '$e');
-        reportWithoutLocation(message, Severity.error);
+        Message message = diag.exceptionReadingFile.withArguments(
+          uri: candidate!,
+          exception: '$e',
+        );
+        reportWithoutLocation(message, CfeSeverity.error);
         // We throw a new exception to ensure that the message include the uri
         // that led to the exception. Exceptions in Uri don't include the
         // offending uri in the exception message.
@@ -852,11 +944,15 @@ class ProcessedOptions {
     sb.writeln('Inputs: ${inputs}');
     sb.writeln('Output: ${output}');
 
-    sb.writeln('Was diagnostic message handler provided: '
-        '${_raw.onDiagnostic == null ? "no" : "yes"}');
+    sb.writeln(
+      'Was diagnostic message handler provided: '
+      '${_raw.onDiagnostic == null ? "no" : "yes"}',
+    );
 
-    sb.writeln('FileSystem: ${_fileSystem.runtimeType} '
-        '(provided: ${_raw.fileSystem.runtimeType})');
+    sb.writeln(
+      'FileSystem: ${_fileSystem.runtimeType} '
+      '(provided: ${_raw.fileSystem.runtimeType})',
+    );
 
     writeList('Additional Dills', _raw.additionalDills);
 
@@ -865,8 +961,10 @@ class ProcessedOptions {
 
     sb.writeln('Compile SDK: ${compileSdk}');
     sb.writeln('SDK root: ${_sdkRoot} (provided: ${_raw.sdkRoot})');
-    sb.writeln('SDK specification: ${_librariesSpecificationUri} '
-        '(provided: ${_raw.librariesSpecificationUri})');
+    sb.writeln(
+      'SDK specification: ${_librariesSpecificationUri} '
+      '(provided: ${_raw.librariesSpecificationUri})',
+    );
     sb.writeln('SDK summary: ${_sdkSummary} (provided: ${_raw.sdkSummary})');
 
     sb.writeln('Target: ${_target?.name} (provided: ${_raw.target?.name})');
@@ -882,15 +980,19 @@ class ProcessedOptions {
     return '$sb';
   }
 
-  // Coverage-ignore(suite): Not run.
   Future<Uint8List?> _readAsBytes(FileSystemEntity file) async {
     try {
       return await file.readAsBytes();
-    } on FileSystemException catch (error) {
+    }
+    // Coverage-ignore(suite): Not run.
+    on FileSystemException catch (error) {
       reportWithoutLocation(
-          templateCantReadFile.withArguments(
-              error.uri, osErrorMessage(error.message)),
-          Severity.error);
+        diag.cantReadFile.withArguments(
+          uri: error.uri,
+          details: osErrorMessage(error.message),
+        ),
+        CfeSeverity.error,
+      );
       return null;
     }
   }
@@ -902,9 +1004,12 @@ class ProcessedOptions {
     // Coverage-ignore(suite): Not run.
     on FileSystemException catch (error) {
       reportWithoutLocation(
-          templateCantReadFile.withArguments(
-              error.uri, osErrorMessage(error.message)),
-          Severity.error);
+        diag.cantReadFile.withArguments(
+          uri: error.uri,
+          details: osErrorMessage(error.message),
+        ),
+        CfeSeverity.error,
+      );
       return null;
     }
   }
@@ -913,12 +1018,13 @@ class ProcessedOptions {
 
   HooksForTesting? get hooksForTesting => _raw.hooksForTesting;
 
-  // Coverage-ignore(suite): Not run.
-  bool equivalent(ProcessedOptions other,
-      {bool ignoreOnDiagnostic = true,
-      bool ignoreVerbose = true,
-      bool ignoreVerify = true,
-      bool ignoreDebugDump = true}) {
+  bool equivalent(
+    ProcessedOptions other, {
+    bool ignoreOnDiagnostic = true,
+    bool ignoreVerbose = true,
+    bool ignoreVerify = true,
+    bool ignoreDebugDump = true,
+  }) {
     return _raw.equivalent(other._raw);
   }
 }
@@ -926,8 +1032,10 @@ class ProcessedOptions {
 /// A package config and the `URI` it was loaded from.
 class _PackageConfigAndUri {
   // Coverage-ignore(suite): Not run.
-  static final _PackageConfigAndUri empty =
-      new _PackageConfigAndUri(PackageConfig.empty, new Uri());
+  static final _PackageConfigAndUri empty = new _PackageConfigAndUri(
+    PackageConfig.empty,
+    new Uri(),
+  );
 
   final PackageConfig packageConfig;
   final Uri uri;

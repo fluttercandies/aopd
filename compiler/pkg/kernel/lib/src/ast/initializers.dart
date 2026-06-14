@@ -12,7 +12,19 @@ part of '../../ast.dart';
 sealed class Initializer extends TreeNode {
   /// True if this is a synthetic constructor initializer.
   @informative
-  bool isSynthetic = false;
+  bool get isSynthetic => false;
+
+  /// True if this initializer is redirecting initializer.
+  ///
+  /// This is `true` for [RedirectingInitializer] and [InvalidInitializer]
+  /// created for redirecting initializers.
+  bool get isRedirectingInitializer => false;
+
+  /// True if this initializer is super initializer.
+  ///
+  /// This is `true` for [SuperInitializer] and [InvalidInitializer]
+  /// created for super initializers.
+  bool get isSuperInitializer => false;
 
   @override
   R accept<R>(InitializerVisitor<R> v);
@@ -33,10 +45,34 @@ abstract class AuxiliaryInitializer extends Initializer {
 /// An initializer with a compile-time error.
 ///
 /// Should throw an exception at runtime.
-//
-// DESIGN TODO: The frontend should use this in a lot more cases to catch
-// invalid cases.
 class InvalidInitializer extends Initializer {
+  static const int FlagRedirectingInitializer =
+      1 << 0; // Must match serialized bit positions.
+  static const int FlagSuperInitializer = 1 << 1;
+
+  final String message;
+  int flags = 0;
+
+  InvalidInitializer(this.message);
+
+  @override
+  bool get isRedirectingInitializer => flags & FlagRedirectingInitializer != 0;
+
+  void set isRedirectingInitializer(bool value) {
+    flags = value
+        ? (flags | FlagRedirectingInitializer)
+        : (flags & ~FlagRedirectingInitializer);
+  }
+
+  @override
+  bool get isSuperInitializer => flags & FlagSuperInitializer != 0;
+
+  void set isSuperInitializer(bool value) {
+    flags = value
+        ? (flags | FlagSuperInitializer)
+        : (flags & ~FlagSuperInitializer);
+  }
+
   @override
   R accept<R>(InitializerVisitor<R> v) => v.visitInvalidInitializer(this);
 
@@ -60,7 +96,9 @@ class InvalidInitializer extends Initializer {
 
   @override
   void toTextInternal(AstPrinter printer) {
-    // TODO(johnniwinther): Implement this.
+    printer.write('<invalid:');
+    printer.write(message);
+    printer.write('>');
   }
 }
 
@@ -77,8 +115,11 @@ class FieldInitializer extends Initializer {
   Reference fieldReference;
   Expression value;
 
+  @override
+  bool isSynthetic = false;
+
   FieldInitializer(Field field, Expression value)
-      : this.byReference(field.fieldReference, value);
+    : this.byReference(field.fieldReference, value);
 
   FieldInitializer.byReference(this.fieldReference, this.value) {
     value.parent = this;
@@ -140,15 +181,22 @@ class SuperInitializer extends Initializer {
   Reference targetReference;
   Arguments arguments;
 
+  @override
+  bool isSynthetic = false;
+
   SuperInitializer(Constructor target, Arguments arguments)
-      : this.byReference(
-            // Getter vs setter doesn't matter for constructors.
-            getNonNullableMemberReferenceGetter(target),
-            arguments);
+    : this.byReference(
+        // Getter vs setter doesn't matter for constructors.
+        getNonNullableMemberReferenceGetter(target),
+        arguments,
+      );
 
   SuperInitializer.byReference(this.targetReference, this.arguments) {
     arguments.parent = this;
   }
+
+  @override
+  bool get isSuperInitializer => true;
 
   Constructor get target => targetReference.asConstructor;
 
@@ -209,14 +257,18 @@ class RedirectingInitializer extends Initializer {
   Arguments arguments;
 
   RedirectingInitializer(Constructor target, Arguments arguments)
-      : this.byReference(
-            // Getter vs setter doesn't matter for constructors.
-            getNonNullableMemberReferenceGetter(target),
-            arguments);
+    : this.byReference(
+        // Getter vs setter doesn't matter for constructors.
+        getNonNullableMemberReferenceGetter(target),
+        arguments,
+      );
 
   RedirectingInitializer.byReference(this.targetReference, this.arguments) {
     arguments.parent = this;
   }
+
+  @override
+  bool get isRedirectingInitializer => true;
 
   Constructor get target => targetReference.asConstructor;
 

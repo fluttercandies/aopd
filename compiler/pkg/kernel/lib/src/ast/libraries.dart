@@ -29,7 +29,9 @@ class Library extends NamedNode
   }
 
   static const int SyntheticFlag = 1 << 0;
-  static const int IsUnsupportedFlag = 1 << 1;
+  static const int SupportConditionalImportsFlag = 1 << 1;
+  static const int AlwaysImportableFlag = 1 << 2;
+  static const int ImportableWithFlagFlag = 1 << 3;
 
   int flags = 0;
 
@@ -42,9 +44,32 @@ class Library extends NamedNode
 
   /// If true, the library is not supported through the 'dart.library.*' value
   /// used in conditional imports and `bool.fromEnvironment` constants.
-  bool get isUnsupported => flags & IsUnsupportedFlag != 0;
-  void set isUnsupported(bool value) {
-    flags = value ? (flags | IsUnsupportedFlag) : (flags & ~IsUnsupportedFlag);
+  bool get conditionalImportSupported =>
+      flags & SupportConditionalImportsFlag != 0;
+  void set conditionalImportSupported(bool value) {
+    flags = value
+        ? (flags | SupportConditionalImportsFlag)
+        : (flags & ~SupportConditionalImportsFlag);
+  }
+
+  /// Specifies if the library is importable on the target platform.
+  Importability get importability {
+    if (flags & AlwaysImportableFlag != 0) {
+      return Importability.always;
+    }
+    if (flags & ImportableWithFlagFlag != 0) {
+      return Importability.withFlag;
+    }
+    return Importability.never;
+  }
+
+  void set importability(Importability value) {
+    flags = flags & ~(AlwaysImportableFlag | ImportableWithFlagFlag);
+    if (value == Importability.always) {
+      flags |= AlwaysImportableFlag;
+    } else if (value == Importability.withFlag) {
+      flags |= ImportableWithFlagFlag;
+    }
   }
 
   String? name;
@@ -75,30 +100,31 @@ class Library extends NamedNode
   List<Procedure> _procedures;
   List<Field> _fields;
 
-  Library(this.importUri,
-      {this.name,
-      List<Expression>? annotations,
-      List<LibraryDependency>? dependencies,
-      List<LibraryPart>? parts,
-      List<Typedef>? typedefs,
-      List<Class>? classes,
-      List<Extension>? extensions,
-      List<ExtensionTypeDeclaration>? extensionTypeDeclarations,
-      List<Procedure>? procedures,
-      List<Field>? fields,
-      required this.fileUri,
-      Reference? reference})
-      : this.annotations = annotations ?? <Expression>[],
-        this.dependencies = dependencies ?? <LibraryDependency>[],
-        this.parts = parts ?? <LibraryPart>[],
-        this._typedefs = typedefs ?? <Typedef>[],
-        this._classes = classes ?? <Class>[],
-        this._extensions = extensions ?? <Extension>[],
-        this._extensionTypeDeclarations =
-            extensionTypeDeclarations ?? <ExtensionTypeDeclaration>[],
-        this._procedures = procedures ?? <Procedure>[],
-        this._fields = fields ?? <Field>[],
-        super(reference) {
+  Library(
+    this.importUri, {
+    this.name,
+    List<Expression>? annotations,
+    List<LibraryDependency>? dependencies,
+    List<LibraryPart>? parts,
+    List<Typedef>? typedefs,
+    List<Class>? classes,
+    List<Extension>? extensions,
+    List<ExtensionTypeDeclaration>? extensionTypeDeclarations,
+    List<Procedure>? procedures,
+    List<Field>? fields,
+    required this.fileUri,
+    Reference? reference,
+  }) : this.annotations = annotations ?? <Expression>[],
+       this.dependencies = dependencies ?? <LibraryDependency>[],
+       this.parts = parts ?? <LibraryPart>[],
+       this._typedefs = typedefs ?? <Typedef>[],
+       this._classes = classes ?? <Class>[],
+       this._extensions = extensions ?? <Extension>[],
+       this._extensionTypeDeclarations =
+           extensionTypeDeclarations ?? <ExtensionTypeDeclaration>[],
+       this._procedures = procedures ?? <Procedure>[],
+       this._fields = fields ?? <Field>[],
+       super(reference) {
     setParents(this.dependencies, this);
     setParents(this.parts, this);
     setParents(this._typedefs, this);
@@ -142,7 +168,8 @@ class Library extends NamedNode
   ///
   /// Used for adding extension type declarations when reading the dill file.
   void set extensionTypeDeclarationsInternal(
-      List<ExtensionTypeDeclaration> extensionTypeDeclarations) {
+    List<ExtensionTypeDeclaration> extensionTypeDeclarations,
+  ) {
     _extensionTypeDeclarations = extensionTypeDeclarations;
   }
 
@@ -197,7 +224,8 @@ class Library extends NamedNode
   }
 
   void addExtensionTypeDeclaration(
-      ExtensionTypeDeclaration extensionTypeDeclaration) {
+    ExtensionTypeDeclaration extensionTypeDeclaration,
+  ) {
     extensionTypeDeclaration.parent = this;
     extensionTypeDeclarations.add(extensionTypeDeclaration);
   }
@@ -353,8 +381,12 @@ class Library extends NamedNode
 
   @override
   Location? _getLocationInEnclosingFile(int offset) {
-    return _getLocationInComponent(enclosingComponent, fileUri, offset,
-        viaForErrorMessage: "Library");
+    return _getLocationInComponent(
+      enclosingComponent,
+      fileUri,
+      offset,
+      viaForErrorMessage: "Library",
+    );
   }
 
   @override
@@ -387,25 +419,51 @@ class LibraryDependency extends TreeNode implements Annotatable {
 
   final List<Combinator> combinators;
 
-  LibraryDependency.deferredImport(Library importedLibrary, String name,
-      {List<Combinator>? combinators, List<Expression>? annotations})
-      : this.byReference(DeferredFlag, annotations ?? <Expression>[],
-            importedLibrary.reference, name, combinators ?? <Combinator>[]);
+  LibraryDependency.deferredImport(
+    Library importedLibrary,
+    String name, {
+    List<Combinator>? combinators,
+    List<Expression>? annotations,
+  }) : this.byReference(
+         DeferredFlag,
+         annotations ?? <Expression>[],
+         importedLibrary.reference,
+         name,
+         combinators ?? <Combinator>[],
+       );
 
-  LibraryDependency.import(Library importedLibrary,
-      {String? name,
-      List<Combinator>? combinators,
-      List<Expression>? annotations})
-      : this.byReference(0, annotations ?? <Expression>[],
-            importedLibrary.reference, name, combinators ?? <Combinator>[]);
+  LibraryDependency.import(
+    Library importedLibrary, {
+    String? name,
+    List<Combinator>? combinators,
+    List<Expression>? annotations,
+  }) : this.byReference(
+         0,
+         annotations ?? <Expression>[],
+         importedLibrary.reference,
+         name,
+         combinators ?? <Combinator>[],
+       );
 
-  LibraryDependency.export(Library importedLibrary,
-      {List<Combinator>? combinators, List<Expression>? annotations})
-      : this.byReference(ExportFlag, annotations ?? <Expression>[],
-            importedLibrary.reference, null, combinators ?? <Combinator>[]);
+  LibraryDependency.export(
+    Library importedLibrary, {
+    List<Combinator>? combinators,
+    List<Expression>? annotations,
+  }) : this.byReference(
+         ExportFlag,
+         annotations ?? <Expression>[],
+         importedLibrary.reference,
+         null,
+         combinators ?? <Combinator>[],
+       );
 
-  LibraryDependency.byReference(this.flags, this.annotations,
-      this.importedLibraryReference, this.name, this.combinators) {
+  LibraryDependency.byReference(
+    this.flags,
+    this.annotations,
+    this.importedLibraryReference,
+    this.name,
+    this.combinators,
+  ) {
     setParents(annotations, this);
     setParents(combinators, this);
   }

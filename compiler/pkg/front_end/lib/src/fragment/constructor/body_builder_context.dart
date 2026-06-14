@@ -7,16 +7,16 @@ import 'package:kernel/core_types.dart';
 import 'package:kernel/transformations/flags.dart';
 
 import '../../base/constant_context.dart';
-import '../../base/identifiers.dart';
 import '../../base/local_scope.dart';
 import '../../builder/formal_parameter_builder.dart';
 import '../../builder/type_builder.dart';
 import '../../kernel/body_builder_context.dart';
-import '../../kernel/expression_generator_helper.dart';
 import '../../source/source_constructor_builder.dart';
 import '../../source/source_property_builder.dart';
+import '../../type_inference/context_allocation_strategy.dart';
 import '../../type_inference/inference_results.dart';
 import '../../type_inference/type_inferrer.dart';
+import '../../util/helpers.dart';
 import 'declaration.dart';
 
 class ConstructorBodyBuilderContext extends BodyBuilderContext {
@@ -27,8 +27,11 @@ class ConstructorBodyBuilderContext extends BodyBuilderContext {
   final Member _member;
 
   ConstructorBodyBuilderContext(this._builder, this._declaration, this._member)
-      : super(_builder.libraryBuilder, _builder.declarationBuilder,
-            isDeclarationInstanceMember: false);
+    : super(
+        _builder.libraryBuilder,
+        _builder.declarationBuilder,
+        isDeclarationInstanceMember: false,
+      );
 
   @override
   int get memberNameOffset => _declaration.fileOffset;
@@ -39,33 +42,18 @@ class ConstructorBodyBuilderContext extends BodyBuilderContext {
   }
 
   @override
-  VariableDeclaration getFormalParameter(int index) {
-    return _declaration.getFormalParameter(index);
-  }
-
-  @override
   VariableDeclaration? getTearOffParameter(int index) {
     return _declaration.getTearOffParameter(index);
   }
 
   @override
-  TypeBuilder get returnType => _declaration.returnType;
+  TypeBuilder get returnTypeBuilder => _declaration.returnType;
 
   @override
   List<FormalParameterBuilder>? get formals => _declaration.formals;
 
   @override
-  FormalParameterBuilder? getFormalParameterByName(Identifier name) {
-    return _declaration.getFormal(name);
-  }
-
-  @override
   int get memberNameLength => _builder.name.length;
-
-  @override
-  FunctionNode get function {
-    return _declaration.function;
-  }
 
   @override
   bool get isFactory => false;
@@ -80,16 +68,16 @@ class ConstructorBodyBuilderContext extends BodyBuilderContext {
   bool get isExternalFunction => _declaration.isExternal;
 
   @override
-  bool get isSetter => false;
-
-  @override
   DartType substituteFieldType(DartType fieldType) {
     return _builder.substituteFieldType(fieldType);
   }
 
   @override
-  void registerInitializedField(SourcePropertyBuilder builder) {
-    _builder.registerInitializedField(builder);
+  void registerInitializedField(
+    SourcePropertyBuilder builder,
+    FieldInitialization fieldInitialization,
+  ) {
+    _builder.registerInitializedField(builder, fieldInitialization);
   }
 
   @override
@@ -98,16 +86,29 @@ class ConstructorBodyBuilderContext extends BodyBuilderContext {
   }
 
   @override
-  void addInitializer(Initializer initializer, ExpressionGeneratorHelper helper,
-      {required InitializerInferenceResult? inferenceResult}) {
-    _builder.addInitializer(initializer, helper,
-        inferenceResult: inferenceResult, parent: _member);
+  void registerInitializers(
+    List<Initializer> initializers, {
+    required bool isErroneous,
+  }) {
+    _builder.registerInitializers(initializers, isErroneous: isErroneous);
   }
 
   @override
-  InitializerInferenceResult inferInitializer(Initializer initializer,
-      ExpressionGeneratorHelper helper, TypeInferrer typeInferrer) {
-    return typeInferrer.inferInitializer(helper, _builder, initializer);
+  void markAsErroneous() {
+    _builder.markAsErroneous();
+  }
+
+  @override
+  InitializerInferenceResult inferInitializer({
+    required TypeInferrer typeInferrer,
+    required Uri fileUri,
+    required Initializer initializer,
+  }) {
+    return typeInferrer.inferInitializer(
+      fileUri: fileUri,
+      constructorBuilder: _builder,
+      initializer: initializer,
+    );
   }
 
   @override
@@ -139,8 +140,19 @@ class ConstructorBodyBuilderContext extends BodyBuilderContext {
   }
 
   @override
-  void registerFunctionBody(Statement body) {
-    _declaration.registerFunctionBody(body);
+  void registerFunctionBody({
+    required Statement? body,
+    required ScopeProviderInfo? scopeProviderInfo,
+    required AsyncMarker asyncMarker,
+    required DartType? emittedValueType,
+  }) {
+    // Constructors can only be sync.
+    _declaration.registerFunctionBody(
+      body,
+      scopeProviderInfo
+          // Coverage-ignore(suite): Not run.
+          ?.scope,
+    );
   }
 
   @override

@@ -46,7 +46,92 @@ enum Nullability {
 /// Type parameters declared by a [FunctionType] are orphans and have a `null`
 /// parent pointer.  [TypeParameter] objects should not be shared between
 /// different [FunctionType] objects.
-class TypeParameter extends TreeNode implements Annotatable {
+abstract interface class TypeParameter implements TreeNode, Annotatable {
+  /// Sentinel value used for the [bound] that has not yet been computed. This
+  /// is needed to make the [bound] field non-nullable while supporting
+  /// recursive bounds.
+  static final DartType unsetBoundSentinel = new InvalidType();
+
+  /// Sentinel value used for the [defaultType] that has not yet been computed.
+  /// This is needed to make the [defaultType] field non-nullable while
+  /// supporting recursive bounds for which the default type need to be set
+  /// late.
+  static final DartType unsetDefaultTypeSentinel = new InvalidType();
+
+  static const int legacyCovariantSerializationMarker = 4;
+
+  factory TypeParameter([
+    String? name,
+    DartType? bound,
+    DartType? defaultType,
+  ]) = NominalParameter;
+
+  abstract int flags;
+
+  @override
+  abstract List<Expression> annotations;
+
+  /// Cosmetic name.
+  abstract String? name;
+
+  /// The bound on the type variable.
+  ///
+  /// This is set to [unsetBoundSentinel] temporarily during IR construction.
+  /// This is set to the `Object?` for type parameters without an explicit
+  /// bound.
+  abstract DartType bound;
+
+  /// The default value of the type variable. It is used to provide the
+  /// corresponding missing type argument in type annotations and as the
+  /// fall-back type value in type inference at compile time. At run time,
+  /// [defaultType] is used by the backends in place of the missing type
+  /// argument of a dynamic invocation of a generic function.
+  abstract DartType defaultType;
+
+  /// Describes variance of the type parameter w.r.t. declaration on which it is
+  /// defined. For classes, if variance is not explicitly set, the type
+  /// parameter has legacy covariance defined by [isLegacyCovariant] which
+  /// on the lattice is equivalent to [Variance.covariant]. For typedefs, it's
+  /// the variance of the type parameters in the type term on the r.h.s. of the
+  /// typedef.
+  Variance get variance;
+
+  void set variance(Variance? newVariance);
+
+  bool get isLegacyCovariant;
+
+  @Deprecated("Use TypeParameter.declaration instead.")
+  @override
+  TreeNode? get parent;
+
+  @Deprecated("Use TypeParameter.declaration instead.")
+  @override
+  void set parent(TreeNode? value);
+
+  // TODO(johnniwinther): Make this non-nullable.
+  GenericDeclaration? get declaration;
+
+  void set declaration(GenericDeclaration? value);
+
+  /// If this [TypeParameter] is a type parameter of a generic method, indicates
+  /// whether the method implementation needs to contain a runtime type check to
+  /// deal with generic covariance.
+  ///
+  /// When `true`, runtime checks may need to be performed.
+  bool get isCovariantByClass;
+
+  void set isCovariantByClass(bool value);
+
+  /// Computes the nullability of a type-parameter type based on [bound].
+  ///
+  /// This is a helper function to be used when the bound of the type parameter
+  /// is changing or is being set for the first time, and the update on some
+  /// type-parameter types is required.
+  Nullability computeNullabilityFromBound();
+}
+
+class NominalParameter extends TreeNode implements TypeParameter {
+  @override
   int flags = 0;
 
   /// List of metadata annotations on the type parameter.
@@ -56,65 +141,35 @@ class TypeParameter extends TreeNode implements Annotatable {
   @override
   List<Expression> annotations = const <Expression>[];
 
-  String? name; // Cosmetic name.
+  @override
+  String? name;
 
-  /// Sentinel value used for the [bound] that has not yet been computed. This
-  /// is needed to make the [bound] field non-nullable while supporting
-  /// recursive bounds.
-  static final DartType unsetBoundSentinel = new InvalidType();
-
-  /// The bound on the type variable.
-  ///
-  /// This is set to [unsetBoundSentinel] temporarily during IR construction.
-  /// This is set to the `Object?` for type parameters without an explicit
-  /// bound.
+  @override
   DartType bound;
 
-  /// Sentinel value used for the [defaultType] that has not yet been computed.
-  /// This is needed to make the [defaultType] field non-nullable while
-  /// supporting recursive bounds for which the default type need to be set
-  /// late.
-  static final DartType unsetDefaultTypeSentinel = new InvalidType();
-
-  /// The default value of the type variable. It is used to provide the
-  /// corresponding missing type argument in type annotations and as the
-  /// fall-back type value in type inference at compile time. At run time,
-  /// [defaultType] is used by the backends in place of the missing type
-  /// argument of a dynamic invocation of a generic function.
+  @override
   DartType defaultType;
 
-  /// Describes variance of the type parameter w.r.t. declaration on which it is
-  /// defined. For classes, if variance is not explicitly set, the type
-  /// parameter has legacy covariance defined by [isLegacyCovariant] which
-  /// on the lattice is equivalent to [Variance.covariant]. For typedefs, it's
-  /// the variance of the type parameters in the type term on the r.h.s. of the
-  /// typedef.
   Variance? _variance;
 
+  @override
   Variance get variance => _variance ?? Variance.covariant;
 
+  @override
   void set variance(Variance? newVariance) => _variance = newVariance;
 
+  @override
   bool get isLegacyCovariant => _variance == null;
 
-  static const int legacyCovariantSerializationMarker = 4;
-
-  TypeParameter([this.name, DartType? bound, DartType? defaultType])
-      : bound = bound ?? unsetBoundSentinel,
-        defaultType = defaultType ?? unsetDefaultTypeSentinel;
+  NominalParameter([this.name, DartType? bound, DartType? defaultType])
+    : bound = bound ?? TypeParameter.unsetBoundSentinel,
+      defaultType = defaultType ?? TypeParameter.unsetDefaultTypeSentinel;
 
   // Must match serialized bit positions.
   static const int FlagCovariantByClass = 1 << 0;
 
-  @Deprecated("Used TypeParameter.declaration instead.")
-  @override
-  TreeNode? get parent;
-
-  @Deprecated("Used TypeParameter.declaration instead.")
-  @override
-  void set parent(TreeNode? value);
-
   // TODO(johnniwinther): Make this non-nullable.
+  @override
   GenericDeclaration? get declaration {
     // TODO(johnniwinther): Store the declaration directly when [parent] is
     // removed.
@@ -125,12 +180,14 @@ class TypeParameter extends TreeNode implements Annotatable {
       return parent.parent as GenericDeclaration;
     }
     assert(
-        parent == null,
-        "Unexpected type parameter parent node "
-        "${parent} (${parent.runtimeType}).");
+      parent == null,
+      "Unexpected type parameter parent node "
+      "${parent} (${parent.runtimeType}).",
+    );
     return null;
   }
 
+  @override
   void set declaration(GenericDeclaration? value) {
     switch (value) {
       case Typedef():
@@ -147,13 +204,10 @@ class TypeParameter extends TreeNode implements Annotatable {
     }
   }
 
-  /// If this [TypeParameter] is a type parameter of a generic method, indicates
-  /// whether the method implementation needs to contain a runtime type check to
-  /// deal with generic covariance.
-  ///
-  /// When `true`, runtime checks may need to be performed.
+  @override
   bool get isCovariantByClass => flags & FlagCovariantByClass != 0;
 
+  @override
   void set isCovariantByClass(bool value) {
     flags = value
         ? (flags | FlagCovariantByClass)
@@ -169,11 +223,11 @@ class TypeParameter extends TreeNode implements Annotatable {
   }
 
   @override
-  R accept<R>(TreeVisitor<R> v) => v.visitTypeParameter(this);
+  R accept<R>(TreeVisitor<R> v) => v.visitNominalParameter(this);
 
   @override
   R accept1<R, A>(TreeVisitor1<R, A> v, A arg) =>
-      v.visitTypeParameter(this, arg);
+      v.visitNominalParameter(this, arg);
 
   @override
   void visitChildren(Visitor v) {
@@ -200,7 +254,7 @@ class TypeParameter extends TreeNode implements Annotatable {
   /// with the names used across all [toString] calls.
   @override
   String toString() {
-    return "TypeParameter(${toStringInternal()})";
+    return "NominalTypeParameter(${toStringInternal()})";
   }
 
   @override
@@ -208,11 +262,7 @@ class TypeParameter extends TreeNode implements Annotatable {
     printer.writeTypeParameterName(this);
   }
 
-  /// Computes the nullability of a type-parameter type based on [bound].
-  ///
-  /// This is a helper function to be used when the bound of the type parameter
-  /// is changing or is being set for the first time, and the update on some
-  /// type-parameter types is required.
+  @override
   Nullability computeNullabilityFromBound() {
     // If the bound is nullable or 'undetermined', both nullable and
     // non-nullable types can be passed in for the type parameter, making the
@@ -240,8 +290,9 @@ class TypeParameter extends TreeNode implements Annotatable {
       return Nullability.undetermined;
     }
 
-    Nullability boundNullability =
-        bound is InvalidType ? Nullability.undetermined : bound.nullability;
+    Nullability boundNullability = bound is InvalidType
+        ? Nullability.undetermined
+        : bound.nullability;
     return boundNullability == Nullability.nullable ||
             boundNullability == Nullability.undetermined
         ? Nullability.undetermined
@@ -305,17 +356,19 @@ class StructuralParameter extends Node implements SharedTypeParameter {
   @override
   DartType? get boundShared => bound;
 
+  @override
   Variance get variance => _variance ?? Variance.covariant;
 
   void set variance(Variance? newVariance) => _variance = newVariance;
 
+  @override
   bool get isLegacyCovariant => _variance == null;
 
   static const int legacyCovariantSerializationMarker = 4;
 
   StructuralParameter([this.name, DartType? bound, DartType? defaultType])
-      : bound = bound ?? unsetBoundSentinel,
-        defaultType = defaultType ?? unsetDefaultTypeSentinel;
+    : bound = bound ?? unsetBoundSentinel,
+      defaultType = defaultType ?? unsetDefaultTypeSentinel;
 
   @override
   R accept<R>(Visitor<R> v) => v.visitStructuralParameter(this);
@@ -375,8 +428,9 @@ class StructuralParameter extends Node implements SharedTypeParameter {
       return Nullability.undetermined;
     }
 
-    Nullability boundNullability =
-        bound is InvalidType ? Nullability.undetermined : bound.nullability;
+    Nullability boundNullability = bound is InvalidType
+        ? Nullability.undetermined
+        : bound.nullability;
     return boundNullability == Nullability.nullable ||
             boundNullability == Nullability.undetermined
         ? Nullability.undetermined
@@ -389,7 +443,7 @@ class Supertype extends Node {
   final List<DartType> typeArguments;
 
   Supertype(Class classNode, List<DartType> typeArguments)
-      : this.byReference(classNode.reference, typeArguments);
+    : this.byReference(classNode.reference, typeArguments);
 
   Supertype.byReference(this.className, this.typeArguments);
 
@@ -409,7 +463,10 @@ class Supertype extends Node {
 
   InterfaceType get asInterfaceType {
     return new InterfaceType(
-        classNode, classNode.enclosingLibrary.nonNullable, typeArguments);
+      classNode,
+      classNode.enclosingLibrary.nonNullable,
+      typeArguments,
+    );
   }
 
   @override
@@ -617,6 +674,26 @@ abstract class AuxiliaryType extends DartType {
       v.visitAuxiliaryType(this, arg);
 }
 
+/// The root of the sealed sub-hierarchy for all experimental [DartType]s.
+///
+/// The purpose of [ExperimentalType] is to be a stand-in in exhaustive switch
+/// statements and alike in the backend code. That way, the backends won't need
+/// an update whenever an experimental type (a subclass of [ExperimentalType])
+/// is added or removed in the CFE.
+sealed class ExperimentalType extends DartType {
+  const ExperimentalType();
+
+  @override
+  R accept<R>(DartTypeVisitor<R> v) {
+    throw new UnsupportedError("`ExperimentalType.accept` is unsupported.");
+  }
+
+  @override
+  R accept1<R, A>(DartTypeVisitor1<R, A> v, A arg) {
+    throw new UnsupportedError("`ExperimentalType.accept1` is unsupported.");
+  }
+}
+
 /// The type arising from invalid type annotations.
 ///
 /// Can usually be treated as 'dynamic', but should occasionally be handled
@@ -773,7 +850,7 @@ class NeverType extends DartType {
   const NeverType.nonNullable() : this.internal(Nullability.nonNullable);
 
   const NeverType.internal(this.declaredNullability)
-      : assert(declaredNullability != Nullability.undetermined);
+    : assert(declaredNullability != Nullability.undetermined);
 
   static NeverType fromNullability(Nullability nullability) {
     switch (nullability) {
@@ -782,8 +859,10 @@ class NeverType extends DartType {
       case Nullability.nonNullable:
         return const NeverType.nonNullable();
       case Nullability.undetermined:
-        throw new StateError("Unsupported nullability for 'NeverType': "
-            "'${nullability}'");
+        throw new StateError(
+          "Unsupported nullability for 'NeverType': "
+          "'${nullability}'",
+        );
     }
   }
 
@@ -795,10 +874,10 @@ class NeverType extends DartType {
 
   @override
   bool get hasNonObjectMemberAccess => switch (declaredNullability) {
-        Nullability.undetermined => false,
-        Nullability.nullable => false,
-        Nullability.nonNullable => true,
-      };
+    Nullability.undetermined => false,
+    Nullability.nullable => false,
+    Nullability.nonNullable => true,
+  };
 
   @override
   int get hashCode {
@@ -895,13 +974,21 @@ class InterfaceType extends TypeDeclarationType {
 
   /// The [typeArguments] list must not be modified after this call. If the
   /// list is omitted, 'dynamic' type arguments are filled in.
-  InterfaceType(Class classNode, Nullability declaredNullability,
-      [List<DartType>? typeArguments])
-      : this.byReference(classNode.reference, declaredNullability,
-            typeArguments ?? _defaultTypeArguments(classNode));
+  InterfaceType(
+    Class classNode,
+    Nullability declaredNullability, [
+    List<DartType>? typeArguments,
+  ]) : this.byReference(
+         classNode.reference,
+         declaredNullability,
+         typeArguments ?? _defaultTypeArguments(classNode),
+       );
 
   InterfaceType.byReference(
-      this.classReference, this.declaredNullability, this.typeArguments);
+    this.classReference,
+    this.declaredNullability,
+    this.typeArguments,
+  );
 
   @override
   Reference get typeDeclarationReference => classReference;
@@ -913,10 +1000,10 @@ class InterfaceType extends TypeDeclarationType {
 
   @override
   bool get hasNonObjectMemberAccess => switch (declaredNullability) {
-        Nullability.undetermined => false,
-        Nullability.nullable => false,
-        Nullability.nonNullable => true,
-      };
+    Nullability.undetermined => false,
+    Nullability.nullable => false,
+    Nullability.nonNullable => true,
+  };
 
   @override
   DartType get nonTypeParameterBound => this;
@@ -927,7 +1014,9 @@ class InterfaceType extends TypeDeclarationType {
       return const <DartType>[];
     } else {
       return new List<DartType>.filled(
-          classNode.typeParameters.length, const DynamicType());
+        classNode.typeParameters.length,
+        const DynamicType(),
+      );
     }
   }
 
@@ -978,7 +1067,10 @@ class InterfaceType extends TypeDeclarationType {
     return declaredNullability == this.declaredNullability
         ? this
         : new InterfaceType.byReference(
-            classReference, declaredNullability, typeArguments);
+            classReference,
+            declaredNullability,
+            typeArguments,
+          );
   }
 
   @override
@@ -1009,14 +1101,16 @@ class FunctionType extends DartType implements SharedFunctionType {
   @override
   late final int hashCode = _computeHashCode();
 
-  FunctionType(List<DartType> positionalParameters, this.returnType,
-      this.declaredNullability,
-      {this.namedParameters = const <NamedType>[],
-      this.typeParameters = const <StructuralParameter>[],
-      int? requiredParameterCount})
-      : this.positionalParameters = positionalParameters,
-        this.requiredParameterCount =
-            requiredParameterCount ?? positionalParameters.length;
+  FunctionType(
+    List<DartType> positionalParameters,
+    this.returnType,
+    this.declaredNullability, {
+    this.namedParameters = const <NamedType>[],
+    this.typeParameters = const <StructuralParameter>[],
+    int? requiredParameterCount,
+  }) : this.positionalParameters = positionalParameters,
+       this.requiredParameterCount =
+           requiredParameterCount ?? positionalParameters.length;
 
   @override
   Nullability get nullability => declaredNullability;
@@ -1026,10 +1120,10 @@ class FunctionType extends DartType implements SharedFunctionType {
 
   @override
   bool get hasNonObjectMemberAccess => switch (declaredNullability) {
-        Nullability.undetermined => false,
-        Nullability.nullable => false,
-        Nullability.nonNullable => true,
-      };
+    Nullability.undetermined => false,
+    Nullability.nullable => false,
+    Nullability.nonNullable => true,
+  };
 
   @override
   List<DartType> get positionalParameterTypesShared => positionalParameters;
@@ -1077,12 +1171,15 @@ class FunctionType extends DartType implements SharedFunctionType {
         assumptions ??= new Assumptions();
         for (int index = 0; index < typeParameters.length; index++) {
           assumptions.assumeStructuralParameter(
-              typeParameters[index], other.typeParameters[index]);
+            typeParameters[index],
+            other.typeParameters[index],
+          );
         }
         for (int index = 0; index < typeParameters.length; index++) {
-          if (!typeParameters[index]
-              .bound
-              .equals(other.typeParameters[index].bound, assumptions)) {
+          if (!typeParameters[index].bound.equals(
+            other.typeParameters[index].bound,
+            assumptions,
+          )) {
             return false;
           }
         }
@@ -1092,21 +1189,27 @@ class FunctionType extends DartType implements SharedFunctionType {
       }
 
       for (int index = 0; index < positionalParameters.length; index++) {
-        if (!positionalParameters[index]
-            .equals(other.positionalParameters[index], assumptions)) {
+        if (!positionalParameters[index].equals(
+          other.positionalParameters[index],
+          assumptions,
+        )) {
           return false;
         }
       }
       for (int index = 0; index < namedParameters.length; index++) {
-        if (!namedParameters[index]
-            .equals(other.namedParameters[index], assumptions)) {
+        if (!namedParameters[index].equals(
+          other.namedParameters[index],
+          assumptions,
+        )) {
           return false;
         }
       }
       if (typeParameters.isNotEmpty) {
         for (int index = 0; index < typeParameters.length; index++) {
           assumptions!.forgetStructuralParameter(
-              typeParameters[index], other.typeParameters[index]);
+            typeParameters[index],
+            other.typeParameters[index],
+          );
         }
       }
       return true;
@@ -1122,9 +1225,13 @@ class FunctionType extends DartType implements SharedFunctionType {
   /// type.
   FunctionType get withoutTypeParameters {
     if (typeParameters.isEmpty) return this;
-    return new FunctionType(positionalParameters, returnType, nullability,
-        requiredParameterCount: requiredParameterCount,
-        namedParameters: namedParameters);
+    return new FunctionType(
+      positionalParameters,
+      returnType,
+      nullability,
+      requiredParameterCount: requiredParameterCount,
+      namedParameters: namedParameters,
+    );
   }
 
   /// Looks up the type of the named parameter with the given name.
@@ -1170,10 +1277,13 @@ class FunctionType extends DartType implements SharedFunctionType {
   FunctionType withDeclaredNullability(Nullability declaredNullability) {
     if (declaredNullability == this.declaredNullability) return this;
     return new FunctionType(
-        positionalParameters, returnType, declaredNullability,
-        namedParameters: namedParameters,
-        typeParameters: typeParameters,
-        requiredParameterCount: requiredParameterCount);
+      positionalParameters,
+      returnType,
+      declaredNullability,
+      namedParameters: namedParameters,
+      typeParameters: typeParameters,
+      requiredParameterCount: requiredParameterCount,
+    );
   }
 
   @override
@@ -1227,13 +1337,21 @@ class TypedefType extends DartType {
   final Reference typedefReference;
   final List<DartType> typeArguments;
 
-  TypedefType(Typedef typedef, Nullability nullability,
-      [List<DartType>? typeArguments])
-      : this.byReference(typedef.reference, nullability,
-            typeArguments ?? const <DartType>[]);
+  TypedefType(
+    Typedef typedef,
+    Nullability nullability, [
+    List<DartType>? typeArguments,
+  ]) : this.byReference(
+         typedef.reference,
+         nullability,
+         typeArguments ?? const <DartType>[],
+       );
 
   TypedefType.byReference(
-      this.typedefReference, this.declaredNullability, this.typeArguments);
+    this.typedefReference,
+    this.declaredNullability,
+    this.typeArguments,
+  );
 
   Typedef get typedefNode => typedefReference.asTypedef;
 
@@ -1262,10 +1380,15 @@ class TypedefType extends DartType {
   }
 
   DartType get unaliasOnce {
-    DartType result =
-        Substitution.fromTypedefType(this).substituteType(typedefNode.type!);
-    return result.withDeclaredNullability(combineNullabilitiesForSubstitution(
-        inner: result.declaredNullability, outer: nullability));
+    DartType result = Substitution.fromTypedefType(
+      this,
+    ).substituteType(typedefNode.type!);
+    return result.withDeclaredNullability(
+      combineNullabilitiesForSubstitution(
+        inner: result.declaredNullability,
+        outer: nullability,
+      ),
+    );
   }
 
   @override
@@ -1310,7 +1433,10 @@ class TypedefType extends DartType {
     return declaredNullability == this.declaredNullability
         ? this
         : new TypedefType.byReference(
-            typedefReference, declaredNullability, typeArguments);
+            typedefReference,
+            declaredNullability,
+            typeArguments,
+          );
   }
 
   @override
@@ -1412,15 +1538,21 @@ class ExtensionType extends TypeDeclarationType {
   @override
   final List<DartType> typeArguments;
 
-  ExtensionType(ExtensionTypeDeclaration extensionTypeDeclaration,
-      Nullability declaredNullability, [List<DartType>? typeArguments])
-      : this.byReference(
-            extensionTypeDeclaration.reference,
-            declaredNullability,
-            typeArguments ?? _defaultTypeArguments(extensionTypeDeclaration));
+  ExtensionType(
+    ExtensionTypeDeclaration extensionTypeDeclaration,
+    Nullability declaredNullability, [
+    List<DartType>? typeArguments,
+  ]) : this.byReference(
+         extensionTypeDeclaration.reference,
+         declaredNullability,
+         typeArguments ?? _defaultTypeArguments(extensionTypeDeclaration),
+       );
 
-  ExtensionType.byReference(this.extensionTypeDeclarationReference,
-      this.declaredNullability, this.typeArguments);
+  ExtensionType.byReference(
+    this.extensionTypeDeclarationReference,
+    this.declaredNullability,
+    this.typeArguments,
+  );
 
   ExtensionTypeDeclaration get extensionTypeDeclaration =>
       extensionTypeDeclarationReference.asExtensionTypeDeclaration;
@@ -1447,13 +1579,17 @@ class ExtensionType extends TypeDeclarationType {
   /// the type erasure of `E3<String>` is `List<String>`.
   @override
   DartType get extensionTypeErasure => _computeTypeErasure(
-      extensionTypeDeclarationReference, typeArguments, declaredNullability);
+    extensionTypeDeclarationReference,
+    typeArguments,
+    declaredNullability,
+  );
 
   @override
   Nullability get nullability {
     return combineNullabilitiesForSubstitution(
-        inner: extensionTypeDeclaration.inherentNullability,
-        outer: declaredNullability);
+      inner: extensionTypeDeclaration.inherentNullability,
+      outer: declaredNullability,
+    );
   }
 
   @override
@@ -1461,33 +1597,38 @@ class ExtensionType extends TypeDeclarationType {
 
   @override
   bool get hasNonObjectMemberAccess => switch (declaredNullability) {
-        // Undetermined means that the extension type does not implement
-        // `Object` but is not explicitly marked as nullable.
-        Nullability.undetermined => true,
-        Nullability.nullable => false,
-        Nullability.nonNullable => true,
-      };
+    // Undetermined means that the extension type does not implement
+    // `Object` but is not explicitly marked as nullable.
+    Nullability.undetermined => true,
+    Nullability.nullable => false,
+    Nullability.nonNullable => true,
+  };
 
   static List<DartType> _defaultTypeArguments(
-      ExtensionTypeDeclaration extensionTypeDeclaration) {
+    ExtensionTypeDeclaration extensionTypeDeclaration,
+  ) {
     if (extensionTypeDeclaration.typeParameters.length == 0) {
       // Avoid allocating a list in this very common case.
       return const <DartType>[];
     } else {
       return new List<DartType>.filled(
-          extensionTypeDeclaration.typeParameters.length, const DynamicType());
+        extensionTypeDeclaration.typeParameters.length,
+        const DynamicType(),
+      );
     }
   }
 
   static DartType _computeTypeErasure(
-      Reference extensionTypeDeclarationReference,
-      List<DartType> typeArguments,
-      Nullability declaredNullability) {
+    Reference extensionTypeDeclarationReference,
+    List<DartType> typeArguments,
+    Nullability declaredNullability,
+  ) {
     ExtensionTypeDeclaration extensionTypeDeclaration =
         extensionTypeDeclarationReference.asExtensionTypeDeclaration;
     DartType result = Substitution.fromPairs(
-            extensionTypeDeclaration.typeParameters, typeArguments)
-        .substituteType(extensionTypeDeclaration.declaredRepresentationType);
+      extensionTypeDeclaration.typeParameters,
+      typeArguments,
+    ).substituteType(extensionTypeDeclaration.declaredRepresentationType);
     result = result.extensionTypeErasure;
 
     // The nullability of the extension type affects the nullability of the type
@@ -1498,7 +1639,9 @@ class ExtensionType extends TypeDeclarationType {
     Nullability erasureNullability;
     if (declaredNullability == Nullability.nullable) {
       erasureNullability = combineNullabilitiesForSubstitution(
-          inner: result.nullability, outer: declaredNullability);
+        inner: result.nullability,
+        outer: declaredNullability,
+      );
     } else {
       erasureNullability = result.nullability;
     }
@@ -1559,8 +1702,11 @@ class ExtensionType extends TypeDeclarationType {
   ExtensionType withDeclaredNullability(Nullability declaredNullability) {
     return declaredNullability == this.declaredNullability
         ? this
-        : new ExtensionType.byReference(extensionTypeDeclarationReference,
-            declaredNullability, typeArguments);
+        : new ExtensionType.byReference(
+            extensionTypeDeclarationReference,
+            declaredNullability,
+            typeArguments,
+          );
   }
 
   @override
@@ -1570,8 +1716,9 @@ class ExtensionType extends TypeDeclarationType {
 
   @override
   void toTextInternal(AstPrinter printer) {
-    printer
-        .writeExtensionTypeDeclarationName(extensionTypeDeclarationReference);
+    printer.writeExtensionTypeDeclarationName(
+      extensionTypeDeclarationReference,
+    );
     printer.writeTypeArguments(typeArguments);
     printer.writeNullability(declaredNullability);
   }
@@ -1661,78 +1808,81 @@ class IntersectionType extends DartType {
     Nullability leftNullability = left.nullability;
     Nullability rightNullability = right.nullability;
     assert(
-        (leftNullability == Nullability.nonNullable &&
-                rightNullability == Nullability.nonNullable) ||
-            (leftNullability == Nullability.nonNullable &&
-                rightNullability == Nullability.undetermined) ||
-            (leftNullability == Nullability.undetermined &&
-                rightNullability == Nullability.nonNullable) ||
-            (leftNullability == Nullability.undetermined &&
-                rightNullability == Nullability.nullable) ||
-            (leftNullability == Nullability.undetermined &&
-                rightNullability == Nullability.undetermined)
-            // These are observed in real situations:
-            ||
-            // pkg/front_end/test/id_tests/type_promotion_test
-            // replicated in nnbd_mixed/type_parameter_nullability
-            (leftNullability == Nullability.nullable &&
-                rightNullability == Nullability.nonNullable) ||
-            // pkg/front_end/test/types/kernel_type_parser_test
-            // pkg/front_end/test/incremental_hello_test
-            // pkg/front_end/test/types/cfe_types_test
-            // pkg/front_end/tool/cfe_perf_test
-            // nnbd/issue42089
-            // replicated in nnbd_mixed/type_parameter_nullability
-            (leftNullability == Nullability.nullable &&
-                rightNullability == Nullability.nullable) ||
-            // pkg/front_end/test/dill_round_trip_test
-            // pkg/front_end/test/compile_dart2js_with_no_sdk_test
-            // pkg/front_end/test/types/large_app_benchmark_test
-            // pkg/front_end/test/incremental_dart2js_test
-            // pkg/front_end/test/read_dill_from_binary_md_test
-            // pkg/front_end/test/static_types/static_type_test
-            // pkg/front_end/test/split_dill_test
-            // pkg/front_end/tool/incremental_perf_test
-            // pkg/vm/test/kernel_front_end_test
-            // general/promoted_null_aware_access
-            // inference/constructors_infer_from_arguments_factory
-            // inference/infer_types_on_loop_indices_for_each_loop
-            // inference/infer_types_on_loop_indices_for_each_loop_async
-            // replicated in nnbd_mixed/type_parameter_nullability
-            (rightNullability == Nullability.nonNullable) ||
-            // pkg/front_end/test/incremental_hello_test
-            // pkg/front_end/tool/cfe_perf_test
-            // replicated in nnbd_mixed/type_parameter_nullability
-            (leftNullability == Nullability.nullable &&
-                rightNullability == Nullability.undetermined) ||
-            // These are only observed in tests and might be artifacts of the
-            // tests rather than real situations:
-            //
-            // pkg/front_end/test/types/kernel_type_parser_test
-            // pkg/front_end/test/types/cfe_types_test
-            (rightNullability == Nullability.nullable) ||
-            // pkg/front_end/test/types/kernel_type_parser_test
-            // pkg/front_end/test/types/cfe_types_test
-            (leftNullability == Nullability.nonNullable &&
-                rightNullability == Nullability.nullable) ||
-            // pkg/front_end/test/types/kernel_type_parser_test
-            // pkg/front_end/test/types/cfe_types_test
-            (leftNullability == Nullability.undetermined) ||
-            // pkg/kernel/test/clone_test
-            // The legacy nullability is due to RHS being InvalidType.
-            (leftNullability == Nullability.nonNullable),
-        "Unexpected nullabilities for ${left} & ${right}: "
-        "leftNullability = ${leftNullability}, "
-        "rightNullability = ${rightNullability}.");
+      (leftNullability == Nullability.nonNullable &&
+              rightNullability == Nullability.nonNullable) ||
+          (leftNullability == Nullability.nonNullable &&
+              rightNullability == Nullability.undetermined) ||
+          (leftNullability == Nullability.undetermined &&
+              rightNullability == Nullability.nonNullable) ||
+          (leftNullability == Nullability.undetermined &&
+              rightNullability == Nullability.nullable) ||
+          (leftNullability == Nullability.undetermined &&
+              rightNullability == Nullability.undetermined)
+          // These are observed in real situations:
+          ||
+          // pkg/front_end/test/id_tests/type_promotion_test
+          // replicated in nnbd_mixed/type_parameter_nullability
+          (leftNullability == Nullability.nullable &&
+              rightNullability == Nullability.nonNullable) ||
+          // pkg/front_end/test/types/kernel_type_parser_test
+          // pkg/front_end/test/incremental_hello_test
+          // pkg/front_end/test/types/cfe_types_test
+          // pkg/front_end/tool/cfe_perf_test
+          // nnbd/issue42089
+          // replicated in nnbd_mixed/type_parameter_nullability
+          (leftNullability == Nullability.nullable &&
+              rightNullability == Nullability.nullable) ||
+          // pkg/front_end/test/dill_round_trip_test
+          // pkg/front_end/test/compile_dart2js_with_no_sdk_test
+          // pkg/front_end/test/types/large_app_benchmark_test
+          // pkg/front_end/test/incremental_dart2js_test
+          // pkg/front_end/test/read_dill_from_binary_md_test
+          // pkg/front_end/test/static_types/static_type_test
+          // pkg/front_end/test/split_dill_test
+          // pkg/front_end/tool/incremental_perf_test
+          // pkg/vm/test/kernel_front_end_test
+          // general/promoted_null_aware_access
+          // inference/constructors_infer_from_arguments_factory
+          // inference/infer_types_on_loop_indices_for_each_loop
+          // inference/infer_types_on_loop_indices_for_each_loop_async
+          // replicated in nnbd_mixed/type_parameter_nullability
+          (rightNullability == Nullability.nonNullable) ||
+          // pkg/front_end/test/incremental_hello_test
+          // pkg/front_end/tool/cfe_perf_test
+          // replicated in nnbd_mixed/type_parameter_nullability
+          (leftNullability == Nullability.nullable &&
+              rightNullability == Nullability.undetermined) ||
+          // These are only observed in tests and might be artifacts of the
+          // tests rather than real situations:
+          //
+          // pkg/front_end/test/types/kernel_type_parser_test
+          // pkg/front_end/test/types/cfe_types_test
+          (rightNullability == Nullability.nullable) ||
+          // pkg/front_end/test/types/kernel_type_parser_test
+          // pkg/front_end/test/types/cfe_types_test
+          (leftNullability == Nullability.nonNullable &&
+              rightNullability == Nullability.nullable) ||
+          // pkg/front_end/test/types/kernel_type_parser_test
+          // pkg/front_end/test/types/cfe_types_test
+          (leftNullability == Nullability.undetermined) ||
+          // pkg/kernel/test/clone_test
+          // The legacy nullability is due to RHS being InvalidType.
+          (leftNullability == Nullability.nonNullable),
+      "Unexpected nullabilities for ${left} & ${right}: "
+      "leftNullability = ${leftNullability}, "
+      "rightNullability = ${rightNullability}.",
+    );
   }
 
   @override
   DartType get nonTypeParameterBound {
     DartType resolvedTypeParameterType = right.nonTypeParameterBound;
     return resolvedTypeParameterType.withDeclaredNullability(
-        combineNullabilitiesForSubstitution(
-            inner: resolvedTypeParameterType.declaredNullability,
-            outer: declaredNullability));
+      combineNullabilitiesForSubstitution(
+        inner: resolvedTypeParameterType.declaredNullability,
+        outer: declaredNullability,
+      ),
+    );
   }
 
   @override
@@ -1818,61 +1968,60 @@ class IntersectionType extends DartType {
     Nullability lhsNullability = left.nullability;
     Nullability rhsNullability = right.nullability;
     assert(
-        (lhsNullability == Nullability.nonNullable &&
-                rhsNullability == Nullability.nonNullable) ||
-            (lhsNullability == Nullability.nonNullable &&
-                rhsNullability == Nullability.undetermined) ||
-            (lhsNullability == Nullability.undetermined &&
-                rhsNullability == Nullability.nonNullable) ||
-            (lhsNullability == Nullability.undetermined &&
-                rhsNullability == Nullability.nullable) ||
-            (lhsNullability == Nullability.undetermined &&
-                rhsNullability == Nullability.undetermined)
-            // Apparently these happens as well:
-            ||
-            // pkg/front_end/test/id_tests/type_promotion_test
-            (lhsNullability == Nullability.nullable &&
-                rhsNullability == Nullability.nonNullable) ||
-            // pkg/front_end/test/types/kernel_type_parser_test
-            // pkg/front_end/test/incremental_hello_test
-            // pkg/front_end/test/types/cfe_types_test
-            // pkg/front_end/tool/cfe_perf_test
-            // nnbd/issue42089
-            (lhsNullability == Nullability.nullable &&
-                rhsNullability == Nullability.nullable) ||
-            // pkg/front_end/test/dill_round_trip_test
-            // pkg/front_end/test/compile_dart2js_with_no_sdk_test
-            // pkg/front_end/test/types/large_app_benchmark_test
-            // pkg/front_end/test/incremental_dart2js_test
-            // pkg/front_end/test/read_dill_from_binary_md_test
-            // pkg/front_end/test/static_types/static_type_test
-            // pkg/front_end/test/split_dill_test
-            // pkg/front_end/tool/incremental_perf_test
-            // pkg/vm/test/kernel_front_end_test
-            // general/promoted_null_aware_access
-            // inference/constructors_infer_from_arguments_factory
-            // inference/infer_types_on_loop_indices_for_each_loop
-            // inference/infer_types_on_loop_indices_for_each_loop_async
-            (rhsNullability == Nullability.nonNullable) ||
-            // pkg/front_end/test/incremental_hello_test
-            // pkg/front_end/tool/cfe_perf_test
-            // pkg/front_end/test/incremental_hello_test
-            (lhsNullability == Nullability.nullable &&
-                rhsNullability == Nullability.undetermined) ||
-
-            // This is created but never observed.
-            // (lhsNullability == Nullability.legacy &&
-            //     rhsNullability == Nullability.nullable) ||
-
-            // pkg/front_end/test/types/kernel_type_parser_test
-            // pkg/front_end/test/types/cfe_types_test
-            (lhsNullability == Nullability.undetermined) ||
-            // pkg/front_end/test/types/kernel_type_parser_test
-            // pkg/front_end/test/types/cfe_types_test
-            (lhsNullability == Nullability.nonNullable &&
-                rhsNullability == Nullability.nullable),
-        "Unexpected nullabilities for: LHS nullability = $lhsNullability, "
-        "RHS nullability = ${rhsNullability}.");
+      (lhsNullability == Nullability.nonNullable &&
+              rhsNullability == Nullability.nonNullable) ||
+          (lhsNullability == Nullability.nonNullable &&
+              rhsNullability == Nullability.undetermined) ||
+          (lhsNullability == Nullability.undetermined &&
+              rhsNullability == Nullability.nonNullable) ||
+          (lhsNullability == Nullability.undetermined &&
+              rhsNullability == Nullability.nullable) ||
+          (lhsNullability == Nullability.undetermined &&
+              rhsNullability == Nullability.undetermined)
+          // Apparently these happens as well:
+          ||
+          // pkg/front_end/test/id_tests/type_promotion_test
+          (lhsNullability == Nullability.nullable &&
+              rhsNullability == Nullability.nonNullable) ||
+          // pkg/front_end/test/types/kernel_type_parser_test
+          // pkg/front_end/test/incremental_hello_test
+          // pkg/front_end/test/types/cfe_types_test
+          // pkg/front_end/tool/cfe_perf_test
+          // nnbd/issue42089
+          (lhsNullability == Nullability.nullable &&
+              rhsNullability == Nullability.nullable) ||
+          // pkg/front_end/test/dill_round_trip_test
+          // pkg/front_end/test/compile_dart2js_with_no_sdk_test
+          // pkg/front_end/test/types/large_app_benchmark_test
+          // pkg/front_end/test/incremental_dart2js_test
+          // pkg/front_end/test/read_dill_from_binary_md_test
+          // pkg/front_end/test/static_types/static_type_test
+          // pkg/front_end/test/split_dill_test
+          // pkg/front_end/tool/incremental_perf_test
+          // pkg/vm/test/kernel_front_end_test
+          // general/promoted_null_aware_access
+          // inference/constructors_infer_from_arguments_factory
+          // inference/infer_types_on_loop_indices_for_each_loop
+          // inference/infer_types_on_loop_indices_for_each_loop_async
+          (rhsNullability == Nullability.nonNullable) ||
+          // pkg/front_end/test/incremental_hello_test
+          // pkg/front_end/tool/cfe_perf_test
+          // pkg/front_end/test/incremental_hello_test
+          (lhsNullability == Nullability.nullable &&
+              rhsNullability == Nullability.undetermined) ||
+          // This is created but never observed.
+          // (lhsNullability == Nullability.legacy &&
+          //     rhsNullability == Nullability.nullable) ||
+          // pkg/front_end/test/types/kernel_type_parser_test
+          // pkg/front_end/test/types/cfe_types_test
+          (lhsNullability == Nullability.undetermined) ||
+          // pkg/front_end/test/types/kernel_type_parser_test
+          // pkg/front_end/test/types/cfe_types_test
+          (lhsNullability == Nullability.nonNullable &&
+              rhsNullability == Nullability.nullable),
+      "Unexpected nullabilities for: LHS nullability = $lhsNullability, "
+      "RHS nullability = ${rhsNullability}.",
+    );
 
     // Whenever there's N/A in the table, it means that the corresponding
     // combination of the LHS and RHS nullability is not possible when
@@ -1929,8 +2078,9 @@ class IntersectionType extends DartType {
     if (left.declaredNullability == declaredNullability) {
       return this;
     }
-    TypeParameterType newLeft =
-        left.withDeclaredNullability(declaredNullability);
+    TypeParameterType newLeft = left.withDeclaredNullability(
+      declaredNullability,
+    );
     if (identical(newLeft, left)) {
       return this;
     }
@@ -1954,11 +2104,12 @@ class IntersectionType extends DartType {
 }
 
 /// Reference to a type variable.
-class TypeParameterType extends DartType {
+class TypeParameterType extends DartType implements TypeParameterTypeInterface {
   /// The declared nullability of a type-parameter type.
   @override
   Nullability declaredNullability;
 
+  @override
   final TypeParameter parameter;
 
   TypeParameterType(this.parameter, this.declaredNullability);
@@ -1969,15 +2120,17 @@ class TypeParameterType extends DartType {
   /// Either `Nullability.nonNullable` or `Nullability.undetermined` will be
   /// used, depending on the nullability of the bound of [parameter].
   TypeParameterType.withDefaultNullability(this.parameter)
-      : declaredNullability = parameter.computeNullabilityFromBound();
+    : declaredNullability = parameter.computeNullabilityFromBound();
 
   @override
   DartType get nonTypeParameterBound {
     DartType resolvedTypeParameterType = bound.nonTypeParameterBound;
     return resolvedTypeParameterType.withDeclaredNullability(
-        combineNullabilitiesForSubstitution(
-            inner: resolvedTypeParameterType.declaredNullability,
-            outer: declaredNullability));
+      combineNullabilitiesForSubstitution(
+        inner: resolvedTypeParameterType.declaredNullability,
+        outer: declaredNullability,
+      ),
+    );
   }
 
   @override
@@ -2057,15 +2210,17 @@ class StructuralParameterType extends DartType {
   /// Either [Nullability.nonNullable] or [Nullability.undetermined] will be
   /// used, depending on the nullability of the bound of [parameter].
   StructuralParameterType.withDefaultNullability(this.parameter)
-      : declaredNullability = parameter.computeNullabilityFromBound();
+    : declaredNullability = parameter.computeNullabilityFromBound();
 
   @override
   DartType get nonTypeParameterBound {
     DartType resolvedTypeParameterType = bound.nonTypeParameterBound;
     return resolvedTypeParameterType.withDeclaredNullability(
-        combineNullabilitiesForSubstitution(
-            inner: resolvedTypeParameterType.nullability,
-            outer: declaredNullability));
+      combineNullabilitiesForSubstitution(
+        inner: resolvedTypeParameterType.nullability,
+        outer: declaredNullability,
+      ),
+    );
   }
 
   @override
@@ -2097,7 +2252,9 @@ class StructuralParameterType extends DartType {
           return false;
         }
         if (!assumptions.isAssumedStructuralParameter(
-            parameter, other.parameter)) {
+          parameter,
+          other.parameter,
+        )) {
           return false;
         }
       }
@@ -2124,7 +2281,8 @@ class StructuralParameterType extends DartType {
   /// Gets a new [StructuralParameterType] with given [declaredNullability].
   @override
   StructuralParameterType withDeclaredNullability(
-      Nullability declaredNullability) {
+    Nullability declaredNullability,
+  ) {
     if (declaredNullability == this.declaredNullability) {
       return this;
     }
@@ -2151,11 +2309,12 @@ class RecordType extends DartType implements SharedRecordType {
   final Nullability declaredNullability;
 
   RecordType(this.positional, this.named, this.declaredNullability)
-      : /*TODO(johnniwinther): Enabled this assert:
+    : /*TODO(johnniwinther): Enabled this assert:
         assert(named.length == named.map((p) => p.name).toSet().length,
             "Named field types must have unique names in a RecordType: "
             "${named}"),*/
-        assert(() {
+      assert(
+        () {
           // Assert that the named field types are sorted.
           for (int i = 1; i < named.length; i++) {
             if (named[i].name.compareTo(named[i - 1].name) < 0) {
@@ -2164,8 +2323,9 @@ class RecordType extends DartType implements SharedRecordType {
           }
           return true;
         }(),
-            "Named field types aren't sorted lexicographically "
-            "in a RecordType: ${named}");
+        "Named field types aren't sorted lexicographically "
+        "in a RecordType: ${named}",
+      );
 
   List<SharedNamedType> get namedTypes => named;
 
@@ -2182,10 +2342,10 @@ class RecordType extends DartType implements SharedRecordType {
 
   @override
   bool get hasNonObjectMemberAccess => switch (declaredNullability) {
-        Nullability.undetermined => false,
-        Nullability.nullable => false,
-        Nullability.nonNullable => true,
-      };
+    Nullability.undetermined => false,
+    Nullability.nullable => false,
+    Nullability.nonNullable => true,
+  };
 
   @override
   List<DartType> get positionalTypesShared => positional;
@@ -2275,5 +2435,205 @@ class RecordType extends DartType implements SharedRecordType {
       printer.write("}");
     }
     printer.write(")");
+  }
+}
+
+/// Type variables of functions.
+///
+/// [TypeVariable] represents type variables of functions, such as top-level
+/// methods, static and instance methods, local declarations, and function
+/// expressions.
+class TypeVariable extends VariableBase {
+  @override
+  String? cosmeticName;
+
+  /// Function type parameter this [TypeVariable] is associated with.
+  final TypeParameter parameter;
+
+  @override
+  List<Expression> annotations = const <Expression>[];
+
+  TypeVariable({this.cosmeticName, required this.parameter});
+
+  @override
+  void addAnnotation(Expression annotation) {
+    if (annotations.isEmpty) {
+      annotations = <Expression>[];
+    }
+    annotations.add(annotation..parent = this);
+  }
+
+  @override
+  R accept<R>(TreeVisitor<R> v) {
+    // TODO(cstefantsova): Implement accept.
+    throw UnimplementedError();
+  }
+
+  @override
+  R accept1<R, A>(TreeVisitor1<R, A> v, A arg) {
+    // TODO(cstefantsova): Implement accept1.
+    throw UnimplementedError();
+  }
+
+  @override
+  void transformChildren(Transformer v) {
+    // TODO(cstefantsova): Implement transformChildren.
+  }
+
+  @override
+  void transformOrRemoveChildren(RemovingTransformer v) {
+    // TODO(cstefantsova): Implement transformOrRemoveChildren.
+  }
+
+  @override
+  void visitChildren(Visitor v) {
+    // TODO(cstefantsova): Implement visitChildren.
+  }
+
+  /// Returns a possibly synthesized name for the nominal parameter, consistent
+  /// with the names used across all [toString] calls.
+  @override
+  String toString() {
+    return "TypeVariable(${toStringInternal()})";
+  }
+
+  @override
+  void toTextInternal(AstPrinter printer) {
+    printer.writeTypeParameterName(parameter);
+  }
+}
+
+/// The shared interface between all types referring type parameters.
+abstract class TypeParameterTypeInterface {
+  TypeParameter get parameter;
+}
+
+/// A type-parameter type referring to [TypeVariable] of a function.
+class FunctionTypeParameterType extends ExperimentalType
+    implements TypeParameterTypeInterface {
+  final TypeVariable variable;
+
+  @override
+  Nullability declaredNullability;
+
+  FunctionTypeParameterType({
+    required this.variable,
+    required this.declaredNullability,
+  });
+
+  @override
+  TypeParameter get parameter => variable.parameter;
+
+  @override
+  R accept<R>(DartTypeVisitor<R> v) {
+    // TODO(cstefantsova): Implement accept.
+    throw UnimplementedError();
+  }
+
+  @override
+  R accept1<R, A>(DartTypeVisitor1<R, A> v, A arg) {
+    // TODO(cstefantsova): Implement accept1.
+    throw UnimplementedError();
+  }
+
+  @override
+  bool equals(Object other, Assumptions? assumptions) {
+    // TODO(cstefantsova): Implement equals.
+    throw UnimplementedError();
+  }
+
+  @override
+  // TODO(cstefantsova): Implement hasNonObjectMemberAccess.
+  bool get hasNonObjectMemberAccess => throw UnimplementedError();
+
+  @override
+  // TODO(cstefantsova): Implement nonTypeParameterBound.
+  DartType get nonTypeParameterBound => throw UnimplementedError();
+
+  @override
+  // TODO(cstefantsova): Implement nullability.
+  Nullability get nullability => throw UnimplementedError();
+
+  @override
+  void visitChildren(Visitor v) {
+    // TODO(cstefantsova): Implement visitChildren.
+  }
+
+  @override
+  DartType withDeclaredNullability(Nullability declaredNullability) {
+    // TODO(cstefantsova): Implement withDeclaredNullability.
+    throw UnimplementedError();
+  }
+
+  @override
+  String toString() {
+    return "FunctionTypeParameterType(${toStringInternal()})";
+  }
+
+  @override
+  void toTextInternal(AstPrinter printer) {
+    printer.writeTypeParameterName(variable.parameter);
+    printer.writeNullability(declaredNullability);
+  }
+}
+
+/// A type-parameter type referring to [TypeParameter] of a class, mixin, or
+/// enum.
+///
+/// The generic class, mixin, or enum is accessible via [thisVariable].
+class ClassTypeParameterType extends ExperimentalType
+    implements TypeParameterTypeInterface {
+  final ThisVariable thisVariable;
+
+  @override
+  final TypeParameter parameter;
+
+  @override
+  Nullability declaredNullability;
+
+  ClassTypeParameterType({
+    required this.thisVariable,
+    required this.parameter,
+    required this.declaredNullability,
+  });
+
+  @override
+  bool equals(Object other, Assumptions? assumptions) {
+    // TODO: implement equals
+    throw UnimplementedError();
+  }
+
+  @override
+  // TODO: implement hasNonObjectMemberAccess
+  bool get hasNonObjectMemberAccess => throw UnimplementedError();
+
+  @override
+  // TODO: implement nonTypeParameterBound
+  DartType get nonTypeParameterBound => throw UnimplementedError();
+
+  @override
+  // TODO: implement nullability
+  Nullability get nullability => throw UnimplementedError();
+
+  @override
+  void visitChildren(Visitor<dynamic> v) {
+    // TODO: implement visitChildren
+  }
+
+  @override
+  DartType withDeclaredNullability(Nullability declaredNullability) {
+    // TODO: implement withDeclaredNullability
+    throw UnimplementedError();
+  }
+
+  @override
+  String toString() {
+    return "ClassTypeParameterType(${toStringInternal()})";
+  }
+
+  @override
+  void toTextInternal(AstPrinter printer) {
+    printer.writeTypeParameterName(parameter);
+    printer.writeNullability(declaredNullability);
   }
 }

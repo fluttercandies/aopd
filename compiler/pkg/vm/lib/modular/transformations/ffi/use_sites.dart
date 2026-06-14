@@ -4,21 +4,10 @@
 
 // This imports 'codes/cfe_codes.dart' instead of 'api_prototype/codes.dart' to
 // avoid cyclic dependency between `package:vm/modular` and `package:front_end`.
-import 'package:front_end/src/codes/cfe_codes.dart'
-    show
-        messageFfiAddressOfMustBeNative,
-        messageFfiAddressPosition,
-        messageFfiAddressReceiver,
-        messageFfiCreateOfStructOrUnion,
-        messageFfiExceptionalReturnNull,
-        messageFfiExpectedConstant,
-        templateFfiDartTypeMismatch,
-        templateFfiNativeCallableListenerReturnVoid,
-        templateFfiExpectedConstantArg,
-        templateFfiExpectedExceptionalReturn,
-        templateFfiExpectedNoExceptionalReturn,
-        templateFfiExtendsOrImplementsSealedClass,
-        templateFfiNotStatic;
+import 'package:front_end/src/api_prototype/constant_evaluator.dart'
+    show ConstantEvaluator, SimpleErrorReporter;
+import 'package:front_end/src/codes/cfe_codes.dart' show LocatedMessage;
+import 'package:front_end/src/codes/diagnostic.dart' as diag;
 import 'package:kernel/ast.dart';
 import 'package:kernel/class_hierarchy.dart' show ClassHierarchy;
 import 'package:kernel/clone.dart';
@@ -28,7 +17,7 @@ import 'package:kernel/kernel.dart';
 import 'package:kernel/library_index.dart' show LibraryIndex;
 import 'package:kernel/names.dart';
 import 'package:kernel/reference_from_index.dart';
-import 'package:kernel/target/targets.dart' show DiagnosticReporter;
+import 'package:kernel/target/targets.dart' show DiagnosticReporter, Target;
 import 'package:kernel/type_algebra.dart'
     show FunctionTypeInstantiator, Substitution;
 import 'package:kernel/type_environment.dart';
@@ -40,19 +29,86 @@ import 'finalizable.dart';
 import 'native.dart' as native;
 import 'native_type_cfe.dart';
 
+enum _FfiUseSiteTransformMode { libraries, expressionEvaluation }
+
+class _SilentErrorReporter extends SimpleErrorReporter {
+  const _SilentErrorReporter();
+
+  @override
+  void report(LocatedMessage message, [List<LocatedMessage>? context]) {}
+}
+
 /// Checks and replaces calls to dart:ffi compound fields and methods.
 ///
 /// To reliably lower calls to methods like `sizeOf` and `Native.addressOf`,
 /// this requires that the [definitions] and the [native] transformer already
 /// ran on the libraries to transform.
 void transformLibraries(
+  Target target,
   Component component,
   CoreTypes coreTypes,
   ClassHierarchy hierarchy,
   List<Library> libraries,
   DiagnosticReporter diagnosticReporter,
   ReferenceFromIndex? referenceFromIndex,
+  Map<String, String>? environmentDefines,
 ) {
+  final index = _createIndexIfFfiLoaded(component);
+  if (index == null) {
+    return;
+  }
+  final transformer = _createFfiUseSiteTransformer(
+    target,
+    component,
+    coreTypes,
+    hierarchy,
+    diagnosticReporter,
+    referenceFromIndex,
+    environmentDefines,
+    index,
+    mode: _FfiUseSiteTransformMode.libraries,
+  );
+  libraries.forEach(transformer.visitLibrary);
+}
+
+/// Checks and replaces dart:ffi use-site APIs inside [procedure] only.
+///
+/// This is used for expression compilation where the enclosing libraries are
+/// already transformed and only the synthetic procedure should be processed.
+void transformProcedure(
+  Target target,
+  Component component,
+  CoreTypes coreTypes,
+  ClassHierarchy hierarchy,
+  Procedure procedure,
+  DiagnosticReporter diagnosticReporter,
+  ReferenceFromIndex? referenceFromIndex,
+  Map<String, String>? environmentDefines,
+) {
+  final index = _createIndexIfFfiLoaded(component);
+  if (index == null) {
+    return;
+  }
+  final transformer = _createFfiUseSiteTransformer(
+    target,
+    component,
+    coreTypes,
+    hierarchy,
+    diagnosticReporter,
+    referenceFromIndex,
+    environmentDefines,
+    index,
+    mode: _FfiUseSiteTransformMode.expressionEvaluation,
+  );
+  // Procedure-only traversal starts at `visitProcedure`, so `visitLibrary` is not
+  // invoked and `currentLibrary` / `currentLibraryIndex` would otherwise be null.
+  // FFI rewrites depend on that library context (e.g. nullability, name binding,
+  // and reference lookups), so set it explicitly for this procedure.
+  transformer.initCurrentLibrary(procedure.enclosingLibrary);
+  procedure.accept(transformer);
+}
+
+LibraryIndex? _createIndexIfFfiLoaded(Component component) {
   final index = LibraryIndex(component, [
     "dart:ffi",
     "dart:_internal",
@@ -64,20 +120,43 @@ void transformLibraries(
     // TODO: This check doesn't make sense: "dart:ffi" is always loaded/created
     // for the VM target.
     // If dart:ffi is not loaded, do not do the transformation.
-    return;
+    return null;
   }
   if (index.tryGetClass('dart:ffi', 'NativeFunction') == null) {
     // If dart:ffi is not loaded (for real): do not do the transformation.
-    return;
+    return null;
   }
-  final transformer = new _FfiUseSiteTransformer2(
+  return index;
+}
+
+_FfiUseSiteTransformer2 _createFfiUseSiteTransformer(
+  Target target,
+  Component component,
+  CoreTypes coreTypes,
+  ClassHierarchy hierarchy,
+  DiagnosticReporter diagnosticReporter,
+  ReferenceFromIndex? referenceFromIndex,
+  Map<String, String>? environmentDefines,
+  LibraryIndex index, {
+  required _FfiUseSiteTransformMode mode,
+}) {
+  return _FfiUseSiteTransformer2(
     index,
     coreTypes,
     hierarchy,
     diagnosticReporter,
     referenceFromIndex,
+    ConstantEvaluator(
+      target.dartLibrarySupport,
+      target.constantsBackend,
+      component,
+      environmentDefines,
+      TypeEnvironment(coreTypes, hierarchy),
+      const _SilentErrorReporter(),
+      errorOnUnevaluatedConstant: true,
+    ),
+    mode: mode,
   );
-  libraries.forEach(transformer.visitLibrary);
 }
 
 /// Combines [_FfiUseSiteTransformer] and [FinalizableTransformer] into a single
@@ -88,19 +167,27 @@ void transformLibraries(
 /// respectively. This means one cannot do `visitX() { super.visitX() as X }`.
 class _FfiUseSiteTransformer2 extends FfiTransformer
     with _FfiUseSiteTransformer, FinalizableTransformer {
+  final ConstantEvaluator _constantEvaluator;
+  final _FfiUseSiteTransformMode _mode;
   _FfiUseSiteTransformer2(
     LibraryIndex index,
     CoreTypes coreTypes,
     ClassHierarchy hierarchy,
     DiagnosticReporter diagnosticReporter,
     ReferenceFromIndex? referenceFromIndex,
-  ) : super(
-        index,
-        coreTypes,
-        hierarchy,
-        diagnosticReporter,
-        referenceFromIndex,
-      );
+    this._constantEvaluator, {
+    required _FfiUseSiteTransformMode mode,
+  }) : _mode = mode,
+       super(
+         index,
+         coreTypes,
+         hierarchy,
+         diagnosticReporter,
+         referenceFromIndex,
+       );
+
+  bool get allowEnclosingMutation =>
+      _mode == _FfiUseSiteTransformMode.libraries;
 }
 
 /// Checks and replaces calls to dart:ffi compound fields and methods.
@@ -113,8 +200,10 @@ class _FfiUseSiteTransformer2 extends FfiTransformer
 /// respectively. This means one cannot do `visitX() { super.visitX() as X }`.
 mixin _FfiUseSiteTransformer on FfiTransformer {
   StaticTypeContext? get staticTypeContext;
+  bool get allowEnclosingMutation;
 
   bool _inFfiTearoff = false;
+  ConstantEvaluator get _constantEvaluator;
 
   bool get isFfiLibrary => currentLibrary == ffiLibrary;
 
@@ -125,6 +214,21 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
   // Used to create private top-level trampoline methods with unique names
   // for each call.
   int callCount = 0;
+
+  Never _reportEnclosingMutationInProcedureMode(
+    TreeNode node,
+    String operation,
+  ) {
+    diagnosticReporter.report(
+      diag.ffiExpressionEvaluationNotSupported.withArguments(
+        operation: operation,
+      ),
+      node.fileOffset,
+      1,
+      node.location?.file,
+    );
+    throw FfiStaticTypeError();
+  }
 
   @override
   TreeNode visitLibrary(Library node) {
@@ -158,7 +262,7 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
         target.name != Name("#fromTypedDataBase") &&
         target.name != Name("#fromTypedData")) {
       diagnosticReporter.report(
-        messageFfiCreateOfStructOrUnion,
+        diag.ffiCreateOfStructOrUnion,
         node.fileOffset,
         1,
         node.location?.file,
@@ -307,10 +411,9 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
               node.fileOffset,
             ),
             index: VariableGet(indexVar),
-            value:
-                target == abiSpecificIntegerArraySetElemAt
-                    ? node.arguments.positional.last
-                    : null,
+            value: target == abiSpecificIntegerArraySetElemAt
+                ? node.arguments.positional.last
+                : null,
             fileOffset: node.fileOffset,
           ),
         );
@@ -338,14 +441,14 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
           typedDataBase: node.arguments.positional[0],
           index:
               (target == abiSpecificIntegerPointerElemAt ||
-                      target == abiSpecificIntegerPointerSetElemAt)
-                  ? node.arguments.positional[1]
-                  : null,
+                  target == abiSpecificIntegerPointerSetElemAt)
+              ? node.arguments.positional[1]
+              : null,
           value:
               (target == abiSpecificIntegerPointerSetValue ||
-                      target == abiSpecificIntegerPointerSetElemAt)
-                  ? node.arguments.positional.last
-                  : null,
+                  target == abiSpecificIntegerPointerSetElemAt)
+              ? node.arguments.positional.last
+              : null,
           fileOffset: node.fileOffset,
         );
       }
@@ -431,6 +534,9 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
           );
         }
       } else if (target == structArrayElemAt || target == unionArrayElemAt) {
+        if (_isMissingArguments(node)) {
+          return node;
+        }
         final DartType nativeType = node.arguments.types[0];
 
         ensureNativeTypeValid(nativeType, node, allowStructAndUnion: true);
@@ -438,12 +544,18 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
         return _replaceRefArray(node);
       } else if (target == structArrayElements ||
           target == unionArrayElements) {
+        if (_isMissingArguments(node)) {
+          return node;
+        }
         final DartType nativeType = node.arguments.types[0];
 
         ensureNativeTypeValid(nativeType, node, allowStructAndUnion: true);
 
         return _replaceArrayElements(node);
       } else if (target == arrayArrayElemAt) {
+        if (_isMissingArguments(node)) {
+          return node;
+        }
         final DartType nativeType = node.arguments.types[0];
 
         ensureNativeTypeValid(
@@ -455,6 +567,9 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
 
         return _replaceArrayArrayElemAt(node);
       } else if (target == abiSpecificIntegerArrayElements) {
+        if (_isMissingArguments(node)) {
+          return node;
+        }
         final DartType nativeType = node.arguments.types[0];
 
         ensureNativeTypeValid(
@@ -466,6 +581,9 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
 
         return _replaceAbiSpecificIntegerElements(node);
       } else if (target == arrayArrayElements) {
+        if (_isMissingArguments(node)) {
+          return node;
+        }
         final DartType nativeType = node.arguments.types[0];
 
         ensureNativeTypeValid(
@@ -477,6 +595,9 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
 
         return _replaceArrayArrayElements(node);
       } else if (target == arrayArrayAssignAt) {
+        if (_isMissingArguments(node)) {
+          return node;
+        }
         final DartType nativeType = node.arguments.types[0];
 
         ensureNativeTypeValid(
@@ -488,6 +609,9 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
 
         return _replaceArrayArrayElemAt(node, setter: true);
       } else if (target == sizeOfMethod) {
+        if (_isMissingArguments(node)) {
+          return node;
+        }
         final DartType nativeType = node.arguments.types[0];
 
         ensureNativeTypeValid(
@@ -504,6 +628,9 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
           }
         }
       } else if (target == lookupFunctionMethod) {
+        if (_isMissingArguments(node)) {
+          return node;
+        }
         final nativeType = InterfaceType(
           nativeFunctionClass,
           currentLibrary.nonNullable,
@@ -528,6 +655,9 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
         );
         return _replaceLookupFunction(node);
       } else if (target == asFunctionMethod) {
+        if (_isMissingArguments(node)) {
+          return node;
+        }
         final dartType = node.arguments.types[1];
         final InterfaceType nativeType = InterfaceType(
           nativeFunctionClass,
@@ -570,12 +700,15 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
         );
       } else if (target == nativeCallableIsolateLocalConstructor) {
         return _verifyAndReplaceNativeCallableIsolateLocal(node);
-      } else if (target == nativeCallableIsolateGroupSharedConstructor) {
+      } else if (target == nativeCallableIsolateGroupBoundConstructor) {
         return _verifyAndReplaceNativeCallable(
           node,
-          replacement: _replaceNativeCallableIsolateGroupSharedConstructor,
+          replacement: _replaceNativeCallableIsolateGroupBoundConstructor,
         );
       } else if (target == nativeCallableListenerConstructor) {
+        if (_isMissingArguments(node)) {
+          return node;
+        }
         final DartType nativeType = InterfaceType(
           nativeFunctionClass,
           currentLibrary.nonNullable,
@@ -599,8 +732,8 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
         // Check return type.
         if (ffiFuncType.returnType != VoidType()) {
           diagnosticReporter.report(
-            templateFfiNativeCallableListenerReturnVoid.withArguments(
-              ffiFuncType.returnType,
+            diag.ffiNativeCallableListenerReturnVoid.withArguments(
+              returnType: ffiFuncType.returnType,
             ),
             func.fileOffset,
             1,
@@ -611,17 +744,18 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
 
         final replacement = _replaceNativeCallableListenerConstructor(node);
 
-        final compoundClasses =
-            funcType.positionalParameters
-                .whereType<InterfaceType>()
-                .map((t) => t.classNode)
-                .where(
-                  (c) =>
-                      c.superclass == structClass || c.superclass == unionClass,
-                )
-                .toList();
+        final compoundClasses = funcType.positionalParameters
+            .whereType<InterfaceType>()
+            .map((t) => t.classNode)
+            .where(
+              (c) => c.superclass == structClass || c.superclass == unionClass,
+            )
+            .toList();
         return invokeCompoundConstructors(replacement, compoundClasses);
       } else if (target == allocateMethod) {
+        if (_isMissingArguments(node)) {
+          return node;
+        }
         final DartType nativeType = node.arguments.types[0];
 
         ensureNativeTypeValid(
@@ -653,6 +787,9 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
           );
         }
       } else if (target == structCreate || target == unionCreate) {
+        if (_isMissingArguments(node)) {
+          return node;
+        }
         final nativeType = node.arguments.types.first;
         ensureNativeTypeValid(nativeType, node, allowStructAndUnion: true);
         return _transformCompoundCreate(node);
@@ -664,7 +801,7 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
         // remaining invocations occur are places where `<expr>.address` is
         // disallowed, so issue an error.
         diagnosticReporter.report(
-          messageFfiAddressPosition,
+          diag.ffiAddressPosition,
           node.fileOffset,
           1,
           node.location?.file,
@@ -682,6 +819,20 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
     }
 
     return node;
+  }
+
+  /// Returns true if the [node] invocation is missing arguments.
+  ///
+  /// If a call is missing arguments, the front-end has already identified
+  /// compilation errors. In such cases, it is safe to early-return the
+  /// untransformed [node] because the transformation logic (which assumes valid
+  /// arguments) would crash, and the program is guaranteed to fail compilation.
+  static bool _isMissingArguments(StaticInvocation node) {
+    final target = node.target;
+    return node.arguments.types.length <
+            target.function.typeParameters.length ||
+        node.arguments.positional.length <
+            target.function.requiredParameterCount;
   }
 
   bool _isLeaf(InstanceConstant native) {
@@ -712,6 +863,7 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
       initializer: functionPointer,
       type: pointerType,
       isSynthesized: true,
+      isFinal: true,
     );
 
     final positionalParameters = [
@@ -847,6 +999,9 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
     StaticInvocation node,
     Expression exceptionalReturn,
   ) {
+    if (!allowEnclosingMutation) {
+      _reportEnclosingMutationInProcedureMode(node, 'Pointer.fromFunction');
+    }
     final nativeFunctionType = InterfaceType(
       nativeFunctionClass,
       currentLibrary.nonNullable,
@@ -1059,18 +1214,18 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
     );
   }
 
-  // NativeCallable<T>.isolateGroupShared(target, exceptionalReturn) calls become:
+  // NativeCallable<T>.isolateGroupBound(target, exceptionalReturn) calls become:
   // isStaticFunction is true:
-  //   _NativeCallableIsolateGroupShared<T>(
-  //       _createNativeCallableIsolateGroupShared<NativeFunction<T>>(
-  //           _nativeIsolateGroupSharedCallbackFunction<T>(target, exceptionalReturn),
+  //   _NativeCallableIsolateGroupBound<T>(
+  //       _createNativeCallableIsolateGroupBound<NativeFunction<T>>(
+  //           _nativeIsolateGroupBoundCallbackFunction<T>(target, exceptionalReturn),
   //           null);
   // isStaticFunction is false:
-  //   _NativeCallableIsolateGroupShared<T>(
-  //       _createNativeCallableIsolateGroupShared<NativeFunction<T>>(
-  //           _nativeIsolateGroupSharedClosureFunction<T>(exceptionalReturn),
+  //   _NativeCallableIsolateGroupBound<T>(
+  //       _createNativeCallableIsolateGroupBound<NativeFunction<T>>(
+  //           _nativeIsolateGroupBoundClosureFunction<T>(exceptionalReturn),
   //           target));
-  Expression _replaceNativeCallableIsolateGroupSharedConstructor(
+  Expression _replaceNativeCallableIsolateGroupBoundConstructor(
     StaticInvocation node,
     Expression exceptionalReturn,
     bool isStaticFunction,
@@ -1084,11 +1239,11 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
     late StaticInvocation pointerValue;
     if (isStaticFunction) {
       pointerValue = StaticInvocation(
-        createNativeCallableIsolateGroupSharedProcedure,
+        createNativeCallableIsolateGroupBoundProcedure,
         Arguments(
           [
             StaticInvocation(
-              nativeIsolateGroupSharedCallbackFunctionProcedure,
+              nativeIsolateGroupBoundCallbackFunctionProcedure,
               Arguments([
                 target,
                 exceptionalReturn,
@@ -1101,11 +1256,11 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
       );
     } else {
       pointerValue = StaticInvocation(
-        createNativeCallableIsolateGroupSharedProcedure,
+        createNativeCallableIsolateGroupBoundProcedure,
         Arguments(
           [
             StaticInvocation(
-              nativeIsolateGroupSharedClosureFunctionProcedure,
+              nativeIsolateGroupBoundClosureFunctionProcedure,
               Arguments([exceptionalReturn], types: node.arguments.types),
             ),
             target,
@@ -1116,7 +1271,7 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
     }
 
     return ConstructorInvocation(
-      nativeCallablePrivateIsolateGroupSharedConstructor,
+      nativeCallablePrivateIsolateGroupBoundConstructor,
       Arguments([pointerValue], types: node.arguments.types),
     );
   }
@@ -1127,6 +1282,9 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
     required Expression Function(StaticInvocation, Expression, bool)
     replacement,
   }) {
+    if (_isMissingArguments(node)) {
+      return node;
+    }
     final DartType nativeType = InterfaceType(
       nativeFunctionClass,
       currentLibrary.nonNullable,
@@ -1138,7 +1296,7 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
     final isStaticFunction = _isStaticFunction(func);
     if (fromFunction && !isStaticFunction) {
       diagnosticReporter.report(
-        templateFfiNotStatic.withArguments(fromFunctionMethod.name.text),
+        diag.ffiNotStatic.withArguments(name: fromFunctionMethod.name.text),
         func.fileOffset,
         1,
         func.location?.file,
@@ -1185,8 +1343,8 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
         expectedReturnClass.superclass == unionClass) {
       if (hasExceptionalReturn) {
         diagnosticReporter.report(
-          templateFfiExpectedNoExceptionalReturn.withArguments(
-            ffiFuncType.returnType,
+          diag.ffiExpectedNoExceptionalReturn.withArguments(
+            returnType: ffiFuncType.returnType,
           ),
           node.fileOffset,
           1,
@@ -1198,8 +1356,8 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
       // The exceptional return value is not optional for other return types.
       if (!hasExceptionalReturn) {
         diagnosticReporter.report(
-          templateFfiExpectedExceptionalReturn.withArguments(
-            ffiFuncType.returnType,
+          diag.ffiExpectedExceptionalReturn.withArguments(
+            returnType: ffiFuncType.returnType,
           ),
           node.fileOffset,
           1,
@@ -1210,11 +1368,13 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
 
       // The exceptional return value must be a constant so that it can be
       // referenced by precompiled trampoline's object pool.
-      if (exceptionalReturn is! BasicLiteral &&
-          !(exceptionalReturn is ConstantExpression &&
-              exceptionalReturn.constant is PrimitiveConstant)) {
+      final exceptionalReturnValue = _constantEvaluator.evaluate(
+        staticTypeContext!,
+        exceptionalReturn,
+      );
+      if (exceptionalReturnValue is UnevaluatedConstant) {
         diagnosticReporter.report(
-          messageFfiExpectedConstant,
+          diag.ffiExpectedConstant,
           node.fileOffset,
           1,
           node.location?.file,
@@ -1223,11 +1383,9 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
       }
 
       // Moreover it may not be null.
-      if (exceptionalReturn is NullLiteral ||
-          (exceptionalReturn is ConstantExpression &&
-              exceptionalReturn.constant is NullConstant)) {
+      if (exceptionalReturnValue is NullConstant) {
         diagnosticReporter.report(
-          messageFfiExceptionalReturnNull,
+          diag.ffiExceptionalReturnNull,
           node.fileOffset,
           1,
           node.location?.file,
@@ -1241,9 +1399,9 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
 
       if (!env.isSubtypeOf(returnType, funcType.returnType)) {
         diagnosticReporter.report(
-          templateFfiDartTypeMismatch.withArguments(
-            returnType,
-            funcType.returnType,
+          diag.ffiDartTypeMismatch.withArguments(
+            actualType: returnType,
+            expectedType: funcType.returnType,
           ),
           exceptionalReturn.fileOffset,
           1,
@@ -1251,16 +1409,18 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
         );
         return node;
       }
+
+      exceptionalReturn = ConstantExpression(
+        exceptionalReturnValue,
+        returnType,
+      );
     }
 
-    final compoundClasses =
-        funcType.positionalParameters
-            .whereType<InterfaceType>()
-            .map((t) => t.classNode)
-            .where(
-              (c) => c.superclass == structClass || c.superclass == unionClass,
-            )
-            .toList();
+    final compoundClasses = funcType.positionalParameters
+        .whereType<InterfaceType>()
+        .map((t) => t.classNode)
+        .where((c) => c.superclass == structClass || c.superclass == unionClass)
+        .toList();
     return invokeCompoundConstructors(
       replacement(node, exceptionalReturn, isStaticFunction),
       compoundClasses,
@@ -1274,11 +1434,10 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
     return _verifyAndReplaceNativeCallable(
       node,
       fromFunction: fromFunction,
-      replacement:
-          fromFunction
-              ? (node, exceptionalReturn, _) =>
-                  _replaceFromFunction(node, exceptionalReturn)
-              : _replaceNativeCallableIsolateLocalConstructor,
+      replacement: fromFunction
+          ? (node, exceptionalReturn, _) =>
+                _replaceFromFunction(node, exceptionalReturn)
+          : _replaceNativeCallableIsolateLocalConstructor,
     );
   }
 
@@ -1479,9 +1638,9 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
           ConstantExpression(
             dartType.typeArguments.isNotEmpty
                 ? InstantiationConstant(
-                  ConstructorTearOffConstant(constructor),
-                  dartType.typeArguments,
-                )
+                    ConstructorTearOffConstant(constructor),
+                    dartType.typeArguments,
+                  )
                 : ConstructorTearOffConstant(constructor),
           ),
         ],
@@ -1839,7 +1998,9 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
     final Class? extended = _extendsOrImplementsSealedClass(klass);
     if (extended != null) {
       diagnosticReporter.report(
-        templateFfiExtendsOrImplementsSealedClass.withArguments(extended.name),
+        diag.ffiExtendsOrImplementsSealedClass.withArguments(
+          sealedClassName: extended.name,
+        ),
         klass.fileOffset,
         1,
         klass.location?.file,
@@ -1852,7 +2013,7 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
     final isLeaf = getIsLeafBoolean(node);
     if (isLeaf == null) {
       diagnosticReporter.report(
-        templateFfiExpectedConstantArg.withArguments('isLeaf'),
+        diag.ffiExpectedConstantArg.withArguments(name: 'isLeaf'),
         node.fileOffset,
         1,
         node.location?.file,
@@ -1881,6 +2042,9 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
   /// native transformer and because it requires context from the library to
   /// resolve the asset id.
   StaticInvocation _replaceNativeAddressOf(StaticInvocation node) {
+    if (_isMissingArguments(node)) {
+      return node;
+    }
     final arg = node.arguments.positional.single;
     final nativeType = node.arguments.types.single;
 
@@ -1896,7 +2060,7 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
 
     if (nativeAnnotation == null) {
       diagnosticReporter.report(
-        messageFfiAddressOfMustBeNative,
+        diag.ffiAddressOfMustBeNative,
         arg.fileOffset,
         1,
         node.location?.file,
@@ -1991,7 +2155,7 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
       return node;
     }
 
-    final newName = '${target.name.text}#$methodPostfix';
+    final newName = '#${target.name.text}#$methodPostfix';
     final Procedure newTarget;
     final parent = target.parent;
     final members = switch (parent) {
@@ -2000,14 +2164,19 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
       _ => throw UnimplementedError('Unexpected parent: ${parent}'),
     };
 
-    final existingNewTarget =
-        members
-            .whereType<Procedure>()
-            .where((element) => element.name.text == newName)
-            .firstOrNull;
+    final existingNewTarget = members
+        .whereType<Procedure>()
+        .where((element) => element.name.text == newName)
+        .firstOrNull;
     if (existingNewTarget != null) {
       newTarget = existingNewTarget;
     } else {
+      if (!allowEnclosingMutation) {
+        _reportEnclosingMutationInProcedureMode(
+          node,
+          '@Native(isLeaf: true) function invocation',
+        );
+      }
       final cloner = CloneProcedureWithoutBody();
       newTarget = cloner.cloneProcedure(target, null);
       newTarget.name = Name(newName);
@@ -2156,8 +2325,9 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
         } else {
           arrayElementType = firstParamType.typeArguments.single;
         }
-        final arrayElementSize =
-            inlineSizeOf(arrayElementType as InterfaceType)!;
+        final arrayElementSize = inlineSizeOf(
+          arrayElementType as InterfaceType,
+        )!;
         // Array element. Pass in a newly constructed `_Compound`, with
         // adjusted offset.
         return (
@@ -2179,13 +2349,11 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
         final receiverType = staticTypeContext!.getExpressionType(
           subExpression.receiver,
         );
-        final implementsTypedData = TypeEnvironment(
-          coreTypes,
-          hierarchy,
-        ).isSubtypeOf(
-          receiverType,
-          InterfaceType(typedDataClass, Nullability.nonNullable),
-        );
+        final implementsTypedData = TypeEnvironment(coreTypes, hierarchy)
+            .isSubtypeOf(
+              receiverType,
+              InterfaceType(typedDataClass, Nullability.nonNullable),
+            );
         if (!implementsTypedData) break;
         if (receiverType is! InterfaceType) break;
         final classNode = receiverType.classNode;
@@ -2212,7 +2380,7 @@ mixin _FfiUseSiteTransformer on FfiTransformer {
     }
 
     diagnosticReporter.report(
-      messageFfiAddressReceiver,
+      diag.ffiAddressReceiver,
       argument.fileOffset,
       1,
       argument.location?.file,

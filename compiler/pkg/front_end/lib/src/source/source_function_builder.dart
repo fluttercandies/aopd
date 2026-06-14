@@ -2,14 +2,14 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
+import 'package:front_end/src/codes/diagnostic.dart' as diag;
 import 'package:kernel/ast.dart';
 import 'package:kernel/class_hierarchy.dart';
 
-import '../base/messages.dart'
-    show templateRequiredNamedParameterHasDefaultValueError;
 import '../builder/formal_parameter_builder.dart';
 import '../builder/omitted_type_builder.dart';
 import '../builder/type_builder.dart';
+import '../kernel/internal_ast.dart';
 import '../type_inference/type_inference_engine.dart'
     show IncludesTypeParametersNonCovariantly;
 import 'source_library_builder.dart';
@@ -26,19 +26,21 @@ import 'source_type_parameter_builder.dart';
 /// to the function. This is done to avoid adding type parameters to
 /// [Constructor]s which don't support them.
 void buildTypeParametersAndFormals(
-    SourceLibraryBuilder libraryBuilder,
-    FunctionNode function,
-    List<SourceNominalParameterBuilder>? declaredTypeParameters,
-    List<FormalParameterBuilder>? declaredFormals,
-    {required List<TypeParameter>? classTypeParameters,
-    required bool supportsTypeParameters}) {
+  SourceLibraryBuilder libraryBuilder,
+  FunctionNode function,
+  List<SourceNominalParameterBuilder>? declaredTypeParameters,
+  List<FormalParameterBuilder>? declaredFormals, {
+  required List<TypeParameter>? classTypeParameters,
+  required bool supportsTypeParameters,
+}) {
   IncludesTypeParametersNonCovariantly? needsCheckVisitor;
   if (classTypeParameters != null && classTypeParameters.isNotEmpty) {
-    needsCheckVisitor =
-        new IncludesTypeParametersNonCovariantly(classTypeParameters,
-            // We are checking the parameter types which are in a
-            // contravariant position.
-            initialVariance: Variance.contravariant);
+    needsCheckVisitor = new IncludesTypeParametersNonCovariantly(
+      classTypeParameters,
+      // We are checking the parameter types which are in a
+      // contravariant position.
+      initialVariance: Variance.contravariant,
+    );
   }
   if (declaredTypeParameters != null) {
     for (int i = 0; i < declaredTypeParameters.length; i++) {
@@ -58,7 +60,8 @@ void buildTypeParametersAndFormals(
   if (declaredFormals != null) {
     for (int i = 0; i < declaredFormals.length; i++) {
       FormalParameterBuilder formal = declaredFormals[i];
-      VariableDeclaration parameter = formal.build(libraryBuilder);
+      VariableDeclaration parameter =
+          (formal.build(libraryBuilder) as InternalVariable).astVariable;
       if (needsCheckVisitor != null) {
         if (parameter.type.accept(needsCheckVisitor)) {
           parameter.isCovariantByClass = true;
@@ -75,13 +78,15 @@ void buildTypeParametersAndFormals(
       }
 
       // Required named parameters can't have default values.
-      if (formal.isRequiredNamed && formal.initializerToken != null) {
+      if (formal.isRequiredNamed && formal.hasDeclaredInitializer) {
         libraryBuilder.addProblem(
-            templateRequiredNamedParameterHasDefaultValueError
-                .withArguments(formal.name),
-            formal.fileOffset,
-            formal.name.length,
-            formal.fileUri);
+          diag.requiredNamedParameterHasDefaultValueError.withArguments(
+            parameterName: formal.name,
+          ),
+          formal.fileOffset,
+          formal.name.length,
+          formal.fileUri,
+        );
       }
     }
   }

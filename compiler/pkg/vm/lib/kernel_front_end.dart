@@ -20,12 +20,12 @@ import 'package:front_end/src/api_unstable/vm.dart'
         CompilerOptions,
         CompilerResult,
         InvocationMode,
-        DiagnosticMessage,
+        CfeDiagnosticMessage,
         DiagnosticMessageHandler,
         FileSystem,
         FileSystemEntity,
         ProcessedOptions,
-        Severity,
+        CfeSeverity,
         StandardFileSystem,
         Verbosity,
         getMessageUri,
@@ -35,6 +35,8 @@ import 'package:front_end/src/api_unstable/vm.dart'
         parseExperimentalFlags,
         printDiagnosticMessage,
         resolveInputUri;
+import 'package:front_end/src/api_prototype/dynamic_module_validator.dart'
+    show DynamicInterfaceYamlFile;
 import 'package:kernel/ast.dart' show Component, Library;
 import 'package:kernel/binary/ast_to_binary.dart' show BinaryPrinter;
 import 'package:kernel/class_hierarchy.dart' show ClassHierarchy;
@@ -186,6 +188,11 @@ void declareCompilerOptions(ArgParser args) {
     help: 'Enable protobuf tree shaker v2 in AOT mode.',
     defaultsTo: false,
   );
+  args.addFlag(
+    'protobuf-tree-shaker-mixins',
+    help: 'Include protobuf messages with mixins in the tree shaker pass.',
+    defaultsTo: false,
+  );
   args.addMultiOption(
     'define',
     abbr: 'D',
@@ -316,6 +323,7 @@ Future<int> runCompiler(ArgResults options, String usage) async {
   final bool embedSources = options['embed-sources'];
   final bool enableAsserts = options['enable-asserts'];
   final bool useProtobufTreeShakerV2 = options['protobuf-tree-shaker-v2'];
+  final bool protobufTreeShakerMixins = options['protobuf-tree-shaker-mixins'];
   final String? manifestFilename = options['manifest'];
   final String? dataDir = options['component-name'] ?? options['data-dir'];
   final bool? supportMirrors = options['support-mirrors'];
@@ -382,17 +390,18 @@ Future<int> runCompiler(ArgResults options, String usage) async {
     previousErrorHandler: errorPrinter.call,
   );
 
-  final Uri? nativeAssetsUri =
-      nativeAssetsPath == null ? null : resolveInputUri(nativeAssetsPath);
+  final Uri? nativeAssetsUri = nativeAssetsPath == null
+      ? null
+      : resolveInputUri(nativeAssetsPath);
 
-  final Uri? recordedUsagesUri =
-      recordedUsagesFile == null ? null : resolveInputUri(recordedUsagesFile);
+  final Uri? recordedUsagesUri = recordedUsagesFile == null
+      ? null
+      : resolveInputUri(recordedUsagesFile);
 
   final String? dynamicInterfaceFilePath = options['dynamic-interface'];
-  final Uri? dynamicInterfaceUri =
-      dynamicInterfaceFilePath == null
-          ? null
-          : resolveInputUri(dynamicInterfaceFilePath);
+  final Uri? dynamicInterfaceUri = dynamicInterfaceFilePath == null
+      ? null
+      : resolveInputUri(dynamicInterfaceFilePath);
   final String? dumpDetailedDynamicInterface =
       options['dump-detailed-dynamic-interface'];
 
@@ -406,29 +415,29 @@ Future<int> runCompiler(ArgResults options, String usage) async {
 
   final List<Uri> additionalSources = sources.map(resolveInputUri).toList();
 
-  final CompilerOptions compilerOptions =
-      new CompilerOptions()
-        ..sdkSummary = platformKernelUri
-        ..fileSystem = fileSystem
-        ..additionalDills = additionalDills
-        ..packagesFileUri = packagesUri
-        ..explicitExperimentalFlags = parseExperimentalFlags(
-          parseExperimentalArguments(experimentalFlags),
-          onError: print,
-        )
-        ..onDiagnostic = (DiagnosticMessage m) {
-          errorDetector(m);
-        }
-        ..embedSourceText = embedSources
-        ..invocationModes = InvocationMode.parseArguments(
-          options['invocation-modes'],
-        )
-        ..verbosity = verbosity;
+  final CompilerOptions compilerOptions = new CompilerOptions()
+    ..sdkSummary = platformKernelUri
+    ..fileSystem = fileSystem
+    ..additionalDills = additionalDills
+    ..packagesFileUri = packagesUri
+    ..explicitExperimentalFlags = parseExperimentalFlags(
+      parseExperimentalArguments(experimentalFlags),
+      onError: print,
+    )
+    ..onDiagnostic = (CfeDiagnosticMessage m) {
+      errorDetector(m);
+    }
+    ..embedSourceText = embedSources
+    ..invocationModes = InvocationMode.parseArguments(
+      options['invocation-modes'],
+    )
+    ..verbosity = verbosity;
 
   compilerOptions.target = createFrontEndTarget(
     targetName,
     trackWidgetCreation: options['track-widget-creation'],
     supportMirrors: supportMirrors ?? !(aot || minimalKernel),
+    constKeepLocalsIndicator: !(aot || minimalKernel),
   );
   if (compilerOptions.target == null) {
     print('Failed to create front-end target $targetName.');
@@ -453,6 +462,7 @@ Future<int> runCompiler(ArgResults options, String usage) async {
       environmentDefines: environmentDefines,
       enableAsserts: enableAsserts,
       useProtobufTreeShakerV2: useProtobufTreeShakerV2,
+      protobufTreeShakerMixins: protobufTreeShakerMixins,
       minimalKernel: minimalKernel,
       treeShakeWriteOnlyFields: treeShakeWriteOnlyFields,
       targetOS: targetOS,
@@ -577,6 +587,7 @@ class KernelCompilationArguments {
   final bool useRapidTypeAnalysis;
   final bool treeShakeWriteOnlyFields;
   final bool useProtobufTreeShakerV2;
+  final bool protobufTreeShakerMixins;
   final bool minimalKernel;
   final String? targetOS;
   final String? fromDillFile;
@@ -600,6 +611,7 @@ class KernelCompilationArguments {
     this.useRapidTypeAnalysis = true,
     this.treeShakeWriteOnlyFields = false,
     this.useProtobufTreeShakerV2 = false,
+    this.protobufTreeShakerMixins = false,
     this.minimalKernel = false,
     this.targetOS,
     this.fromDillFile,
@@ -639,6 +651,18 @@ Future<KernelCompilationResults> compileToKernel(
     args.environmentDefines,
   );
 
+  List<Uri> additionalSources = args.additionalSources;
+  final dynamicInterface = args.dynamicInterface;
+  if (dynamicInterface != null) {
+    final fileUri = await asFileUri(args.options!.fileSystem, dynamicInterface);
+    final contents = File(fileUri.toFilePath()).readAsStringSync();
+    final dynamicInterfaceYamlFile = DynamicInterfaceYamlFile(contents);
+    additionalSources = [
+      ...additionalSources,
+      ...dynamicInterfaceYamlFile.getUserLibraryUris(dynamicInterface),
+    ];
+  }
+
   CompilerResult? compilerResult;
   final fromDillFile = args.fromDillFile;
   Uri? usedPackageConfig;
@@ -650,21 +674,21 @@ Future<KernelCompilationResults> compileToKernel(
   } else {
     final processedOptions = new ProcessedOptions(
       options: options,
-      inputs: [args.source!, ...args.additionalSources],
+      inputs: [args.source!, ...additionalSources],
     );
     compilerResult = await CompilerContext.runWithOptions(processedOptions, (
       CompilerContext context,
     ) async {
       return args.requireMain
           ? await kernelForProgram(
-            args.source!,
-            options,
-            additionalSources: args.additionalSources,
-          )
+              args.source!,
+              options,
+              additionalSources: additionalSources,
+            )
           : await kernelForModule([
-            args.source!,
-            ...args.additionalSources,
-          ], options);
+              args.source!,
+              ...additionalSources,
+            ], options);
     });
     usedPackageConfig = await processedOptions.resolvePackagesFileUri();
   }
@@ -752,6 +776,9 @@ Future runGlobalTransformations(
 
   final coreTypes = new CoreTypes(component);
 
+  // dynamic_interface_annotator transformation annotates AST nodes with
+  // pragmas and should precede other transformations looking at pragmas
+  // (such as mixin_deduplication and TFA).
   final dynamicInterface = args.dynamicInterface;
   if (dynamicInterface != null) {
     final fileUri = await asFileUri(args.options!.fileSystem, dynamicInterface);
@@ -778,7 +805,7 @@ Future runGlobalTransformations(
   // can benefit from mixin de-duplication.
   // At least, in addition to VM/AOT case we should run this transformation
   // when building a platform dill file for VM/JIT case.
-  mixin_deduplication.transformComponent(component);
+  mixin_deduplication.transformComponent(component, coreTypes, target);
 
   // Perform unreachable code elimination, which should be performed before
   // type flow analysis so TFA won't take unreachable code into account.
@@ -807,6 +834,7 @@ Future runGlobalTransformations(
       treeShakeSignatures: !args.minimalKernel,
       treeShakeWriteOnlyFields: args.treeShakeWriteOnlyFields,
       treeShakeProtobufs: args.useProtobufTreeShakerV2,
+      treeShakeProtobufMixins: args.protobufTreeShakerMixins,
       useRapidTypeAnalysis: args.useRapidTypeAnalysis,
     );
   } else {
@@ -843,7 +871,7 @@ Future runGlobalTransformations(
   final recordedUsagesFile = args.recordedUsages;
   if (recordedUsagesFile != null) {
     assert(args.source != null);
-    record_use.transformComponent(component, recordedUsagesFile, args.source!);
+    record_use.transformComponent(component, recordedUsagesFile);
   }
 }
 
@@ -878,8 +906,8 @@ class ErrorDetector {
 
   ErrorDetector({this.previousErrorHandler});
 
-  void call(DiagnosticMessage message) {
-    if (message.severity == Severity.error) {
+  void call(CfeDiagnosticMessage message) {
+    if (message.severity == CfeSeverity.error) {
       hasCompilationErrors = true;
     }
 
@@ -890,8 +918,8 @@ class ErrorDetector {
 class ErrorPrinter {
   final Verbosity verbosity;
   final DiagnosticMessageHandler? previousErrorHandler;
-  final Map<Uri?, List<DiagnosticMessage>> compilationMessages =
-      <Uri?, List<DiagnosticMessage>>{};
+  final Map<Uri?, List<CfeDiagnosticMessage>> compilationMessages =
+      <Uri?, List<CfeDiagnosticMessage>>{};
   final void Function(String) println;
 
   ErrorPrinter(
@@ -900,28 +928,29 @@ class ErrorPrinter {
     this.println = print,
   });
 
-  void call(DiagnosticMessage message) {
+  void call(CfeDiagnosticMessage message) {
     final sourceUri = getMessageUri(message);
-    (compilationMessages[sourceUri] ??= <DiagnosticMessage>[]).add(message);
+    (compilationMessages[sourceUri] ??= <CfeDiagnosticMessage>[]).add(message);
     previousErrorHandler?.call(message);
   }
 
   void printCompilationMessages() {
-    final sortedUris =
-        compilationMessages.keys.toList()..sort((a, b) {
-          // Sort messages without a corresponding uri before the location based
-          // messages, since these related to the whole compilation.
-          if (a != null && b != null) {
-            return '$a'.compareTo('$b');
-          } else if (a != null) {
-            return 1;
-          } else if (b != null) {
-            return -1;
-          }
-          return 0;
-        });
+    final sortedUris = compilationMessages.keys.toList()
+      ..sort((a, b) {
+        // Sort messages without a corresponding uri before the location based
+        // messages, since these related to the whole compilation.
+        if (a != null && b != null) {
+          return '$a'.compareTo('$b');
+        } else if (a != null) {
+          return 1;
+        } else if (b != null) {
+          return -1;
+        }
+        return 0;
+      });
     for (final Uri? sourceUri in sortedUris) {
-      for (final DiagnosticMessage message in compilationMessages[sourceUri]!) {
+      for (final CfeDiagnosticMessage message
+          in compilationMessages[sourceUri]!) {
         if (Verbosity.shouldPrint(verbosity, message)) {
           printDiagnosticMessage(message, println);
         }
@@ -957,6 +986,9 @@ Target? createFrontEndTarget(
   String targetName, {
   bool trackWidgetCreation = false,
   bool supportMirrors = true,
+  bool includeUnsupportedPlatformLibraryStubs = false,
+  bool? constKeepLocalsIndicator,
+  bool isClosureContextLoweringEnabled = false,
 }) {
   // Make sure VM-specific targets are available.
   installAdditionalTargets();
@@ -964,6 +996,10 @@ Target? createFrontEndTarget(
   final TargetFlags targetFlags = new TargetFlags(
     trackWidgetCreation: trackWidgetCreation,
     supportMirrors: supportMirrors,
+    includeUnsupportedPlatformLibraryStubs:
+        includeUnsupportedPlatformLibraryStubs,
+    constKeepLocalsIndicator: constKeepLocalsIndicator,
+    isClosureContextLoweringEnabled: isClosureContextLoweringEnabled,
   );
   return getTarget(targetName, targetFlags);
 }
@@ -1057,10 +1093,8 @@ Future writeOutputSplitByPackages(
 
         final BinaryPrinter printer = new BinaryPrinter(
           sink,
-          libraryFilter:
-              (lib) =>
-                  packageFor(lib, compilationResults.loadedLibraries) ==
-                  package,
+          libraryFilter: (lib) =>
+              packageFor(lib, compilationResults.loadedLibraries) == package,
         );
         printer.writeComponentFile(component);
 

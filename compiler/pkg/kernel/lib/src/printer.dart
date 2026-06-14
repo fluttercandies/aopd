@@ -17,10 +17,11 @@ const AstTextStrategy defaultAstTextStrategy = const AstTextStrategy();
 /// This is used to avoid dependency on the `Node.toString` implementations
 /// in testing.
 const AstTextStrategy astTextStrategyForTesting = const AstTextStrategy(
-    includeLibraryNamesInMembers: true,
-    includeLibraryNamesInTypes: true,
-    includeAuxiliaryProperties: false,
-    useMultiline: false);
+  includeLibraryNamesInMembers: true,
+  includeLibraryNamesInTypes: true,
+  includeAuxiliaryProperties: false,
+  useMultiline: false,
+);
 
 class AstTextStrategy {
   /// If `true`, references to classes and typedefs in types are prefixed by the
@@ -73,20 +74,21 @@ class AstTextStrategy {
   /// printed. If exceeded, '...' is printed instead.
   final int? maxConstantDepth;
 
-  const AstTextStrategy(
-      {this.includeLibraryNamesInTypes = false,
-      this.includeLibraryNamesInMembers = false,
-      this.includeAuxiliaryProperties = false,
-      this.showNullableOnly = false,
-      this.useQualifiedTypeParameterNames = true,
-      this.useQualifiedTypeParameterNamesRecurseOnNamedLocalFunctions = false,
-      this.useMultiline = true,
-      this.indentation = '  ',
-      this.maxStatementDepth = 50,
-      this.maxStatementsLength = null,
-      this.maxExpressionDepth = 50,
-      this.maxExpressionsLength = null,
-      this.maxConstantDepth = 10});
+  const AstTextStrategy({
+    this.includeLibraryNamesInTypes = false,
+    this.includeLibraryNamesInMembers = false,
+    this.includeAuxiliaryProperties = false,
+    this.showNullableOnly = false,
+    this.useQualifiedTypeParameterNames = true,
+    this.useQualifiedTypeParameterNamesRecurseOnNamedLocalFunctions = false,
+    this.useMultiline = true,
+    this.indentation = '  ',
+    this.maxStatementDepth = 50,
+    this.maxStatementsLength = null,
+    this.maxExpressionDepth = 50,
+    this.maxExpressionsLength = null,
+    this.maxConstantDepth = 10,
+  });
 }
 
 class AstPrinter {
@@ -97,7 +99,8 @@ class AstPrinter {
   int _constantLevel = 0;
   int _indentationLevel = 0;
   late final Map<LabeledStatement, String> _labelNames = {};
-  late final Map<VariableDeclaration, String> _variableNames = {};
+  late final Map<VariableDeclaration, String> _variableDeclarationNames = {};
+  late final Map<VariableBase, String> _variableNames = {};
 
   AstPrinter(this._strategy);
 
@@ -116,37 +119,60 @@ class AstPrinter {
   }
 
   void writeClassName(Reference? reference, {bool forType = false}) {
-    _sb.write(qualifiedClassNameToStringByReference(reference,
+    _sb.write(
+      qualifiedClassNameToStringByReference(
+        reference,
         includeLibraryName: forType
             ? _strategy.includeLibraryNamesInTypes
-            : _strategy.includeLibraryNamesInMembers));
+            : _strategy.includeLibraryNamesInMembers,
+      ),
+    );
   }
 
   void writeTypedefName(Reference? reference) {
-    _sb.write(qualifiedTypedefNameToStringByReference(reference,
-        includeLibraryName: _strategy.includeLibraryNamesInTypes));
+    _sb.write(
+      qualifiedTypedefNameToStringByReference(
+        reference,
+        includeLibraryName: _strategy.includeLibraryNamesInTypes,
+      ),
+    );
   }
 
   void writeExtensionName(Reference? reference) {
-    _sb.write(qualifiedExtensionNameToStringByReference(reference,
-        includeLibraryName: _strategy.includeLibraryNamesInMembers));
+    _sb.write(
+      qualifiedExtensionNameToStringByReference(
+        reference,
+        includeLibraryName: _strategy.includeLibraryNamesInMembers,
+      ),
+    );
   }
 
   void writeExtensionTypeDeclarationName(Reference? reference) {
-    _sb.write(qualifiedExtensionTypeDeclarationNameToStringByReference(
+    _sb.write(
+      qualifiedExtensionTypeDeclarationNameToStringByReference(
         reference,
-        includeLibraryName: _strategy.includeLibraryNamesInMembers));
+        includeLibraryName: _strategy.includeLibraryNamesInMembers,
+      ),
+    );
   }
 
   void writeQualifiedCanonicalNameToString(CanonicalName canonicalName) {
-    _sb.write(qualifiedCanonicalNameToString(canonicalName,
+    _sb.write(
+      qualifiedCanonicalNameToString(
+        canonicalName,
         includeLibraryName: _strategy.includeLibraryNamesInMembers,
-        includeLibraryNamesInTypes: _strategy.includeLibraryNamesInTypes));
+        includeLibraryNamesInTypes: _strategy.includeLibraryNamesInTypes,
+      ),
+    );
   }
 
   void writeMemberName(Reference? reference) {
-    _sb.write(qualifiedMemberNameToStringByReference(reference,
-        includeLibraryName: _strategy.includeLibraryNamesInMembers));
+    _sb.write(
+      qualifiedMemberNameToStringByReference(
+        reference,
+        includeLibraryName: _strategy.includeLibraryNamesInMembers,
+      ),
+    );
   }
 
   void writeInterfaceMemberName(Reference? reference, Name? name) {
@@ -154,8 +180,12 @@ class AstPrinter {
       writeName(name);
     } else {
       write('{');
-      _sb.write(qualifiedMemberNameToStringByReference(reference,
-          includeLibraryName: _strategy.includeLibraryNamesInMembers));
+      _sb.write(
+        qualifiedMemberNameToStringByReference(
+          reference,
+          includeLibraryName: _strategy.includeLibraryNamesInMembers,
+        ),
+      );
       write('}');
     }
   }
@@ -165,8 +195,12 @@ class AstPrinter {
   }
 
   void writeName(Name? name) {
-    _sb.write(nameToString(name,
-        includeLibraryName: _strategy.includeLibraryNamesInMembers));
+    _sb.write(
+      nameToString(
+        name,
+        includeLibraryName: _strategy.includeLibraryNamesInMembers,
+      ),
+    );
   }
 
   void writeNamedType(NamedType node) {
@@ -174,19 +208,27 @@ class AstPrinter {
   }
 
   void writeTypeParameterName(TypeParameter parameter) {
-    _sb.write(_strategy.useQualifiedTypeParameterNames
-        ? qualifiedTypeParameterNameToString(parameter,
-            includeLibraryName: _strategy.includeLibraryNamesInTypes,
-            recurseOnLocalFunction: _strategy
-                .useQualifiedTypeParameterNamesRecurseOnNamedLocalFunctions)
-        : typeParameterNameToString(parameter));
+    _sb.write(
+      _strategy.useQualifiedTypeParameterNames
+          ? qualifiedTypeParameterNameToString(
+              parameter,
+              includeLibraryName: _strategy.includeLibraryNamesInTypes,
+              recurseOnLocalFunction: _strategy
+                  .useQualifiedTypeParameterNamesRecurseOnNamedLocalFunctions,
+            )
+          : typeParameterNameToString(parameter),
+    );
   }
 
   void writeStructuralParameterName(StructuralParameter parameter) {
-    _sb.write(_strategy.useQualifiedTypeParameterNames
-        ? qualifiedStructuralParameterNameToString(parameter,
-            includeLibraryName: _strategy.includeLibraryNamesInTypes)
-        : structuralParameterNameToString(parameter));
+    _sb.write(
+      _strategy.useQualifiedTypeParameterNames
+          ? qualifiedStructuralParameterNameToString(
+              parameter,
+              includeLibraryName: _strategy.includeLibraryNamesInTypes,
+            )
+          : structuralParameterNameToString(parameter),
+    );
   }
 
   void newLine() {
@@ -202,12 +244,30 @@ class AstPrinter {
     return _labelNames[node] ??= 'label${_labelNames.length}';
   }
 
-  String getVariableName(VariableDeclaration node) {
-    String? name = node.name;
-    if (name != null) {
-      return name;
+  String getVariableName(VariableBase node) {
+    switch (node) {
+      case NamedParameter(parameterName: var name):
+      case PositionalParameter(cosmeticName: var name?):
+      case TypeVariable(cosmeticName: var name?):
+      case LocalVariable(cosmeticName: var name?):
+        return name;
+      case ThisVariable():
+        return 'this';
+      case PositionalParameter(cosmeticName: null):
+      case TypeVariable(cosmeticName: null):
+      case LocalVariable(cosmeticName: null):
+      case SyntheticVariable():
+        return _variableNames[node] ??= '#${_variableNames.length}';
+      case CatchVariable(catchVariableName: var name):
+        return name;
+      case LegacyVariableDeclaration():
+        String? name = node.name;
+        if (name != null) {
+          return name;
+        }
+        return _variableDeclarationNames[node] ??=
+            '#${_variableDeclarationNames.length}';
     }
-    return _variableNames[node] ??= '#${_variableNames.length}';
   }
 
   String getSwitchCaseName(SwitchCase node) {
@@ -450,7 +510,7 @@ class AstPrinter {
     node.toTextInternal(this, includeTypeArguments: includeTypeArguments);
   }
 
-  /// Writes the variable declaration [node] to the printer buffer.
+  /// Writes the [VariableInitialization] [node] to the printer buffer.
   ///
   /// If [includeModifiersAndType] is `true`, the declaration is prefixed by
   /// the modifiers and declared type of the variable. Otherwise only the
@@ -458,11 +518,13 @@ class AstPrinter {
   ///
   /// If [isLate] and [type] are provided, these values are used instead of
   /// the corresponding properties on [node].
-  void writeVariableDeclaration(VariableDeclaration node,
-      {bool includeModifiersAndType = true,
-      bool? isLate,
-      DartType? type,
-      bool includeInitializer = true}) {
+  void writeVariableInitialization(
+    VariableInitializationBase node, {
+    bool includeModifiersAndType = true,
+    bool? isLate,
+    DartType? type,
+    bool includeInitializer = true,
+  }) {
     if (includeModifiersAndType) {
       if (node.isRequired) {
         _sb.write('required ');
@@ -479,11 +541,44 @@ class AstPrinter {
       writeType(type ?? node.type);
       _sb.write(' ');
     }
-    _sb.write(getVariableName(node));
+    _sb.write(getVariableName(node.variable));
     if (includeInitializer && node.initializer != null && !node.isRequired) {
       _sb.write(' = ');
       writeExpression(node.initializer!);
     }
+  }
+
+  /// Writes the variable declaration [node] to the printer buffer.
+  ///
+  /// If [includeModifiersAndType] is `true`, the declaration is prefixed by
+  /// the modifiers and declared type of the variable. Otherwise only the
+  /// name and the initializer, if present, are included.
+  ///
+  /// If [isLate] and [type] are provided, these values are used instead of
+  /// the corresponding properties on [node].
+  void writeExpressionVariable(
+    VariableDeclaration node, {
+    bool includeModifiersAndType = true,
+    bool? isLate,
+    DartType? type,
+  }) {
+    if (includeModifiersAndType) {
+      if (node is FunctionParameter && node.isRequired) {
+        _sb.write('required ');
+      }
+      if (isLate ?? (node is! FunctionParameter && node.isLate)) {
+        _sb.write('late ');
+      }
+      if (node is! FunctionParameter && node.isFinal) {
+        _sb.write('final ');
+      }
+      if (node is! FunctionParameter && node.isConst) {
+        _sb.write('const ');
+      }
+      writeType(type ?? node.type);
+      _sb.write(' ');
+    }
+    _sb.write(getVariableName(node));
   }
 
   void writeFunctionNode(FunctionNode node, String name) {
@@ -510,7 +605,7 @@ class AstPrinter {
       if (index == node.requiredParameterCount) {
         _sb.write('[');
       }
-      writeVariableDeclaration(node.positionalParameters[index]);
+      writeVariableInitialization(node.positionalParameters[index]);
     }
     if (node.requiredParameterCount < node.positionalParameters.length) {
       _sb.write(']');
@@ -524,7 +619,7 @@ class AstPrinter {
         if (index > 0) {
           _sb.write(', ');
         }
-        writeVariableDeclaration(node.namedParameters[index]);
+        writeVariableInitialization(node.namedParameters[index]);
       }
       _sb.write('}');
     }

@@ -34,13 +34,13 @@ class Component extends TreeNode {
   Reference? _mainMethodName;
   Reference? get mainMethodName => _mainMethodName;
 
-  Component(
-      {CanonicalName? nameRoot,
-      List<Library>? libraries,
-      Map<Uri, Source>? uriToSource})
-      : root = nameRoot ?? new CanonicalName.root(),
-        libraries = libraries ?? <Library>[],
-        uriToSource = uriToSource ?? <Uri, Source>{} {
+  Component({
+    CanonicalName? nameRoot,
+    List<Library>? libraries,
+    Map<Uri, Source>? uriToSource,
+  }) : root = nameRoot ?? new CanonicalName.root(),
+       libraries = libraries ?? <Library>[],
+       uriToSource = uriToSource ?? <Uri, Source>{} {
     adoptChildren();
   }
 
@@ -146,8 +146,11 @@ class Component extends TreeNode {
 
   /// Translates an offset to line and column numbers in the given file.
   Location? getLocation(Uri file, int offset, {String? viaForErrorMessage}) {
-    return uriToSource[file]
-        ?.getLocation(file, offset, viaForErrorMessage: viaForErrorMessage);
+    return uriToSource[file]?.getLocation(
+      file,
+      offset,
+      viaForErrorMessage: viaForErrorMessage,
+    );
   }
 
   /// Translates line and column numbers to an offset in the given file.
@@ -157,6 +160,14 @@ class Component extends TreeNode {
   /// Throws [RangeError] if line or calculated offset are out of range.
   int getOffset(Uri file, int line, int column) {
     return uriToSource[file]?.getOffset(line, column) ?? -1;
+  }
+
+  /// Translates line and column numbers to an offset in the given file.
+  ///
+  /// Returns offset of the line and column in the file, or -1 if the
+  /// source is not available, has no lines, or the line is out of range.
+  int getOffsetNoThrow(Uri file, int line, int column) {
+    return uriToSource[file]?.getOffsetNoThrow(line, column) ?? -1;
   }
 
   void addMetadataRepository(MetadataRepository repository) {
@@ -208,7 +219,7 @@ class Source {
   Source(this.lineStarts, this.source, this.importUri, this.fileUri);
 
   Source.emptySource(this.lineStarts, this.importUri, this.fileUri)
-      : source = _emptySource;
+    : source = _emptySource;
 
   /// Return the text corresponding to [line] which is a 1-based line
   /// number. The returned line contains no line separators.
@@ -249,15 +260,21 @@ class Source {
     }
     if (viaForErrorMessage != null) {
       RangeError.checkValueInInterval(
-          offset,
-          0,
-          lineStarts.last,
-          'offset',
-          'Asked for out-of-bounds offset for uri "$file" '
-              'via $viaForErrorMessage');
+        offset,
+        0,
+        lineStarts.last,
+        'offset',
+        'Asked for out-of-bounds offset for uri "$file" '
+            'via $viaForErrorMessage',
+      );
     } else {
-      RangeError.checkValueInInterval(offset, 0, lineStarts.last, 'offset',
-          'Asked for out-of-bounds offset for uri "$file"');
+      RangeError.checkValueInInterval(
+        offset,
+        0,
+        lineStarts.last,
+        'offset',
+        'Asked for out-of-bounds offset for uri "$file"',
+      );
     }
     int low = 0, high = lineStarts.length - 1;
     while (low < high) {
@@ -289,6 +306,25 @@ class Source {
     RangeError.checkValueInInterval(line, 1, lineStarts.length, 'line');
     int offset = lineStarts[line - 1] + column - 1;
     RangeError.checkValueInInterval(offset, 0, lineStarts.last, 'offset');
+    return offset;
+  }
+
+  /// Translates 1-based line and column numbers to an offset in the given file
+  ///
+  /// Returns offset of the line and column in the file, or -1 if the source
+  /// has no lines or the input is out of range.
+  int getOffsetNoThrow(int line, int column) {
+    List<int>? lineStarts = this.lineStarts;
+    if (lineStarts == null || lineStarts.isEmpty) {
+      return -1;
+    }
+    if (line < 1 || line > lineStarts.length) {
+      return -1;
+    }
+    int offset = lineStarts[line - 1] + column - 1;
+    if (offset < 0 || offset > lineStarts.last) {
+      return -1;
+    }
     return offset;
   }
 }

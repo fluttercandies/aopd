@@ -5,6 +5,7 @@
 import 'package:_fe_analyzer_shared/src/metadata/expressions.dart' as shared;
 import 'package:_fe_analyzer_shared/src/parser/member_kind.dart';
 import 'package:_fe_analyzer_shared/src/scanner/scanner.dart' show Token;
+import 'package:front_end/src/codes/diagnostic.dart' as diag;
 import 'package:kernel/ast.dart';
 import 'package:kernel/class_hierarchy.dart';
 import 'package:kernel/core_types.dart';
@@ -12,9 +13,12 @@ import 'package:kernel/transformations/flags.dart';
 import 'package:kernel/type_algebra.dart';
 import 'package:kernel/type_environment.dart';
 
+import '../api_prototype/experimental_flags.dart';
 import '../api_prototype/lowering_predicates.dart';
 import '../base/constant_context.dart';
+import '../base/extension_scope.dart';
 import '../base/local_scope.dart';
+import '../base/lookup_result.dart';
 import '../base/messages.dart';
 import '../base/modifiers.dart';
 import '../base/scope.dart';
@@ -30,17 +34,16 @@ import '../builder/omitted_type_builder.dart';
 import '../builder/property_builder.dart';
 import '../builder/type_builder.dart';
 import '../builder/variable_builder.dart';
-import '../kernel/body_builder.dart';
 import '../kernel/body_builder_context.dart';
-import '../kernel/constness.dart';
-import '../kernel/expression_generator_helper.dart';
 import '../kernel/hierarchy/class_member.dart';
 import '../kernel/hierarchy/members_builder.dart';
 import '../kernel/implicit_field_type.dart';
 import '../kernel/internal_ast.dart';
+import '../kernel/kernel_helper.dart';
 import '../kernel/late_lowering.dart' as late_lowering;
 import '../kernel/member_covariance.dart';
 import '../kernel/type_algorithms.dart';
+import '../source/check_helper.dart';
 import '../source/fragment_factory.dart';
 import '../source/name_scheme.dart';
 import '../source/name_space_builder.dart';
@@ -58,11 +61,9 @@ import '../source/source_property_builder.dart';
 import '../source/source_type_alias_builder.dart';
 import '../source/source_type_parameter_builder.dart';
 import '../source/type_parameter_factory.dart';
-import '../type_inference/inference_helper.dart';
 import '../type_inference/inference_results.dart';
 import '../type_inference/type_inference_engine.dart';
-import '../type_inference/type_inferrer.dart';
-import '../type_inference/type_schema.dart';
+import '../util/helpers.dart';
 import 'constructor/declaration.dart';
 import 'factory/declaration.dart';
 import 'field/declaration.dart';
@@ -91,6 +92,7 @@ part 'method.dart';
 part 'mixin.dart';
 part 'named_mixin_application.dart';
 part 'primary_constructor.dart';
+part 'primary_constructor_body.dart';
 part 'primary_constructor_field.dart';
 part 'setter.dart';
 part 'type_parameter.dart';
@@ -102,6 +104,9 @@ sealed class Fragment {
   ///
   /// For unnamed extensions this is
   /// [UnnamedExtensionName.unnamedExtensionSentinel].
+  ///
+  /// For primary constructor bodies this is
+  /// [PrimaryConstructorBodyFragment.nameSentinel].
   ///
   /// For setters this is the name without `=`.
   ///
@@ -128,6 +133,9 @@ sealed class Fragment {
 abstract interface class LibraryFragment {
   /// Returns `true` if this is a patch library or patch part.
   bool get isPatch;
+
+  /// The [ExtensionScope] for this compilation unit.
+  ExtensionScope get extensionScope;
 }
 
 /// Common interface for declaration fragments such as
@@ -138,4 +146,7 @@ abstract interface class DeclarationFragment {
 
   /// Type parameters declared on this declaration.
   List<TypeParameterFragment>? get typeParameters;
+
+  /// Returns the body scope for this declaration.
+  LookupScope get bodyScope;
 }

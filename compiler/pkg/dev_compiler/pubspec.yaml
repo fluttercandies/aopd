@@ -3,7 +3,7 @@ name: dev_compiler
 publish_to: none
 
 environment:
-  sdk: ^3.8.0
+  sdk: '^3.12.0-0'
 
 resolution: workspace
 
@@ -19,6 +19,7 @@ dependencies:
   front_end: any
   js_shared: any
   kernel: any
+  package_config: any
   path: any
   shell_arg_splitter: any
   source_maps: any

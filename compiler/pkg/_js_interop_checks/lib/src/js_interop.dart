@@ -23,12 +23,12 @@ bool hasDartJSInteropAnnotation(Annotatable a) =>
     a.annotations.any(_isDartJSInteropAnnotation);
 
 /// Returns true iff the node has an `@anonymous` annotation from `package:js`
-/// or `dart:_js_annotations`.
+/// or `dart:js_interop`.
 bool hasAnonymousAnnotation(Annotatable a) =>
     a.annotations.any(_isAnonymousAnnotation);
 
 /// Returns true iff the node has an `@staticInterop` annotation from
-/// `package:js` or `dart:_js_annotations`.
+/// `package:js` or `dart:js_interop`.
 bool hasStaticInteropAnnotation(Annotatable a) =>
     a.annotations.any(_isStaticInteropAnnotation);
 
@@ -38,9 +38,14 @@ bool hasTrustTypesAnnotation(Annotatable a) =>
     a.annotations.any(_isTrustTypesAnnotation);
 
 /// Returns true iff the node has an `@JSExport(...)` annotation from
-/// `package:js` or `dart:_js_annotations`.
+/// `package:js` or `dart:js_interop`.
 bool hasJSExportAnnotation(Annotatable a) =>
     a.annotations.any(_isJSExportAnnotation);
+
+/// Returns true iff the node has an `@RecordUse()` annotation from
+/// `package:meta`.
+bool hasRecordUseAnnotation(Annotatable a) =>
+    a.annotations.any(_isRecordUseAnnotation);
 
 /// Returns true iff the node has an `@Native(...)` annotation from the internal
 /// `dart:_js_helper`.
@@ -53,12 +58,19 @@ bool hasPatchAnnotation(Annotatable a) => a.annotations.any(_isPatchAnnotation);
 /// If [a] has a `@JS('...')` annotation, returns the value inside the
 /// parentheses.
 ///
+/// This function only considers `JS` annotations defined in [interopLibraries]
+/// or, when that argument is not set, from both `package:js` and
+/// `dart:js_interop`.
+///
 /// If there is none or the class does not have a `@JS()` annotation, returns
 /// an empty String.
-String getJSName(Annotatable a) {
+String getJSName(Annotatable a, {Set<Uri>? interopLibraries}) {
   String jsClass = '';
   for (var annotation in a.annotations) {
-    if (_isJSInteropAnnotation(annotation)) {
+    if (_isJSInteropAnnotation(
+      annotation,
+      interopLibraries: interopLibraries,
+    )) {
       var jsClasses = stringAnnotationValues(annotation);
       if (jsClasses.isNotEmpty) {
         jsClass = jsClasses[0];
@@ -66,6 +78,14 @@ String getJSName(Annotatable a) {
     }
   }
   return jsClass;
+}
+
+/// If [a] has a `JS('...')` annotation from `dart:js_interop`, returns the
+/// value inside the parentheses.
+///
+/// If no such annotation exists, returns an empty string.
+String getDartJSInteropJSName(Annotatable a) {
+  return getJSName(a, interopLibraries: {_jsInterop});
 }
 
 /// If [a] has a `@Native('...')` annotation, returns the values inside the
@@ -112,6 +132,7 @@ final _internal = Uri.parse('dart:_internal');
 final _jsAnnotations = Uri.parse('dart:_js_annotations');
 final _jsHelper = Uri.parse('dart:_js_helper');
 final _jsInterop = Uri.parse('dart:js_interop');
+final _packageMeta = Uri.parse('package:meta/meta.dart');
 
 /// Returns true if [value] is the interop annotation whose class is
 /// [annotationClassName] from [interopLibraries].
@@ -130,8 +151,8 @@ bool _isInteropAnnotation(
   return interopLibraries.contains(importUri);
 }
 
-bool _isJSInteropAnnotation(Expression value) =>
-    _isInteropAnnotation(value, 'JS');
+bool _isJSInteropAnnotation(Expression value, {Set<Uri>? interopLibraries}) =>
+    _isInteropAnnotation(value, 'JS', interopLibraries: interopLibraries);
 
 bool _isPackageJSAnnotation(Expression value) => _isInteropAnnotation(
   value,
@@ -153,6 +174,9 @@ bool _isTrustTypesAnnotation(Expression value) =>
 
 bool _isJSExportAnnotation(Expression value) =>
     _isInteropAnnotation(value, 'JSExport');
+
+bool _isRecordUseAnnotation(Expression value) =>
+    _isInteropAnnotation(value, 'RecordUse', interopLibraries: {_packageMeta});
 
 /// Returns true if [value] is the `Native` annotation from `dart:_js_helper`.
 bool _isNativeAnnotation(Expression value) {
@@ -176,9 +200,9 @@ bool _isPatchAnnotation(Expression value) {
 ///
 /// - `@JS()` would return the "JS" class in "dart:_js_annotations".
 /// - `@anonymous` would return the "_Anonymous" class in
-/// "dart:_js_annotations".
+/// "dart:js_interop".
 /// - `@staticInterop` would return the "_StaticInterop" class in
-/// "dart:_js_annotations".
+/// "dart:js_interop".
 /// - `@Native` would return the "Native" class in "dart:_js_helper".
 ///
 /// This function works regardless of whether the CFE is evaluating constants,

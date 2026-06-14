@@ -245,28 +245,6 @@ class Dart2jsTarget extends Target {
   }
 
   @override
-  ir.Expression instantiateNoSuchMethodError(
-    CoreTypes coreTypes,
-    ir.Expression receiver,
-    String name,
-    ir.Arguments arguments,
-    int offset, {
-    bool isMethod = false,
-    bool isGetter = false,
-    bool isSetter = false,
-    bool isField = false,
-    bool isLocalVariable = false,
-    bool isDynamic = false,
-    bool isSuper = false,
-    bool isStatic = false,
-    bool isConstructor = false,
-    bool isTopLevel = false,
-  }) {
-    // TODO(sigmund): implement;
-    return ir.InvalidExpression(null);
-  }
-
-  @override
   ConstantsBackend get constantsBackend => Dart2jsConstantsBackend(
     supportsUnevaluatedConstants: supportsUnevaluatedConstants,
   );
@@ -389,7 +367,8 @@ class Dart2jsConstantsBackend extends ConstantsBackend {
   @override
   final bool supportsUnevaluatedConstants;
 
-  const Dart2jsConstantsBackend({required this.supportsUnevaluatedConstants});
+  const Dart2jsConstantsBackend({required this.supportsUnevaluatedConstants})
+    : super(keepLocals: false);
 
   @override
   NumberSemantics get numberSemantics => NumberSemantics.js;

@@ -4,7 +4,9 @@
 
 import 'dart:collection' show Queue;
 
-import 'package:_fe_analyzer_shared/src/messages/severity.dart' show Severity;
+import 'package:_fe_analyzer_shared/src/messages/severity.dart'
+    show CfeSeverity;
+import 'package:front_end/src/codes/diagnostic.dart' as diag;
 import 'package:kernel/ast.dart'
     show Class, Component, DartType, ExtensionTypeDeclaration, Library;
 
@@ -17,9 +19,7 @@ import '../base/messages.dart'
         Message,
         noLength,
         SummaryTemplate,
-        Template,
-        messagePlatformPrivateLibraryAccess,
-        templateInternalProblemContextSeverity;
+        Template;
 import '../base/problems.dart' show internalProblem;
 import '../base/ticker.dart' show Ticker;
 import '../base/uris.dart';
@@ -27,8 +27,6 @@ import '../builder/compilation_unit.dart';
 import '../builder/declaration_builders.dart';
 import '../builder/library_builder.dart';
 import '../builder/type_builder.dart';
-import '../codes/cfe_codes.dart'
-    show SummaryTemplate, Template, templateDillOutlineSummary;
 import '../kernel/type_builder_computer.dart' show TypeBuilderComputer;
 import '../source/source_loader.dart' show SourceLoader;
 import 'dill_library_builder.dart' show DillLibraryBuilder;
@@ -85,8 +83,10 @@ class DillLoader extends Loader {
   Ticker get ticker => target.ticker;
 
   void registerKnownLibrary(Library library) {
-    _knownLibraryBuilders[library.importUri] =
-        new DillLibraryBuilder(library, this);
+    _knownLibraryBuilders[library.importUri] = new DillLibraryBuilder(
+      library,
+      this,
+    );
   }
 
   /// Look up a library builder by the [uri], or if such doesn't exist, create
@@ -100,8 +100,11 @@ class DillLoader extends Loader {
   /// as part [uri], and [charOffset] is the location of the corresponding
   /// directive. If [accessor] isn't allowed to access [uri], it's a
   /// compile-time error.
-  DillLibraryBuilder read(Uri uri, int charOffset,
-      {CompilationUnit? accessor}) {
+  DillLibraryBuilder read(
+    Uri uri,
+    int charOffset, {
+    CompilationUnit? accessor,
+  }) {
     DillLibraryBuilder? libraryBuilder = _builders[uri];
     if (libraryBuilder == null) {
       libraryBuilder = _knownLibraryBuilders.remove(uri);
@@ -130,14 +133,24 @@ class DillLoader extends Loader {
     }
     if (accessor != null) {
       libraryBuilder.recordAccess(
-          accessor, charOffset, noLength, accessor.fileUri);
+        accessor,
+        charOffset,
+        noLength,
+        accessor.fileUri,
+      );
       if (!accessor.isAugmenting &&
           !accessor.isPart &&
-          !target.backendTarget
-              .allowPlatformPrivateLibraryAccess(accessor.importUri, uri)) {
+          !target.backendTarget.allowPlatformPrivateLibraryAccess(
+            accessor.importUri,
+            uri,
+          )) {
         // Coverage-ignore-block(suite): Not run.
-        accessor.addProblem(messagePlatformPrivateLibraryAccess, charOffset,
-            noLength, accessor.fileUri);
+        accessor.addProblem(
+          diag.platformPrivateLibraryAccess,
+          charOffset,
+          noLength,
+          accessor.fileUri,
+        );
       }
     }
     return libraryBuilder;
@@ -166,18 +179,25 @@ class DillLoader extends Loader {
 
   void _logSummary(Template<SummaryTemplate> template) {
     ticker.log(
-        // Coverage-ignore(suite): Not run.
-        (Duration elapsed, Duration sinceStart) {
-      int libraryCount = 0;
-      for (DillLibraryBuilder library in libraryBuilders) {
-        assert(library.loader == this);
-        libraryCount++;
-      }
-      double ms = elapsed.inMicroseconds / Duration.microsecondsPerMillisecond;
-      Message message = template.withArguments(
-          libraryCount, byteCount, ms, byteCount / ms, ms / libraryCount);
-      print("$sinceStart: ${message.problemMessage}");
-    });
+      // Coverage-ignore(suite): Not run.
+      (Duration elapsed, Duration sinceStart) {
+        int libraryCount = 0;
+        for (DillLibraryBuilder library in libraryBuilders) {
+          assert(library.loader == this);
+          libraryCount++;
+        }
+        double ms =
+            elapsed.inMicroseconds / Duration.microsecondsPerMillisecond;
+        Message message = template.withArguments(
+          count: libraryCount,
+          bytes: byteCount,
+          timeMs: ms,
+          rateBytesPerMs: byteCount / ms,
+          averageTimeMs: ms / libraryCount,
+        );
+        print("$sinceStart: ${message.problemMessage}");
+      },
+    );
   }
 
   /// Register [message] as a problem with a severity determined by the
@@ -189,17 +209,27 @@ class DillLoader extends Loader {
   // [currentSourceLoader] to forward messages to the [SourceLoader] instead.
   @override
   FormattedMessage? addProblem(
-      Message message, int charOffset, int length, Uri? fileUri,
-      {bool wasHandled = false,
-      List<LocatedMessage>? context,
-      Severity? severity,
-      bool problemOnLibrary = false,
-      List<Uri>? involvedFiles}) {
-    return _addMessage(message, charOffset, length, fileUri, severity,
-        wasHandled: wasHandled,
-        context: context,
-        problemOnLibrary: problemOnLibrary,
-        involvedFiles: involvedFiles);
+    Message message,
+    int charOffset,
+    int length,
+    Uri? fileUri, {
+    bool wasHandled = false,
+    List<LocatedMessage>? context,
+    CfeSeverity? severity,
+    bool problemOnLibrary = false,
+    List<Uri>? involvedFiles,
+  }) {
+    return _addMessage(
+      message,
+      charOffset,
+      length,
+      fileUri,
+      severity,
+      wasHandled: wasHandled,
+      context: context,
+      problemOnLibrary: problemOnLibrary,
+      involvedFiles: involvedFiles,
+    );
   }
 
   /// All messages reported by the compiler (errors, warnings, etc.) are routed
@@ -213,64 +243,86 @@ class DillLoader extends Loader {
   /// If [severity] is `Severity.error`, the message is added to
   /// [handledErrors] if [wasHandled] is true or to [unhandledErrors] if
   /// [wasHandled] is false.
-  FormattedMessage? _addMessage(Message message, int charOffset, int length,
-      Uri? fileUri, Severity? severity,
-      {bool wasHandled = false,
-      List<LocatedMessage>? context,
-      bool problemOnLibrary = false,
-      List<Uri>? involvedFiles}) {
+  FormattedMessage? _addMessage(
+    Message message,
+    int charOffset,
+    int length,
+    Uri? fileUri,
+    CfeSeverity? severity, {
+    bool wasHandled = false,
+    List<LocatedMessage>? context,
+    bool problemOnLibrary = false,
+    List<Uri>? involvedFiles,
+  }) {
     assert(
-        fileUri != missingUri, "Message unexpectedly reported on missing uri.");
+      fileUri != missingUri,
+      "Message unexpectedly reported on missing uri.",
+    );
     severity ??= message.code.severity;
-    if (severity == Severity.ignored) return null;
-    String trace = """
+    if (severity == CfeSeverity.ignored) return null;
+    String trace =
+        """
 message: ${message.problemMessage}
 charOffset: $charOffset
 fileUri: $fileUri
 severity: $severity
 """;
     if (!seenMessages.add(trace)) return null;
-    if (message.code.severity == Severity.context) {
+    if (message.code.severity == CfeSeverity.context) {
       internalProblem(
-          templateInternalProblemContextSeverity
-              .withArguments(message.code.name),
-          charOffset,
-          fileUri);
+        diag.internalProblemContextSeverity.withArguments(
+          messageCode: message.code.name,
+        ),
+        charOffset,
+        fileUri,
+      );
     }
     target.context.report(
-        fileUri != null
-            ? message.withLocation(fileUri, charOffset, length)
-            :
+      fileUri != null
+          ? message.withLocation(fileUri, charOffset, length)
+          :
             // Coverage-ignore(suite): Not run.
             message.withoutLocation(),
-        severity,
-        context: context,
-        involvedFiles: involvedFiles);
-    if (severity == Severity.error) {
+      severity,
+      context: context,
+      involvedFiles: involvedFiles,
+    );
+    if (severity == CfeSeverity.error) {
       (wasHandled
               ?
-              // Coverage-ignore(suite): Not run.
-              handledErrors
+                // Coverage-ignore(suite): Not run.
+                handledErrors
               : unhandledErrors)
-          .add(fileUri != null
-              ? message.withLocation(fileUri, charOffset, length)
-              :
-              // Coverage-ignore(suite): Not run.
-              message.withoutLocation());
+          .add(
+            fileUri != null
+                ? message.withLocation(fileUri, charOffset, length)
+                :
+                  // Coverage-ignore(suite): Not run.
+                  message.withoutLocation(),
+          );
     }
     FormattedMessage formattedMessage = target.createFormattedMessage(
-        message, charOffset, length, fileUri, context, severity,
-        involvedFiles: involvedFiles);
+      message,
+      charOffset,
+      length,
+      fileUri,
+      context,
+      severity,
+      involvedFiles: involvedFiles,
+    );
     return formattedMessage;
   }
 
   Template<SummaryTemplate> get outlineSummaryTemplate =>
-      templateDillOutlineSummary;
+      diag.dillOutlineSummary;
 
   /// Append compiled libraries from the given [component]. If the [filter] is
   /// provided, append only libraries whose [Uri] is accepted by the [filter].
-  List<DillLibraryBuilder> appendLibraries(Component component,
-      {bool Function(Uri uri)? filter, int byteCount = 0}) {
+  List<DillLibraryBuilder> appendLibraries(
+    Component component, {
+    bool Function(Uri uri)? filter,
+    int byteCount = 0,
+  }) {
     List<Library> componentLibraries = component.libraries;
     List<Uri> requestedLibraries = <Uri>[];
     for (int i = 0; i < componentLibraries.length; i++) {
@@ -318,32 +370,50 @@ severity: $severity
   void finalizeExports({bool suppressFinalizationErrors = false}) {
     for (DillLibraryBuilder builder in libraryBuilders) {
       builder.markAsReadyToFinalizeExports(
-          suppressFinalizationErrors: suppressFinalizationErrors);
+        suppressFinalizationErrors: suppressFinalizationErrors,
+      );
     }
   }
 
   @override
   ClassBuilder computeClassBuilderFromTargetClass(Class cls) {
+    ClassBuilder? classBuilder = currentSourceLoader?.referenceMap
+        .lookupClassBuilder(cls.reference);
+    if (classBuilder != null) {
+      return classBuilder;
+    }
     Library kernelLibrary = cls.enclosingLibrary;
     LibraryBuilder? library = lookupLibraryBuilder(kernelLibrary.importUri);
     if (library == null) {
-      library = currentSourceLoader
-          ?.lookupLoadedLibraryBuilder(kernelLibrary.importUri);
+      // Coverage-ignore-block(suite): Not run.
+      library = currentSourceLoader?.lookupLoadedLibraryBuilder(
+        kernelLibrary.importUri,
+      );
     }
-    return library!.lookupLocalMember(cls.name, required: true) as ClassBuilder;
+    return library!.lookupRequiredLocalMember(cls.name) as ClassBuilder;
   }
 
   @override
   ExtensionTypeDeclarationBuilder
-      computeExtensionTypeBuilderFromTargetExtensionType(
-          ExtensionTypeDeclaration extensionType) {
+  computeExtensionTypeBuilderFromTargetExtensionType(
+    ExtensionTypeDeclaration extensionType,
+  ) {
+    ExtensionTypeDeclarationBuilder? extensionTypeDeclarationBuilder =
+        currentSourceLoader?.referenceMap.lookupExtensionTypeDeclarationBuilder(
+          extensionType.reference,
+        );
+    if (extensionTypeDeclarationBuilder != null) {
+      return extensionTypeDeclarationBuilder;
+    }
     Library library = extensionType.enclosingLibrary;
     LibraryBuilder? libraryBuilder = lookupLibraryBuilder(library.importUri);
     if (libraryBuilder == null) {
-      libraryBuilder =
-          currentSourceLoader?.lookupLoadedLibraryBuilder(library.importUri);
+      // Coverage-ignore-block(suite): Not run.
+      libraryBuilder = currentSourceLoader?.lookupLoadedLibraryBuilder(
+        library.importUri,
+      );
     }
-    return libraryBuilder!.lookupLocalMember(extensionType.name, required: true)
+    return libraryBuilder!.lookupRequiredLocalMember(extensionType.name)
         as ExtensionTypeDeclarationBuilder;
   }
 

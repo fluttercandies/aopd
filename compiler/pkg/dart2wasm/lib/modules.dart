@@ -5,10 +5,10 @@
 import 'package:kernel/ast.dart';
 import 'package:kernel/core_types.dart';
 
+import 'compiler_options.dart';
+import 'reference_extensions.dart';
 import 'target.dart';
 import 'util.dart';
-
-const _mainModuleId = 0;
 
 Library? _enclosingLibraryForReference(Reference reference) {
   TreeNode? current = reference.node;
@@ -21,44 +21,43 @@ Library? _enclosingLibraryForReference(Reference reference) {
   throw ArgumentError('Could not find enclosing library for ${reference.node}');
 }
 
-Class? enclosingClassForReference(Reference reference) {
-  TreeNode? current = reference.node;
-  // References generated for constants will not have a node attached.
-  if (reference.node == null) return null;
-  while (current != null) {
-    if (current is Class) return current;
-    current = current.parent;
+class ModuleMetadataBuilder {
+  int _counter = WasmCompilerOptions.mainModuleId;
+  final WasmCompilerOptions options;
+
+  ModuleMetadataBuilder(this.options);
+
+  ModuleMetadata buildModuleMetadata({
+    bool emitAsMain = false,
+    bool skipEmit = false,
+  }) {
+    final id = _counter++;
+    final moduleImportName = options.translatorOptions.minify
+        ? intToMinString(id)
+        : 'module$id';
+    return ModuleMetadata._(
+      moduleImportName,
+      options.moduleNameForId(options.outputFile, id, emitAsMain: emitAsMain),
+      skipEmit: skipEmit,
+      isMain: id == WasmCompilerOptions.mainModuleId,
+    );
   }
-  return null;
-}
-
-class ModuleOutputBuilder {
-  int _counter = _mainModuleId;
-
-  ModuleOutput buildModule({bool emitAsMain = false, bool skipEmit = false}) =>
-      ModuleOutput._(_counter++, emitAsMain: emitAsMain, skipEmit: skipEmit);
 }
 
 /// Deferred loading metadata for a single dart2wasm output module.
 ///
-/// Each [ModuleOutput] will map to a single wasm module emitted by the
+/// Each [ModuleMetadata] will map to a single wasm module emitted by the
 /// compiler. The separation of modules is guided by the deferred imports
 /// defined in the source code.
 ///
 /// A module may contain code at any level of granularity. Code may be grouped
 /// by library, by class or neither. [containsReference] should be used to
 /// determine if a module contains a given class/member reference.
-class ModuleOutput {
-  /// The ID for the module which will be included in the emitted name.
-  final int _id;
-
-  /// The set of libraries contained in this module.
-  final Set<Library> libraries = {};
-
-  bool get isMain => _id == _mainModuleId;
+class ModuleMetadata {
+  final bool isMain;
 
   /// The name used to import and export this module.
-  String get moduleImportName => 'module$_id';
+  final String moduleImportName;
 
   /// The name added to the wasm output file for this module.
   final String moduleName;
@@ -66,95 +65,166 @@ class ModuleOutput {
   /// Whether or not a wasm file should be emitted for this module.
   final bool skipEmit;
 
-  ModuleOutput._(this._id, {this.skipEmit = false, bool emitAsMain = false})
-      : moduleName = emitAsMain || _id == _mainModuleId ? '' : 'module$_id';
-
-  /// Whether or not the provided kernel [Reference] is included in this module.
-  bool containsReference(Reference reference) {
-    final enclosingLibrary = _enclosingLibraryForReference(reference);
-    if (enclosingLibrary == null) return false;
-    return libraries.contains(enclosingLibrary);
-  }
+  ModuleMetadata._(
+    this.moduleImportName,
+    this.moduleName, {
+    this.skipEmit = false,
+    this.isMain = false,
+  });
 
   @override
-  String toString() => '$moduleImportName($libraries)';
+  String toString() => moduleImportName;
 }
 
 /// Data needed to create deferred modules.
 class ModuleOutputData {
-  /// All [ModuleOutput]s generated for the program.
-  final List<ModuleOutput> modules;
+  /// All [ModuleMetadata]s generated for the program.
+  final List<ModuleMetadata> modules;
 
-  final Map<Library, Map<String, List<ModuleOutput>>> _importMap;
+  /// Maps the [Reference] to the corresponding [ModuleMetadata].
+  final Map<Reference, ModuleMetadata>? referenceToModuleMetadata;
 
-  ModuleOutputData(this.modules, this._importMap) : assert(modules[0].isMain);
+  /// Maps the [Constant] to the corresponding [ModuleMetadata].
+  final Map<Constant, ModuleMetadata>? constantToModuleMetadata;
 
-  ModuleOutput get mainModule => modules[0];
-  Iterable<ModuleOutput> get deferredModules => modules.skip(1);
+  /// Maps the [Library] to the corresponding [ModuleMetadata].
+  final Map<Library, ModuleMetadata>? libraryToModuleMetadata;
+
+  /// Module for any unassigned reference.
+  final ModuleMetadata? defaultModule;
+
+  ModuleOutputData.fineGrainedSplit(
+    this.modules,
+    this.referenceToModuleMetadata,
+    this.constantToModuleMetadata,
+    this.defaultModule,
+  ) : libraryToModuleMetadata = null,
+      assert(modules[0].isMain);
+
+  ModuleOutputData.librarySplit(
+    this.modules,
+    this.libraryToModuleMetadata,
+    this.defaultModule,
+  ) : referenceToModuleMetadata = null,
+      constantToModuleMetadata = null,
+      assert(modules[0].isMain);
+
+  ModuleOutputData.monolithic(ModuleMetadata module)
+    : modules = [module],
+      libraryToModuleMetadata = null,
+      referenceToModuleMetadata = null,
+      constantToModuleMetadata = null,
+      defaultModule = module,
+      assert(module.isMain);
+
+  ModuleMetadata get mainModule => modules[0];
+  Iterable<ModuleMetadata> get deferredModules => modules.skip(1);
 
   bool get hasMultipleModules => modules.length > 1;
 
-  /// Mapping from deferred library import to the 'load list' of module names
-  /// needed for that import.
-  ///
-  /// If library L is required (either directly or indirectly) by two separate
-  /// imports, then L will be in its own module. That module will be included in
-  /// the load list for both those imports.
-  Map<String, Map<String, List<String>>> generateModuleImportMap() {
-    final result = <String, Map<String, List<String>>>{};
-    _importMap.forEach((lib, importMapping) {
-      final nameMapping = <String, List<String>>{};
-      importMapping.forEach((importName, modules) {
-        nameMapping[importName] =
-            modules.map((o) => o.moduleImportName).toList();
-      });
-      result[lib.importUri.toString()] = nameMapping;
-    });
-    return result;
+  /// Returns the module that contains [reference].
+  ModuleMetadata moduleForReference(Reference reference) {
+    // Turn artificial [Reference]s used in dart2wasm to the normal Kernel AST
+    // [Reference]s.
+    final node = reference.node;
+    if (node is Field) {
+      if (reference.isGetter) {
+        reference = node.getterReference;
+      } else if (reference.isSetter) {
+        reference = node.setterReference!;
+      } else if (reference.isStaticFieldInitializer) {
+        assert(node.isStatic);
+        reference = node.getterReference;
+      } else {
+        assert(reference == node.fieldReference);
+      }
+    } else if (node is Constructor) {
+      if (reference.isInitializerReference ||
+          reference.isConstructorBodyReference) {
+        reference = node.reference;
+      } else {
+        assert(reference == node.reference);
+      }
+    } else {
+      node as Procedure;
+      if (reference.isCheckedEntryReference ||
+          reference.isUncheckedEntryReference ||
+          reference.isBodyReference ||
+          reference.isTearOffReference) {
+        reference = reference.asMember.reference;
+      } else {
+        assert(reference == reference.asMember.reference);
+      }
+    }
+
+    // We may have fine-grained partitioning of the application.
+    if (referenceToModuleMetadata != null) {
+      return referenceToModuleMetadata![reference] ?? defaultModule!;
+    }
+    // We may have coarse-grained library-based partitioning of the application.
+    if (libraryToModuleMetadata != null) {
+      final library = _enclosingLibraryForReference(reference);
+      return libraryToModuleMetadata![library] ?? defaultModule!;
+    }
+    // We put the entire application into the same wasm module.
+    return defaultModule!;
   }
 
-  /// Returns the module that contains [reference].
-  ModuleOutput moduleForReference(Reference reference) =>
-      modules.firstWhere((e) => e.containsReference(reference));
+  ModuleMetadata? moduleForConstant(Constant constant) {
+    return constantToModuleMetadata?[constant];
+  }
 }
 
 /// Module strategy that puts all libraries into a single module.
 class DefaultModuleStrategy extends ModuleStrategy {
+  final CoreTypes coreTypes;
   final Component component;
+  final WasmCompilerOptions options;
 
-  DefaultModuleStrategy(this.component);
+  DefaultModuleStrategy(this.coreTypes, this.component, this.options);
 
   @override
   ModuleOutputData buildModuleOutputData() {
     // If deferred loading is not enabled then put every library in the main
     // module.
-    final mainModule = ModuleOutput._(_mainModuleId);
-    mainModule.libraries.addAll(component.libraries);
-    return ModuleOutputData([mainModule], const {});
+    final builder = ModuleMetadataBuilder(options);
+    final mainModule = builder.buildModuleMetadata(emitAsMain: true);
+    return ModuleOutputData.monolithic(mainModule);
   }
 
   @override
+  void addEntryPoints() {}
+
+  @override
   void prepareComponent() {}
+
+  @override
+  Future<void> processComponentAfterTfa(
+    DeferredModuleLoadingMap loadingMap,
+  ) async {}
 }
 
-bool _hasWasmExportPragma(CoreTypes coreTypes, Member m) =>
-    hasPragma(coreTypes, m, 'wasm:export');
-
 bool containsWasmExport(CoreTypes coreTypes, Library lib) {
-  if (lib.members.any((m) => _hasWasmExportPragma(coreTypes, m))) {
+  if (lib.members.any((m) => hasWasmExportPragma(coreTypes, m))) {
     return true;
   }
-  return lib.classes
-      .any((c) => c.members.any((m) => _hasWasmExportPragma(coreTypes, m)));
+  return lib.classes.any(
+    (c) => c.members.any((m) => hasWasmExportPragma(coreTypes, m)),
+  );
 }
 
 abstract class ModuleStrategy {
+  void addEntryPoints();
   void prepareComponent();
+  Future<void> processComponentAfterTfa(DeferredModuleLoadingMap loadingMap);
   ModuleOutputData buildModuleOutputData();
 }
 
 Set<Library> getReachableLibraries(
-    Library entryPoint, CoreTypes coreTypes, WasmTarget kernelTarget) {
+  Library entryPoint,
+  CoreTypes coreTypes,
+  WasmTarget kernelTarget,
+) {
   final List<Library> queue = [entryPoint];
   final Set<Library> reachable = {entryPoint};
   while (queue.isNotEmpty) {
@@ -167,4 +237,53 @@ Set<Library> getReachableLibraries(
     }
   }
   return reachable;
+}
+
+class DeferredModuleLoadingMap {
+  // Maps each (library, deferred import) to a unique id.
+  final Map<(Library, String), int> loadIds;
+
+  // Maps the unique load id to the deferred import.
+  final List<LibraryDependency> loadIdToDeferredImport;
+
+  // Maps (library, import-name)-id to list of needed modules.
+  //
+  // NOTE: The load lists are mutable and may get pruned by the compiler after
+  // code generation to avoid emitting & loading empty modules.
+  final List<List<ModuleMetadata>> moduleMap;
+
+  DeferredModuleLoadingMap._(
+    this.loadIds,
+    this.moduleMap,
+    this.loadIdToDeferredImport,
+  );
+
+  factory DeferredModuleLoadingMap.fromComponent(Component c) {
+    int nextLoadId = 0;
+    final loadIds = <(Library, String), int>{};
+    final loadIdToDeferredImport = <LibraryDependency>[];
+    final moduleMap = <List<ModuleMetadata>>[];
+    for (final library in c.libraries) {
+      for (final dep in library.dependencies) {
+        if (!dep.isDeferred) continue;
+        final name = dep.name!;
+        loadIds[(library, name)] = nextLoadId++;
+        loadIdToDeferredImport.add(dep);
+        moduleMap.add([]);
+      }
+    }
+    return DeferredModuleLoadingMap._(
+      loadIds,
+      moduleMap,
+      loadIdToDeferredImport,
+    );
+  }
+
+  void addModuleToLibraryImport(
+    Library lib,
+    String importName,
+    List<ModuleMetadata> modules,
+  ) {
+    moduleMap[loadIds[(lib, importName)]!].addAll(modules);
+  }
 }

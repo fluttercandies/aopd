@@ -15,8 +15,8 @@ class PerformanceCaseSpec {
     required this.color,
     required this.child,
     required this.eventKinds,
-    required int order,
-  }) : _order = order;
+    required this._order,
+  });
 
   final String title;
   final String description;
@@ -56,8 +56,9 @@ class PerformanceCaseSpec {
       return null;
     }
 
-    final _PerformanceCaseVisual? visual =
-        _PerformanceCaseVisual.forRoute(settings.name ?? routeName);
+    final _PerformanceCaseVisual? visual = _PerformanceCaseVisual.forRoute(
+      settings.name ?? routeName,
+    );
     if (visual == null) {
       return null;
     }
@@ -106,25 +107,24 @@ class _PerformanceCaseVisual {
   static _PerformanceCaseVisual? forRoute(String routeName) {
     return switch (routeName) {
       Routes.aopdPerformanceBuild => const _PerformanceCaseVisual(
-          target: 'StatefulElement.performRebuild',
-          child: SlowBuildDemoCard(),
-          eventKinds: <PerformanceEventKind>{PerformanceEventKind.build},
-        ),
+        target: 'StatefulElement.performRebuild',
+        child: SlowBuildDemoCard(),
+        eventKinds: <PerformanceEventKind>{PerformanceEventKind.build},
+      ),
       Routes.aopdPerformanceFrame => const _PerformanceCaseVisual(
-          target:
-              'BuildOwner.buildScope + PipelineOwner.flushLayout/flushPaint',
-          child: FramePressureDemoCard(),
-          eventKinds: <PerformanceEventKind>{
-            PerformanceEventKind.frame,
-            PerformanceEventKind.phase,
-          },
-        ),
+        target: 'BuildOwner.buildScope + PipelineOwner.flushLayout/flushPaint',
+        child: FramePressureDemoCard(),
+        eventKinds: <PerformanceEventKind>{
+          PerformanceEventKind.frame,
+          PerformanceEventKind.phase,
+        },
+      ),
       Routes.aopdPerformanceImage => const _PerformanceCaseVisual(
-          target:
-              'ImageCache.putIfAbsent + PaintingBinding.instantiateImageCodec*',
-          child: ImageLoadingDemoCard(),
-          eventKinds: <PerformanceEventKind>{PerformanceEventKind.image},
-        ),
+        target:
+            'ImageCache.putIfAbsent + PaintingBinding.instantiateImageCodec*',
+        child: ImageLoadingDemoCard(),
+        eventKinds: <PerformanceEventKind>{PerformanceEventKind.image},
+      ),
       _ => null,
     };
   }

@@ -6,6 +6,8 @@
 /// @docImport 'util.dart';
 library _fe_analyzer_shared.parser.parser;
 
+import 'package:_fe_analyzer_shared/src/messages/diagnostic.dart' as diag;
+
 import '../experiments/flags.dart';
 
 import '../messages/codes.dart' as codes;
@@ -68,6 +70,7 @@ import 'declaration_kind.dart' show DeclarationHeaderKind, DeclarationKind;
 
 import 'directive_context.dart';
 
+import 'experimental_features.dart';
 import 'formal_parameter_kind.dart' show FormalParameterKind;
 
 import 'forwarding_listener.dart' show ForwardingListener, NullListener;
@@ -222,7 +225,7 @@ import 'util.dart'
 ///
 /// When attempting to parse this function, the parser eventually calls
 /// [parseFunctionBody]. This method will report an unrecoverable error to the
-/// listener with the code [codes.codeExpectedFunctionBody]. The listener can
+/// listener with the code [diag.expectedFunctionBody]. The listener can
 /// then look at the error code and the token and use the methods in
 /// [native_support.dart](native_support.dart) to parse the native syntax.
 ///
@@ -271,8 +274,6 @@ import 'util.dart'
 class Parser {
   Listener listener;
 
-  Uri? get uri => listener.uri;
-
   bool mayParseFunctionExpressions = true;
 
   /// Represents parser state: what asynchronous syntax is allowed in the
@@ -314,14 +315,23 @@ class Parser {
   // implicit create expression without the special casing.
   final bool useImplicitCreationExpression;
 
-  /// Indicates whether pattern parsing is enabled.
+  /// The experiments currently enabled.
   ///
-  /// This ensures that we don't regress non-pattern functionality while pattern
-  /// parsing logic is being developed.  Eventually we will want to turn this
-  /// functionality on permanently, and leave it to the client to report an
-  /// appropriate error if a pattern is used while patterns are not enabled.
-  /// TODO(paulberry): remove this flag when appropriate.
-  final bool allowPatterns;
+  /// For performance, values used within the parser should be cached in fields,
+  /// similar to [isPatternsFeatureEnabled].
+  final ExperimentalFeatures experimentalFeatures;
+
+  /// `true` if the 'patterns' feature is enabled.
+  final bool isPatternsFeatureEnabled;
+
+  /// `true` if the 'enhanced-parts' feature is enabled.
+  final bool _isEnhancedPartsFeatureEnabled;
+
+  /// `true` if the 'primary-constructors' feature is enabled.
+  final bool isPrimaryConstructorsFeatureEnabled;
+
+  /// `true` if the 'anonymous-methods' feature is enabled.
+  final bool _isAnonymousMethodsFeatureEnabled;
 
   /// Indicates whether the last pattern parsed is allowed inside unary
   /// patterns.  This is set by [parsePrimaryPattern] and [parsePattern].
@@ -331,15 +341,30 @@ class Parser {
   /// [parsePrimaryPattern] and [parsePattern].
   bool isLastPatternAllowedInsideUnaryPattern = false;
 
-  /// Whether the `enhanced-parts` feature is enabled.
-  final bool enableFeatureEnhancedParts;
+  /// Whether the parser is allowed to shortcut certain [parseExpression] calls.
+  ///
+  /// Should be false if [parseExpression] is customized, e.g. if skipping
+  /// expressions.
+  bool get allowedToShortcutParseExpression => true;
+
+  /// `true` if the 'augmentations' feature is enabled.
+  final bool _isAugmentationsFeatureEnabled;
 
   Parser(
     this.listener, {
     this.useImplicitCreationExpression = true,
-    this.allowPatterns = false,
-    this.enableFeatureEnhancedParts = false,
-  }) : assert(listener != null); // ignore:unnecessary_null_comparison
+    required this.experimentalFeatures,
+  }) : isPatternsFeatureEnabled = experimentalFeatures.isExperimentEnabled(
+         ExperimentalFlag.patterns,
+       ),
+       _isEnhancedPartsFeatureEnabled = experimentalFeatures
+           .isExperimentEnabled(ExperimentalFlag.enhancedParts),
+       isPrimaryConstructorsFeatureEnabled = experimentalFeatures
+           .isExperimentEnabled(ExperimentalFlag.primaryConstructors),
+       _isAnonymousMethodsFeatureEnabled = experimentalFeatures
+           .isExperimentEnabled(ExperimentalFlag.anonymousMethods),
+       _isAugmentationsFeatureEnabled = experimentalFeatures
+           .isExperimentEnabled(ExperimentalFlag.augmentations);
 
   /// Executes [callback]; however if `this` is the `TestParser` (from
   /// `pkg/front_end/test/parser_test_parser.dart`) then no output is printed
@@ -399,7 +424,7 @@ class Parser {
     listener.beginCompilationUnit(token);
     int count = 0;
     DirectiveContext directiveState = new DirectiveContext(
-      enableFeatureEnhancedParts: enableFeatureEnhancedParts,
+      isEnhancedPartsFeatureEnabled: _isEnhancedPartsFeatureEnabled,
     );
     token = syntheticPreviousToken(token);
     if (identical(token.next!.type, TokenType.SCRIPT_TAG)) {
@@ -418,10 +443,7 @@ class Parser {
         token = token.next!;
         listener.beginMetadataStar(token);
         listener.endMetadataStar(/* count = */ 0);
-        reportRecoverableErrorWithToken(
-          token,
-          codes.templateExpectedDeclaration,
-        );
+        reportRecoverableErrorWithToken(token, diag.expectedDeclaration);
         listener.handleInvalidTopLevelDeclaration(token);
         listener.endTopLevelDeclaration(token);
         count++;
@@ -450,7 +472,7 @@ class Parser {
     listener.beginCompilationUnit(token);
     int count = 0;
     DirectiveContext directiveState = new DirectiveContext(
-      enableFeatureEnhancedParts: enableFeatureEnhancedParts,
+      isEnhancedPartsFeatureEnabled: _isEnhancedPartsFeatureEnabled,
     );
     token = syntheticPreviousToken(token);
     while (!token.next!.isEof) {
@@ -636,7 +658,7 @@ class Parser {
     // Recovery
     if (next.isOperator && next.next!.isA(TokenType.OPEN_PAREN)) {
       // This appears to be a top level operator declaration, which is invalid.
-      reportRecoverableError(next, codes.messageTopLevelOperator);
+      reportRecoverableError(next, diag.topLevelOperator);
       // Insert a synthetic identifier
       // and continue parsing as a top level function.
       rewriter.insertSyntheticIdentifier(
@@ -685,16 +707,16 @@ class Parser {
       context.parseEnumModifiers(modifierStart, keyword);
       // Enums can't declare any explicit modifier.
       if (baseToken != null) {
-        reportRecoverableError(baseToken, codes.messageBaseEnum);
+        reportRecoverableError(baseToken, diag.baseEnum);
       }
       if (context.finalToken != null) {
-        reportRecoverableError(context.finalToken!, codes.messageFinalEnum);
+        reportRecoverableError(context.finalToken!, diag.finalEnum);
       }
       if (interfaceToken != null) {
-        reportRecoverableError(interfaceToken, codes.messageInterfaceEnum);
+        reportRecoverableError(interfaceToken, diag.interfaceEnum);
       }
       if (sealedToken != null) {
-        reportRecoverableError(sealedToken, codes.messageSealedEnum);
+        reportRecoverableError(sealedToken, diag.sealedEnum);
       }
       return parseEnum(beginToken, context.augmentToken, keyword);
     } else {
@@ -780,16 +802,13 @@ class Parser {
           context.parseMixinModifiers(modifierStart, keyword);
           // Mixins can't have any modifier other than a base modifier.
           if (context.finalToken != null) {
-            reportRecoverableError(
-              context.finalToken!,
-              codes.messageFinalMixin,
-            );
+            reportRecoverableError(context.finalToken!, diag.finalMixin);
           }
           if (interfaceToken != null) {
-            reportRecoverableError(interfaceToken, codes.messageInterfaceMixin);
+            reportRecoverableError(interfaceToken, diag.interfaceMixin);
           }
           if (sealedToken != null) {
-            reportRecoverableError(sealedToken, codes.messageSealedMixin);
+            reportRecoverableError(sealedToken, diag.sealedMixin);
           }
           directiveState?.checkDeclaration();
           return parseMixin(
@@ -842,19 +861,13 @@ class Parser {
 
       // Mixin classes can't have any modifier other than a base modifier.
       if (context.finalToken != null) {
-        reportRecoverableError(
-          context.finalToken!,
-          codes.messageFinalMixinClass,
-        );
+        reportRecoverableError(context.finalToken!, diag.finalMixinClass);
       }
       if (interfaceToken != null) {
-        reportRecoverableError(
-          interfaceToken,
-          codes.messageInterfaceMixinClass,
-        );
+        reportRecoverableError(interfaceToken, diag.interfaceMixinClass);
       }
       if (sealedToken != null) {
-        reportRecoverableError(sealedToken, codes.messageSealedMixinClass);
+        reportRecoverableError(sealedToken, diag.sealedMixinClass);
       }
     } else {
       context.parseClassModifiers(modifierStart, classKeyword);
@@ -1045,13 +1058,13 @@ class Parser {
         if (firstDeferredKeyword != null) {
           reportRecoverableError(
             recoveryListener.deferredKeyword!,
-            codes.messageDuplicateDeferred,
+            diag.duplicateDeferred,
           );
         } else {
           if (hasPrefix) {
             reportRecoverableError(
               recoveryListener.deferredKeyword!,
-              codes.messageDeferredAfterPrefix,
+              diag.deferredAfterPrefix,
             );
           }
           firstDeferredKeyword = recoveryListener.deferredKeyword;
@@ -1061,13 +1074,13 @@ class Parser {
         if (hasPrefix) {
           reportRecoverableError(
             recoveryListener.asKeyword!,
-            codes.messageDuplicatePrefix,
+            diag.duplicatePrefix,
           );
         } else {
           if (hasCombinator) {
             reportRecoverableError(
               recoveryListener.asKeyword!,
-              codes.messagePrefixAfterCombinator,
+              diag.prefixAfterCombinator,
             );
           }
           hasPrefix = true;
@@ -1089,7 +1102,7 @@ class Parser {
     if (firstDeferredKeyword != null && !hasPrefix) {
       reportRecoverableError(
         firstDeferredKeyword,
-        codes.messageMissingPrefixInDeferredImport,
+        diag.missingPrefixInDeferredImport,
       );
     }
 
@@ -1125,7 +1138,7 @@ class Parser {
     if (!leftParen.isA(TokenType.OPEN_PAREN)) {
       reportRecoverableError(
         leftParen,
-        codes.templateExpectedButGot.withArguments('('),
+        diag.expectedButGot.withArguments(expected: '('),
       );
       leftParen = rewriter.insertParens(token, /* includeIdentifier = */ true);
     }
@@ -1143,7 +1156,7 @@ class Parser {
         // The scanner did not place the synthetic ')' correctly, so move it.
         next = rewriter.moveSynthetic(token, endGroup);
       } else {
-        reportRecoverableErrorWithToken(next, codes.templateUnexpectedToken);
+        reportRecoverableErrorWithToken(next, diag.unexpectedToken);
         next = endGroup;
       }
     }
@@ -1298,14 +1311,13 @@ class Parser {
 
   /// ```
   /// partDirective:
-  ///   'part' uri ('if' '(' test ')' uri)* ';'
+  ///   'part' uri ';'
   /// ;
   /// ```
   Token parsePart(Token partKeyword) {
     assert(partKeyword.isA(Keyword.PART));
     listener.beginPart(partKeyword);
     Token token = ensureLiteralString(partKeyword);
-    token = parseConditionalUriStar(token);
     token = ensureSemicolon(token);
     listener.endPart(partKeyword, token);
     return token;
@@ -1411,10 +1423,7 @@ class Parser {
       );
     }
     if (hasTypeArguments && !token.next!.isA(TokenType.OPEN_PAREN)) {
-      reportRecoverableError(
-        token,
-        codes.messageMetadataTypeArgumentsUninstantiated,
-      );
+      reportRecoverableError(token, diag.metadataTypeArgumentsUninstantiated);
     }
     token = parseArgumentsOptMetadata(token, hasTypeArguments);
     listener.endMetadata(atToken, period, token);
@@ -1456,6 +1465,9 @@ class Parser {
   /// ```
   Token parseTypedef(Token? augmentToken, Token typedefKeyword) {
     assert(typedefKeyword.isA(Keyword.TYPEDEF));
+    if (augmentToken != null) {
+      reportRecoverableError(augmentToken, diag.typedefAugmentation);
+    }
     listener.beginUncategorizedTopLevelDeclaration(typedefKeyword);
     listener.beginTypedef(typedefKeyword);
     TypeInfo typeInfo = computeType(typedefKeyword, /* required = */ false);
@@ -1536,7 +1548,7 @@ class Parser {
             );
             reportRecoverableError(
               functionToken,
-              codes.templateExpectedButGot.withArguments('Function'),
+              diag.expectedButGot.withArguments(expected: 'Function'),
             );
             type = computeType(equals, /* required = */ true);
           } else if (type is NoType &&
@@ -1573,7 +1585,7 @@ class Parser {
               );
               reportRecoverableError(
                 functionToken,
-                codes.templateExpectedButGot.withArguments('Function'),
+                diag.expectedButGot.withArguments(expected: 'Function'),
               );
               type = computeType(equals, /* required = */ true);
             }
@@ -1623,7 +1635,7 @@ class Parser {
       // Recovery: Report an error and insert synthetic `with` clause.
       reportRecoverableError(
         withKeyword,
-        codes.templateExpectedButGot.withArguments('with'),
+        diag.expectedButGot.withArguments(expected: 'with'),
       );
       withKeyword = rewriter.insertSyntheticKeyword(token, Keyword.WITH);
       if (!isValidNonRecordTypeReference(withKeyword.next!)) {
@@ -1670,7 +1682,7 @@ class Parser {
     Token next = token.next!;
     if (next.isA(TokenType.OPEN_PAREN)) {
       if (isGetter) {
-        reportRecoverableError(next, codes.messageGetterWithFormals);
+        reportRecoverableError(next, diag.getterWithFormals);
       }
       token = parseFormalParameters(token, kind);
     } else if (isGetter) {
@@ -1785,7 +1797,7 @@ class Parser {
             // Looks like a missing comma
             token = rewriteAndRecover(
               token,
-              codes.templateExpectedButGot.withArguments(','),
+              diag.expectedButGot.withArguments(expected: ','),
               new SyntheticToken(TokenType.COMMA, next.charOffset),
             );
             continue;
@@ -1805,13 +1817,13 @@ class Parser {
       // Empty record type with a comma `(,)`.
       reportRecoverableError(
         illegalTrailingComma,
-        codes.messageRecordTypeZeroFieldsButTrailingComma,
+        diag.recordTypeZeroFieldsButTrailingComma,
       );
     } else if (parameterCount == 1 && !hasNamedFields && !sawComma) {
       // Single non-named element without trailing comma.
       reportRecoverableError(
         token,
-        codes.messageRecordTypeOnePositionalFieldNoTrailingComma,
+        diag.recordTypeOnePositionalFieldNoTrailingComma,
       );
     }
 
@@ -1871,7 +1883,7 @@ class Parser {
           // Recovery
           reportRecoverableError(
             next,
-            codes.templateExpectedButGot.withArguments('}'),
+            diag.expectedButGot.withArguments(expected: '}'),
           );
           // Scanner guarantees a closing bracket.
           next = begin.endGroup!;
@@ -1884,10 +1896,7 @@ class Parser {
     token = next;
     assert(token.isA(TokenType.CLOSE_CURLY_BRACKET));
     if (parameterCount == 0) {
-      reportRecoverableError(
-        token,
-        codes.messageEmptyRecordTypeNamedFieldsList,
-      );
+      reportRecoverableError(token, diag.emptyRecordTypeNamedFieldsList);
     }
     listener.endRecordTypeNamedFields(parameterCount, begin);
     return token;
@@ -1969,7 +1978,7 @@ class Parser {
             // Looks like a missing comma
             token = rewriteAndRecover(
               token,
-              codes.templateExpectedButGot.withArguments(','),
+              diag.expectedButGot.withArguments(expected: ','),
               new SyntheticToken(TokenType.COMMA, next.charOffset),
             );
             continue;
@@ -1991,10 +2000,10 @@ class Parser {
   codes.Message missingParameterMessage(MemberKind kind) {
     switch (kind) {
       case MemberKind.FunctionTypeAlias:
-        return codes.messageMissingTypedefParameters;
+        return diag.missingTypedefParameters;
       case MemberKind.StaticMethod:
       case MemberKind.NonStaticMethod:
-        return codes.messageMissingMethodParameters;
+        return diag.missingMethodParameters;
       case MemberKind.TopLevelMethod:
       case MemberKind.ExtensionNonStaticMethod:
       case MemberKind.ExtensionStaticMethod:
@@ -2005,11 +2014,12 @@ class Parser {
       case MemberKind.FunctionTypedParameter:
       case MemberKind.GeneralizedFunctionType:
       case MemberKind.Local:
+      case MemberKind.AnonymousMethod:
       case MemberKind.NonStaticField:
       case MemberKind.StaticField:
       case MemberKind.TopLevelField:
       case MemberKind.PrimaryConstructor:
-        return codes.messageMissingFunctionParameters;
+        return diag.missingFunctionParameters;
     }
   }
 
@@ -2077,6 +2087,7 @@ class Parser {
             case MemberKind.FunctionTypedParameter:
             case MemberKind.GeneralizedFunctionType:
             case MemberKind.Local:
+            case MemberKind.AnonymousMethod:
             case MemberKind.NonStaticMethod:
             case MemberKind.NonStaticField:
             case MemberKind.StaticField:
@@ -2099,11 +2110,10 @@ class Parser {
 
           if (isModifier(next)) {
             // Recovery
-            ModifierContext context =
-                new ModifierContext(this)
-                  ..covariantToken = covariantToken
-                  ..requiredToken = requiredToken
-                  ..varFinalOrConst = varFinalOrConst;
+            ModifierContext context = new ModifierContext(this)
+              ..covariantToken = covariantToken
+              ..requiredToken = requiredToken
+              ..varFinalOrConst = varFinalOrConst;
 
             token = context.parseFormalParameterModifiers(
               token,
@@ -2180,7 +2190,7 @@ class Parser {
           // Recover from a missing period by inserting one.
           next = rewriteAndRecover(
             token,
-            codes.templateExpectedButGot.withArguments('.'),
+            diag.expectedButGot.withArguments(expected: '.'),
             new SyntheticToken(TokenType.PERIOD, next.charOffset),
           );
           // These 3 lines are duplicated here and below.
@@ -2208,10 +2218,20 @@ class Parser {
         Token closer = typeParam.skip(token);
         if (closer.next!.isA(TokenType.OPEN_PAREN)) {
           if (varFinalOrConst != null) {
-            reportRecoverableError(
-              varFinalOrConst,
-              codes.messageFunctionTypedParameterVar,
-            );
+            if (memberKind != MemberKind.PrimaryConstructor) {
+              reportRecoverableError(
+                varFinalOrConst,
+                diag.functionTypedParameterVar,
+              );
+            } else {
+              if (!isPrimaryConstructorsFeatureEnabled) {
+                reportExperimentNotEnabled(
+                  ExperimentalFlag.primaryConstructors,
+                  varFinalOrConst,
+                  varFinalOrConst,
+                );
+              }
+            }
           }
           beforeInlineFunctionType = token;
           token = closer.next!.endGroup!;
@@ -2220,19 +2240,59 @@ class Parser {
       }
     } else if (next.isA(TokenType.OPEN_PAREN)) {
       if (varFinalOrConst != null) {
-        reportRecoverableError(
-          varFinalOrConst,
-          codes.messageFunctionTypedParameterVar,
-        );
+        if (memberKind != MemberKind.PrimaryConstructor) {
+          reportRecoverableError(
+            varFinalOrConst,
+            diag.functionTypedParameterVar,
+          );
+        } else {
+          if (!isPrimaryConstructorsFeatureEnabled) {
+            reportExperimentNotEnabled(
+              ExperimentalFlag.primaryConstructors,
+              varFinalOrConst,
+              varFinalOrConst,
+            );
+          }
+        }
       }
       beforeInlineFunctionType = token;
       token = next.endGroup!;
       next = token.next!;
     }
-    if (typeInfo != noType &&
-        varFinalOrConst != null &&
-        varFinalOrConst.isA(Keyword.VAR)) {
-      reportRecoverableError(varFinalOrConst, codes.messageTypeAfterVar);
+    Token? varOrFinal;
+    if (varFinalOrConst != null) {
+      if (varFinalOrConst.isA(Keyword.VAR)) {
+        if (isPrimaryConstructorsFeatureEnabled &&
+            memberKind != MemberKind.PrimaryConstructor) {
+          reportRecoverableErrorWithToken(
+            varFinalOrConst,
+            diag.extraneousModifier,
+          );
+        }
+        varOrFinal = varFinalOrConst;
+        if (typeInfo != noType) {
+          if (memberKind != MemberKind.PrimaryConstructor) {
+            reportRecoverableError(varFinalOrConst, diag.typeAfterVar);
+          } else {
+            if (!isPrimaryConstructorsFeatureEnabled) {
+              reportExperimentNotEnabled(
+                ExperimentalFlag.primaryConstructors,
+                varOrFinal,
+                varOrFinal,
+              );
+            }
+          }
+        }
+      } else if (varFinalOrConst.isA(Keyword.FINAL)) {
+        if (isPrimaryConstructorsFeatureEnabled &&
+            memberKind != MemberKind.PrimaryConstructor) {
+          reportRecoverableErrorWithToken(
+            varFinalOrConst,
+            diag.extraneousModifier,
+          );
+        }
+        varOrFinal = varFinalOrConst;
+      }
     }
 
     Token? endInlineFunctionType;
@@ -2264,7 +2324,7 @@ class Parser {
       if (inFunctionType) {
         reportRecoverableError(
           beforeInlineFunctionType.next!,
-          codes.messageInvalidInlineFunctionType,
+          diag.invalidInlineFunctionType,
         );
       }
     } else if (inFunctionType) {
@@ -2287,9 +2347,6 @@ class Parser {
       listener.handleNoName(nameToken);
     } else {
       nameToken = token = ensureIdentifier(token, nameContext);
-      if (isNamedParameter && nameToken.lexeme.startsWith("_")) {
-        reportRecoverableError(nameToken, codes.messagePrivateNamedParameter);
-      }
     }
     if (endInlineFunctionType != null) {
       token = endInlineFunctionType;
@@ -2309,24 +2366,19 @@ class Parser {
       // handleValuedFormalParameter event... it appears to be unused.
       listener.handleValuedFormalParameter(equal, next, parameterKind);
       if (parameterKind.isRequiredPositional) {
-        reportRecoverableError(
-          equal,
-          codes.messageRequiredParameterWithDefault,
-        );
+        reportRecoverableError(equal, diag.requiredParameterWithDefault);
       } else if (parameterKind.isOptionalPositional && identical(':', value)) {
-        reportRecoverableError(
-          equal,
-          codes.messagePositionalParameterWithEquals,
-        );
+        reportRecoverableError(equal, diag.positionalParameterWithEquals);
       } else if (inFunctionType ||
           memberKind == MemberKind.FunctionTypeAlias ||
           memberKind == MemberKind.FunctionTypedParameter) {
-        reportRecoverableError(equal, codes.messageFunctionTypeDefaultValue);
+        reportRecoverableError(equal, diag.functionTypeDefaultValue);
       }
     } else {
       listener.handleFormalParameterWithoutValue(next);
     }
     listener.endFormalParameter(
+      varOrFinal,
       thisKeyword,
       superKeyword,
       periodAfterThisOrSuper,
@@ -2366,7 +2418,7 @@ class Parser {
           // Recovery
           reportRecoverableError(
             next,
-            codes.templateExpectedButGot.withArguments(']'),
+            diag.expectedButGot.withArguments(expected: ']'),
           );
           // Scanner guarantees a closing bracket.
           next = begin.endGroup!;
@@ -2381,7 +2433,7 @@ class Parser {
     if (parameterCount == 0) {
       rewriteAndRecover(
         token,
-        codes.messageEmptyOptionalParameterList,
+        diag.emptyOptionalParameterList,
         new SyntheticStringToken(
           TokenType.IDENTIFIER,
           '',
@@ -2430,7 +2482,7 @@ class Parser {
           // Recovery
           reportRecoverableError(
             next,
-            codes.templateExpectedButGot.withArguments('}'),
+            diag.expectedButGot.withArguments(expected: '}'),
           );
           // Scanner guarantees a closing bracket.
           next = begin.endGroup!;
@@ -2445,7 +2497,7 @@ class Parser {
     if (parameterCount == 0) {
       rewriteAndRecover(
         token,
-        codes.messageEmptyNamedParameterList,
+        diag.emptyNamedParameterList,
         new SyntheticStringToken(
           TokenType.IDENTIFIER,
           '',
@@ -2519,33 +2571,70 @@ class Parser {
     return ensureBlock(token, /* missingBlockKind = */ null).endGroup!;
   }
 
+  /// Parse the portion of a enum declaration after 'enum'.
+  ///
   /// ```
   /// enumType:
-  ///   metadata 'enum' id typeParameters? mixins? interfaces? '{'
-  ///      enumEntry (',' enumEntry)* (',')? (';'
-  ///      (metadata classMemberDefinition)*
-  ///      )?
-  ///   '}'
-  ///
-  /// enumEntry:
-  ///     metadata id argumentPart?
-  ///   | metadata id typeArguments? '.' id arguments
+  ///     :    'augment'? 'enum' classNamePart mixins? interfaces? '{'
+  ///          enumEntry (',' enumEntry)* ','?
+  ///          (';' (metadata memberDeclaration)*)?
+  ///          '}'
+  /// primaryConstructorNoConst
+  ///     :    typeIdentifier typeParameters?
+  ///          ('.' identifierOrNew)? declaringParameterList
+  ///     ;
+  /// classNamePart
+  ///     :    'const'? primaryConstructorNoConst
+  ///     |    typeWithParameters
+  ///     ;
+  /// typeWithParameters
+  ///     :    typeIdentifier typeParameters?
+  ///     ;
+  /// enumEntry
+  ///     :    metadata id argumentPart?
+  ///     |    metadata id typeArguments? '.' id arguments
   /// ```
   Token parseEnum(Token beginToken, Token? augmentToken, Token enumKeyword) {
     assert(enumKeyword.isA(Keyword.ENUM));
-    listener.beginUncategorizedTopLevelDeclaration(enumKeyword);
-    Token token = ensureIdentifier(
+    listener.beginEnumDeclarationPrelude(enumKeyword);
+    Token token = enumKeyword;
+    Token? constToken;
+    if (token.next!.isA(Keyword.CONST)) {
+      token = constToken = token.next!;
+    }
+    token = ensureIdentifier(token, IdentifierContext.enumDeclaration);
+    Token nameToken = token;
+    String name = nameToken.lexeme;
+    token = computeTypeParamOrArg(
+      token,
+      /* inDeclaration = */ true,
+      /* allowsVariance = */ true,
+    ).parseVariables(token, this);
+    listener.beginEnumDeclaration(
+      beginToken,
+      augmentToken,
       enumKeyword,
-      IdentifierContext.enumDeclaration,
+      nameToken,
     );
-    String name = token.lexeme;
-    listener.beginEnum(enumKeyword);
+    token = parsePrimaryConstructorOpt(DeclarationKind.Enum, token, constToken);
     token = parseEnumHeaderOpt(token, enumKeyword);
     Token leftBrace = token.next!;
     int elementCount = 0;
     int memberCount = 0;
-    if (leftBrace.isA(TokenType.OPEN_CURLY_BRACKET)) {
+    if (leftBrace.isA(TokenType.SEMICOLON)) {
+      if (!isPrimaryConstructorsFeatureEnabled) {
+        reportExperimentNotEnabled(
+          ExperimentalFlag.primaryConstructors,
+          leftBrace,
+          leftBrace,
+        );
+      }
       listener.handleEnumHeader(augmentToken, enumKeyword, leftBrace);
+      listener.handleNoEnumBody(leftBrace);
+      token = leftBrace;
+    } else if (leftBrace.isA(TokenType.OPEN_CURLY_BRACKET)) {
+      listener.handleEnumHeader(augmentToken, enumKeyword, leftBrace);
+      listener.beginEnumBody(leftBrace);
       token = leftBrace;
       while (true) {
         Token next = token.next!;
@@ -2577,13 +2666,13 @@ class Parser {
             // for situations such as `enum Letter {a, b   Letter e;`.
             reportRecoverableError(
               next,
-              codes.templateExpectedButGot.withArguments(','),
+              diag.expectedButGot.withArguments(expected: ','),
             );
           } else {
             // Otherwise assume a missing `}` and exit the loop
             reportRecoverableError(
               next,
-              codes.templateExpectedButGot.withArguments('}'),
+              diag.expectedButGot.withArguments(expected: '}'),
             );
             token = leftBrace.endGroup!;
             break;
@@ -2592,7 +2681,7 @@ class Parser {
       }
       listener.handleEnumElements(token, elementCount);
       if (token.isA(TokenType.SEMICOLON)) {
-        while (notEofOrValue('}', token.next!)) {
+        while (notEofOrType(TokenType.CLOSE_CURLY_BRACKET, token.next!)) {
           token = parseClassOrMixinOrExtensionOrEnumMemberImpl(
             token,
             DeclarationKind.Enum,
@@ -2603,23 +2692,30 @@ class Parser {
         token = token.next!;
         assert(token.isEof || token.isA(TokenType.CLOSE_CURLY_BRACKET));
       }
+      listener.endEnumBody(leftBrace, token);
     } else {
       leftBrace = ensureBlock(token, BlockKind.enumDeclaration);
       listener.handleEnumHeader(augmentToken, enumKeyword, leftBrace);
+      listener.beginEnumBody(leftBrace);
       listener.handleEnumElements(token, elementCount);
       token = leftBrace.endGroup!;
+      listener.endEnumBody(leftBrace, token);
     }
-    assert(token.isA(TokenType.CLOSE_CURLY_BRACKET));
-    listener.endEnum(beginToken, enumKeyword, leftBrace, memberCount, token);
+    assert(
+      token.isA(TokenType.CLOSE_CURLY_BRACKET) ||
+          token.isA(TokenType.SEMICOLON),
+    );
+    listener.endEnumDeclaration(
+      beginToken,
+      enumKeyword,
+      leftBrace,
+      memberCount,
+      token,
+    );
     return token;
   }
 
   Token parseEnumHeaderOpt(Token token, Token enumKeyword) {
-    token = computeTypeParamOrArg(
-      token,
-      /* inDeclaration = */ true,
-      /* allowsVariance = */ true,
-    ).parseVariables(token, this);
     List<TokenType> lookForNext = const [
       TokenType.OPEN_CURLY_BRACKET,
       Keyword.WITH,
@@ -2647,7 +2743,10 @@ class Parser {
       Token? skipToken =
           recoveryEnumWith(
             token,
-            codes.templateMultipleClauses.withArguments("enum", "with"),
+            diag.multipleClauses.withArguments(
+              definitionKind: "enum",
+              clauseKind: "with",
+            ),
           ) ??
           recoverySmallLookAheadSkipTokens(token, lookForNext);
 
@@ -2671,11 +2770,14 @@ class Parser {
       Token? skipToken = recoveryEnumWith(
         token,
         hasWithClauses
-            ? codes.templateMultipleClauses.withArguments("enum", "with")
-            : codes.templateOutOfOrderClauses.withArguments(
-              "with",
-              "implements",
-            ),
+            ? diag.multipleClauses.withArguments(
+                definitionKind: "enum",
+                clauseKind: "with",
+              )
+            : diag.outOfOrderClauses.withArguments(
+                expectedEarlierClause: "with",
+                expectedLaterClause: "implements",
+              ),
       );
       if (skipToken != null) {
         hasWithClauses = true;
@@ -2686,7 +2788,10 @@ class Parser {
         // this 'implements').
         skipToken = recoveryEnumImplements(
           token,
-          codes.templateMultipleClauses.withArguments("enum", "implements"),
+          diag.multipleClauses.withArguments(
+            definitionKind: "enum",
+            clauseKind: "implements",
+          ),
         );
       }
       if (skipToken == null) {
@@ -2762,13 +2867,13 @@ class Parser {
       if (skipped == 1) {
         reportRecoverableError(
           skipToken,
-          codes.templateUnexpectedToken.withArguments(skipToken),
+          diag.unexpectedToken.withArguments(lexeme: skipToken),
         );
       } else {
         reportRecoverableErrorWithEnd(
           token.next!,
           skipToken,
-          codes.messageUnexpectedTokens,
+          diag.unexpectedTokens,
         );
       }
       return skipToken;
@@ -2844,36 +2949,49 @@ class Parser {
   ) {
     assert(classKeyword.isA(Keyword.CLASS));
     listener.beginClassOrMixinOrNamedMixinApplicationPrelude(beginToken);
+    Token token = classKeyword;
+    Token? constToken;
+    if (token.next!.isA(Keyword.CONST)) {
+      token = constToken = token.next!;
+    }
     Token name = ensureIdentifier(
-      classKeyword,
+      token,
       IdentifierContext.classOrMixinOrExtensionDeclaration,
     );
-    Token token = computeTypeParamOrArg(
+    token = computeTypeParamOrArg(
       name,
       /* inDeclaration = */ true,
       /* allowsVariance = */ true,
     ).parseVariables(name, this);
     if (abstractToken != null) {
       if (sealedToken != null) {
-        reportRecoverableError(sealedToken, codes.messageAbstractSealedClass);
+        reportRecoverableError(sealedToken, diag.abstractSealedClass);
       } else if (finalToken != null) {
         if (baseToken != null) {
           reportRecoverableErrorWithEnd(
             finalToken,
             baseToken,
-            codes.messageAbstractFinalBaseClass,
+            diag.abstractFinalBaseClass,
           );
         } else if (interfaceToken != null) {
           reportRecoverableErrorWithEnd(
             finalToken,
             interfaceToken,
-            codes.messageAbstractFinalInterfaceClass,
+            diag.abstractFinalInterfaceClass,
           );
         }
       }
     }
-
     if (token.next!.isA(TokenType.EQ)) {
+      if (constToken != null) {
+        reportRecoverableError(constToken, diag.constWithoutPrimaryConstructor);
+      }
+      if (augmentToken != null) {
+        reportRecoverableError(
+          augmentToken,
+          diag.mixinApplicationClassAugmentation,
+        );
+      }
       listener.beginNamedMixinApplication(
         beginToken,
         abstractToken,
@@ -2900,7 +3018,13 @@ class Parser {
         mixinToken,
         name,
       );
-      return parseClass(token, beginToken, classKeyword, name.lexeme);
+      return parseClass(
+        token,
+        beginToken,
+        classKeyword,
+        constToken,
+        name.lexeme,
+      );
     }
   }
 
@@ -2936,31 +3060,62 @@ class Parser {
   /// follows the end of the type parameters.
   ///
   /// ```
-  /// classDefinition:
-  ///   metadata abstract? 'class' identifier typeParameters?
-  ///       (superclass mixins?)? interfaces?
-  ///       '{' (metadata classMemberDefinition)* '}' |
-  ///   metadata abstract? 'class' mixinApplicationClass
-  /// ;
+  /// classDeclaration
+  ///     :    'augment'? (classModifiers | mixinClassModifiers)
+  ///          'class' classNamePart superclass? interfaces? classBody
+  ///     ;
+  /// primaryConstructorNoConst
+  ///     :    typeIdentifier typeParameters?
+  ///          ('.' identifierOrNew)? declaringParameterList
+  ///     ;
+  /// classNamePart
+  ///     :    'const'? primaryConstructorNoConst
+  ///     |    typeWithParameters
+  ///     ;
+  /// typeWithParameters
+  ///     :    typeIdentifier typeParameters?
+  ///     ;
+  /// classBody
+  ///     :    '{' (metadata memberDeclaration)* '}'
+  ///     |    ';'
+  ///     ;
   /// ```
   Token parseClass(
     Token token,
     Token beginToken,
     Token classKeyword,
+    Token? constToken,
     String className,
   ) {
     Token start = token;
-    token = parseClassHeaderOpt(token, beginToken, classKeyword);
-    if (!token.next!.isA(TokenType.OPEN_CURLY_BRACKET)) {
-      // Recovery
-      token = parseClassHeaderRecovery(start, beginToken, classKeyword);
-      ensureBlock(token, BlockKind.classDeclaration);
-    }
-    token = parseClassOrMixinOrExtensionBody(
-      token,
+    token = parsePrimaryConstructorOpt(
       DeclarationKind.Class,
-      className,
+      token,
+      constToken,
     );
+    token = parseClassHeaderOpt(token, beginToken, classKeyword);
+    if (token.next!.isA(TokenType.SEMICOLON)) {
+      Token semicolonToken = token = token.next!;
+      if (!isPrimaryConstructorsFeatureEnabled) {
+        reportExperimentNotEnabled(
+          ExperimentalFlag.primaryConstructors,
+          semicolonToken,
+          semicolonToken,
+        );
+      }
+      listener.handleNoClassBody(semicolonToken);
+    } else {
+      if (!token.next!.isA(TokenType.OPEN_CURLY_BRACKET)) {
+        // Recovery
+        token = parseClassHeaderRecovery(start, beginToken, classKeyword);
+        ensureBlock(token, BlockKind.classDeclaration);
+      }
+      token = parseClassOrMixinOrExtensionBody(
+        token,
+        DeclarationKind.Class,
+        className,
+      );
+    }
     listener.endClassDeclaration(beginToken, token);
     return token;
   }
@@ -3048,7 +3203,7 @@ class Parser {
           const ['extend', 'on'].contains(token.next!.lexeme)) {
         reportRecoverableError(
           token.next!,
-          codes.templateExpectedInstead.withArguments('extends'),
+          diag.expectedInstead.withArguments(expected: 'extends'),
         );
         token = parseClassExtendsSeenExtendsClause(token.next!, token, kind);
       } else {
@@ -3061,18 +3216,18 @@ class Parser {
             if (hasExtends) {
               reportRecoverableError(
                 recoveryListener.extendsKeyword!,
-                codes.messageMultipleExtends,
+                diag.multipleExtends,
               );
             } else {
               if (hasWith) {
                 reportRecoverableError(
                   recoveryListener.extendsKeyword!,
-                  codes.messageWithBeforeExtends,
+                  diag.withBeforeExtends,
                 );
               } else if (hasImplements) {
                 reportRecoverableError(
                   recoveryListener.extendsKeyword!,
-                  codes.messageImplementsBeforeExtends,
+                  diag.implementsBeforeExtends,
                 );
               }
               hasExtends = true;
@@ -3080,7 +3235,7 @@ class Parser {
           case DeclarationHeaderKind.ExtensionType:
             reportRecoverableError(
               recoveryListener.extendsKeyword!,
-              codes.messageExtensionTypeExtends,
+              diag.extensionTypeExtends,
             );
         }
       }
@@ -3093,13 +3248,13 @@ class Parser {
             if (hasWith) {
               reportRecoverableError(
                 recoveryListener.withKeyword!,
-                codes.messageMultipleWith,
+                diag.multipleWith,
               );
             } else {
               if (hasImplements) {
                 reportRecoverableError(
                   recoveryListener.withKeyword!,
-                  codes.messageImplementsBeforeWith,
+                  diag.implementsBeforeWith,
                 );
               }
               hasWith = true;
@@ -3107,7 +3262,7 @@ class Parser {
           case DeclarationHeaderKind.ExtensionType:
             reportRecoverableError(
               recoveryListener.withKeyword!,
-              codes.messageExtensionTypeWith,
+              diag.extensionTypeWith,
             );
         }
       }
@@ -3118,7 +3273,7 @@ class Parser {
         if (hasImplements) {
           reportRecoverableError(
             recoveryListener.implementsKeyword!,
-            codes.messageMultipleImplements,
+            diag.multipleImplements,
           );
         } else {
           hasImplements = true;
@@ -3165,7 +3320,7 @@ class Parser {
     if (token.next!.isA(TokenType.COMMA)) {
       switch (kind) {
         case DeclarationHeaderKind.Class:
-          reportRecoverableError(token.next!, codes.messageMultipleExtends);
+          reportRecoverableError(token.next!, diag.multipleExtends);
           break;
         case DeclarationHeaderKind.ExtensionType:
           // This is an error case. The error is reported elsewhere.
@@ -3242,16 +3397,28 @@ class Parser {
       name,
     );
     Token token = parseMixinHeaderOpt(headerStart, mixinKeyword);
-    if (!token.next!.isA(TokenType.OPEN_CURLY_BRACKET)) {
-      // Recovery
-      token = parseMixinHeaderRecovery(token, mixinKeyword, headerStart);
-      ensureBlock(token, BlockKind.mixinDeclaration);
+    if (token.next!.isA(TokenType.SEMICOLON)) {
+      Token semicolonToken = token = token.next!;
+      if (!isPrimaryConstructorsFeatureEnabled) {
+        reportExperimentNotEnabled(
+          ExperimentalFlag.primaryConstructors,
+          semicolonToken,
+          semicolonToken,
+        );
+      }
+      listener.handleNoMixinBody(semicolonToken);
+    } else {
+      if (!token.next!.isA(TokenType.OPEN_CURLY_BRACKET)) {
+        // Recovery
+        token = parseMixinHeaderRecovery(token, mixinKeyword, headerStart);
+        ensureBlock(token, BlockKind.mixinDeclaration);
+      }
+      token = parseClassOrMixinOrExtensionBody(
+        token,
+        DeclarationKind.Mixin,
+        name.lexeme,
+      );
     }
-    token = parseClassOrMixinOrExtensionBody(
-      token,
-      DeclarationKind.Mixin,
-      name.lexeme,
-    );
     listener.endMixinDeclaration(beginToken, token);
     return token;
   }
@@ -3303,7 +3470,7 @@ class Parser {
           const ['extend', 'extends'].contains(token.next!.lexeme)) {
         reportRecoverableError(
           token.next!,
-          codes.templateExpectedInstead.withArguments('on'),
+          diag.expectedInstead.withArguments(expected: 'on'),
         );
         token = parseMixinOn(token);
       } else {
@@ -3314,13 +3481,13 @@ class Parser {
         if (hasOn) {
           reportRecoverableError(
             recoveryListener.onKeyword!,
-            codes.messageMultipleOnClauses,
+            diag.multipleOnClauses,
           );
         } else {
           if (hasImplements) {
             reportRecoverableError(
               recoveryListener.onKeyword!,
-              codes.messageImplementsBeforeOn,
+              diag.implementsBeforeOn,
             );
           }
           hasOn = true;
@@ -3333,7 +3500,7 @@ class Parser {
         if (hasImplements) {
           reportRecoverableError(
             recoveryListener.implementsKeyword!,
-            codes.messageMultipleImplements,
+            diag.multipleImplements,
           );
         } else {
           hasImplements = true;
@@ -3342,7 +3509,7 @@ class Parser {
 
       if (token.next!.isA(Keyword.WITH)) {
         Token withKeyword = token.next!;
-        reportRecoverableError(token.next!, codes.messageMixinWithClause);
+        reportRecoverableError(token.next!, diag.mixinWithClause);
         token = parseTypeList(withKeyword);
         listener.handleMixinWithClause(withKeyword);
       }
@@ -3445,7 +3612,7 @@ class Parser {
       if (name.type.isBuiltIn) {
         reportRecoverableErrorWithToken(
           token,
-          codes.templateBuiltInIdentifierInDeclaration,
+          diag.builtInIdentifierInDeclaration,
         );
       }
     } else {
@@ -3466,7 +3633,7 @@ class Parser {
         // If `on` clause is provided, report, but parse it.
         reportRecoverableError(
           onKeyword,
-          codes.messageExtensionAugmentationHasOnClause,
+          diag.extensionAugmentationHasOnClause,
         );
         TypeInfo typeInfo = computeType(onKeyword, /* required = */ true);
         token = typeInfo.ensureTypeOrVoid(onKeyword, this);
@@ -3479,12 +3646,12 @@ class Parser {
             onKeyword.isA(Keyword.WITH)) {
           reportRecoverableError(
             onKeyword,
-            codes.templateExpectedInstead.withArguments('on'),
+            diag.expectedInstead.withArguments(expected: 'on'),
           );
         } else {
           reportRecoverableError(
             token,
-            codes.templateExpectedAfterButGot.withArguments('on'),
+            diag.expectedAfterButGot.withArguments(expected: 'on'),
           );
           onKeyword = rewriter.insertSyntheticKeyword(token, Keyword.ON);
         }
@@ -3493,41 +3660,134 @@ class Parser {
       token = typeInfo.ensureTypeOrVoid(onKeyword, this);
     }
 
-    if (!token.next!.isA(TokenType.OPEN_CURLY_BRACKET)) {
-      // Recovery
-      Token next = token.next!;
-      while (!next.isEof) {
-        if (next.isA(TokenType.COMMA) ||
-            next.isA(Keyword.EXTENDS) ||
-            next.isA(Keyword.IMPLEMENTS) ||
-            next.isA(Keyword.ON) ||
-            next.isA(Keyword.WITH)) {
-          // Report an error and skip `,` or specific keyword
-          // optionally followed by an identifier
-          reportRecoverableErrorWithToken(next, codes.templateUnexpectedToken);
-          token = next;
-          next = token.next!;
-          if (next.isIdentifier) {
+    if (token.next!.isA(TokenType.SEMICOLON)) {
+      Token semicolonToken = token = token.next!;
+      if (!isPrimaryConstructorsFeatureEnabled) {
+        reportExperimentNotEnabled(
+          ExperimentalFlag.primaryConstructors,
+          semicolonToken,
+          semicolonToken,
+        );
+      }
+      listener.handleNoExtensionBody(semicolonToken);
+    } else {
+      if (!token.next!.isA(TokenType.OPEN_CURLY_BRACKET)) {
+        // Recovery
+        Token next = token.next!;
+        while (!next.isEof) {
+          if (next.isA(TokenType.COMMA) ||
+              next.isA(Keyword.EXTENDS) ||
+              next.isA(Keyword.IMPLEMENTS) ||
+              next.isA(Keyword.ON) ||
+              next.isA(Keyword.WITH)) {
+            // Report an error and skip `,` or specific keyword
+            // optionally followed by an identifier
+            reportRecoverableErrorWithToken(next, diag.unexpectedToken);
             token = next;
             next = token.next!;
+            if (next.isIdentifier) {
+              token = next;
+              next = token.next!;
+            }
+          } else {
+            break;
           }
-        } else {
-          break;
         }
+        ensureBlock(token, BlockKind.extensionDeclaration);
       }
-      ensureBlock(token, BlockKind.extensionDeclaration);
+      token = parseClassOrMixinOrExtensionBody(
+        token,
+        DeclarationKind.Extension,
+        name?.lexeme,
+      );
     }
-    token = parseClassOrMixinOrExtensionBody(
-      token,
-      DeclarationKind.Extension,
-      name?.lexeme,
-    );
     listener.endExtensionDeclaration(
       beginToken,
       extensionKeyword,
       onKeyword,
       token,
     );
+    return token;
+  }
+
+  Token parsePrimaryConstructorOpt(
+    DeclarationKind kind,
+    Token token,
+    Token? constKeyword,
+  ) {
+    if (token.next!.isA(TokenType.OPEN_PAREN) ||
+        token.next!.isA(TokenType.PERIOD)) {
+      Token beginPrimaryConstructor = token.next!;
+      listener.beginPrimaryConstructor(beginPrimaryConstructor);
+      bool hasConstructorName = beginPrimaryConstructor.isA(TokenType.PERIOD);
+      if (hasConstructorName) {
+        token = ensureIdentifier(
+          beginPrimaryConstructor,
+          IdentifierContext.primaryConstructorDeclaration,
+        );
+      }
+      if (token.next!.isA(TokenType.OPEN_PAREN)) {
+        token = parseFormalParameters(token, MemberKind.PrimaryConstructor);
+      } else {
+        if (kind == DeclarationKind.ExtensionType) {
+          reportRecoverableError(
+            token,
+            diag.missingPrimaryConstructorParameters,
+          );
+        }
+        listener.handleNoFormalParameters(token, MemberKind.PrimaryConstructor);
+      }
+      listener.endPrimaryConstructor(
+        kind,
+        beginPrimaryConstructor,
+        constKeyword,
+        hasConstructorName,
+      );
+    } else {
+      if (kind == DeclarationKind.ExtensionType) {
+        reportRecoverableError(token, diag.missingPrimaryConstructor);
+      } else if (constKeyword != null) {
+        // TODO(johnniwinther): It should be possible to report if the
+        //  declaring constructors feature is not enabled here.
+        reportRecoverableError(
+          constKeyword,
+          diag.constWithoutPrimaryConstructor,
+        );
+      }
+      listener.handleNoPrimaryConstructor(kind, token, constKeyword);
+    }
+    return token;
+  }
+
+  Token parsePrimaryConstructorBody(Token token) {
+    Token beginToken = token;
+    listener.beginPrimaryConstructorBody(token);
+
+    Token? beforeInitializers = token;
+    token = parseInitializersOpt(beforeInitializers);
+
+    Token next = token.next!;
+    if (next.isA(Keyword.ASYNC) || next.isA(Keyword.SYNC)) {
+      String modifier = next.lexeme;
+      if (next.next!.isA(TokenType.STAR)) {
+        modifier += '*';
+      }
+      reportRecoverableError(
+        next,
+        diag.primaryConstructorBodyWithModifier.withArguments(
+          modifier: modifier,
+        ),
+      );
+    }
+
+    token = parseAsyncModifierOpt(token);
+    token = parseFunctionBody(
+      token,
+      /* ofFunctionExpression = */ false,
+      /* allowAbstract = */ inPlainSync,
+    );
+
+    listener.endPrimaryConstructorBody(beginToken, beforeInitializers, token);
     return token;
   }
 
@@ -3559,7 +3819,7 @@ class Parser {
       if (name.type.isBuiltIn) {
         reportRecoverableErrorWithToken(
           token,
-          codes.templateBuiltInIdentifierInDeclaration,
+          diag.builtInIdentifierInDeclaration,
         );
       }
     } else {
@@ -3576,50 +3836,38 @@ class Parser {
       extensionKeyword,
       name,
     );
-    if (token.next!.isA(TokenType.OPEN_PAREN) ||
-        token.next!.isA(TokenType.PERIOD)) {
-      Token beginPrimaryConstructor = token.next!;
-      listener.beginPrimaryConstructor(beginPrimaryConstructor);
-      bool hasConstructorName = beginPrimaryConstructor.isA(TokenType.PERIOD);
-      if (hasConstructorName) {
-        token = ensureIdentifier(
-          beginPrimaryConstructor,
-          IdentifierContext.primaryConstructorDeclaration,
-        );
-      }
-      if (token.next!.isA(TokenType.OPEN_PAREN)) {
-        token = parseFormalParameters(token, MemberKind.PrimaryConstructor);
-      } else {
-        reportRecoverableError(
-          token,
-          codes.messageMissingPrimaryConstructorParameters,
-        );
-        listener.handleNoFormalParameters(token, MemberKind.PrimaryConstructor);
-      }
-      listener.endPrimaryConstructor(
-        beginPrimaryConstructor,
-        constKeyword,
-        hasConstructorName,
-      );
-    } else {
-      reportRecoverableError(token, codes.messageMissingPrimaryConstructor);
-      listener.handleNoPrimaryConstructor(token, constKeyword);
-    }
+    token = parsePrimaryConstructorOpt(
+      DeclarationKind.ExtensionType,
+      token,
+      constKeyword,
+    );
     Token start = token;
     token = parseClassOrMixinOrEnumImplementsOpt(token);
-    if (!token.next!.isA(TokenType.OPEN_CURLY_BRACKET)) {
-      // TODO(johnniwinther): Reuse logic from [parseClassHeaderRecovery] to
-      // handle `extends`, `with` and out-of-order/duplicate clauses.
-      token = parseExtensionTypeHeaderRecovery(start, extensionKeyword);
+    if (token.next!.isA(TokenType.SEMICOLON)) {
+      Token semicolonToken = token = token.next!;
+      if (!isPrimaryConstructorsFeatureEnabled) {
+        reportExperimentNotEnabled(
+          ExperimentalFlag.primaryConstructors,
+          semicolonToken,
+          semicolonToken,
+        );
+      }
+      listener.handleNoExtensionTypeBody(semicolonToken);
+    } else {
+      if (!token.next!.isA(TokenType.OPEN_CURLY_BRACKET)) {
+        // TODO(johnniwinther): Reuse logic from [parseClassHeaderRecovery] to
+        // handle `extends`, `with` and out-of-order/duplicate clauses.
+        token = parseExtensionTypeHeaderRecovery(start, extensionKeyword);
 
-      // Recovery
-      ensureBlock(token, BlockKind.extensionTypeDeclaration);
+        // Recovery
+        ensureBlock(token, BlockKind.extensionTypeDeclaration);
+      }
+      token = parseClassOrMixinOrExtensionBody(
+        token,
+        DeclarationKind.ExtensionType,
+        name.lexeme,
+      );
     }
-    token = parseClassOrMixinOrExtensionBody(
-      token,
-      DeclarationKind.ExtensionType,
-      name.lexeme,
-    );
     listener.endExtensionTypeDeclaration(
       beginToken,
       augmentToken,
@@ -3633,7 +3881,7 @@ class Parser {
   Token parseStringPart(Token token) {
     Token next = token.next!;
     if (next.kind != STRING_TOKEN) {
-      reportRecoverableErrorWithToken(next, codes.templateExpectedString);
+      reportRecoverableErrorWithToken(next, diag.expectedString);
       next = rewriter.insertToken(
         token,
         new SyntheticStringToken(TokenType.STRING, '', next.charOffset),
@@ -3655,7 +3903,7 @@ class Parser {
     Token next = token.next!;
     reportRecoverableError(
       messageOnToken ?? next,
-      message ?? context.recoveryTemplate.withArguments(next),
+      message ?? context.recoveryTemplate.withArguments(lexeme: next),
     );
     return rewriter.insertSyntheticIdentifier(token);
   }
@@ -3697,30 +3945,31 @@ class Parser {
   /// context that permits `new` to be treated as an identifier, rewrites the
   /// `new` token to an identifier token, and reports the rewritten token to the
   /// listener.  Otherwise does nothing.
+  @pragma("vm:prefer-inline")
   void _tryRewriteNewToIdentifier(Token token, IdentifierContext context) {
     if (!context.allowsNewAsIdentifier) return;
-    Token identifier = token.next!;
-    if (identifier.kind == KEYWORD_TOKEN) {
-      final String? value = token.next!.stringValue;
-      if (value == 'new') {
-        // `new` after `.` is treated as an identifier so that it can represent
-        // an unnamed constructor.
-        Token replacementToken = rewriter.replaceTokenFollowing(
-          token,
-          new StringToken(
-            TokenType.IDENTIFIER,
-            identifier.lexeme,
-            token.next!.charOffset,
-          ),
-        );
-        listener.handleNewAsIdentifier(replacementToken);
-      }
-    }
+    _tryRewriteNewToIdentifierImpl(token);
   }
 
-  /// Checks whether the next token is (directly) an identifier. If this returns
-  /// true a call to [ensureIdentifier] will return the next token.
-  bool isNextIdentifier(Token token) => token.next?.kind == IDENTIFIER_TOKEN;
+  void _tryRewriteNewToIdentifierImpl(Token token) {
+    Token identifier = token.next!;
+    if (identifier.kind != KEYWORD_TOKEN) return;
+
+    final String? value = identifier.stringValue;
+    if (value != 'new') return;
+
+    // `new` after `.` is treated as an identifier so that it can represent
+    // an unnamed constructor.
+    Token replacementToken = rewriter.replaceTokenFollowing(
+      token,
+      new StringToken(
+        TokenType.IDENTIFIER,
+        identifier.lexeme,
+        identifier.charOffset,
+      ),
+    );
+    listener.handleNewAsIdentifier(replacementToken);
+  }
 
   /// Parse a simple identifier at the given [token], and return the identifier
   /// that was parsed.
@@ -3748,8 +3997,8 @@ class Parser {
     return identifier;
   }
 
-  bool notEofOrValue(String value, Token token) {
-    return token.kind != EOF_TOKEN && value != token.stringValue;
+  bool notEofOrType(TokenType type, Token token) {
+    return !token.isA(TokenType.EOF) && !token.isA(type);
   }
 
   Token parseTypeVariablesOpt(Token token) {
@@ -3817,12 +4066,11 @@ class Parser {
             // If another `var`, `final`, or `const` then fall through
             // to parse that as part of the next top level declaration.
           } else {
-            ModifierContext context =
-                new ModifierContext(this)
-                  ..externalToken = externalToken
-                  ..augmentToken = augmentToken
-                  ..lateToken = lateToken
-                  ..varFinalOrConst = varFinalOrConst;
+            ModifierContext context = new ModifierContext(this)
+              ..externalToken = externalToken
+              ..augmentToken = augmentToken
+              ..lateToken = lateToken
+              ..varFinalOrConst = varFinalOrConst;
 
             token = context.parseTopLevelMemberModifiers(token);
             next = token.next!;
@@ -3843,14 +4091,14 @@ class Parser {
     }
 
     Token beforeType = token;
-    if (varFinalOrConst != null) {
+    if (varFinalOrConst != null && !varFinalOrConst.isA(Keyword.CONST)) {
       Token? afterOuterPattern = skipOuterPattern(beforeType);
       if (afterOuterPattern != null &&
           (afterOuterPattern.next!.isA(TokenType.EQ))) {
         reportRecoverableErrorWithEnd(
           beforeType.next!,
           afterOuterPattern,
-          codes.messagePatternVariableDeclarationOutsideFunctionOrMethod,
+          diag.patternVariableDeclarationOutsideFunctionOrMethod,
         );
         Token syntheticName = rewriter.insertSyntheticIdentifier(beforeType);
 
@@ -3926,12 +4174,9 @@ class Parser {
           // Recovery
           value = next.stringValue;
           if (identical(value, 'factory')) {
-            reportRecoverableError(
-              next,
-              codes.messageFactoryTopLevelDeclaration,
-            );
+            reportRecoverableError(next, diag.factoryTopLevelDeclaration);
           } else {
-            reportRecoverableError(next, codes.messageTopLevelOperator);
+            reportRecoverableError(next, diag.topLevelOperator);
             if (next.next!.isOperator) {
               token = next;
               next = token.next!;
@@ -3980,18 +4225,15 @@ class Parser {
         identical(value, '=>')) {
       if (varFinalOrConst != null) {
         if (varFinalOrConst.isA(Keyword.VAR)) {
-          reportRecoverableError(varFinalOrConst, codes.messageVarReturnType);
+          reportRecoverableError(varFinalOrConst, diag.varReturnType);
         } else {
           reportRecoverableErrorWithToken(
             varFinalOrConst,
-            codes.templateExtraneousModifier,
+            diag.extraneousModifier,
           );
         }
       } else if (lateToken != null) {
-        reportRecoverableErrorWithToken(
-          lateToken,
-          codes.templateExtraneousModifier,
-        );
+        reportRecoverableErrorWithToken(lateToken, diag.extraneousModifier);
       }
       return parseTopLevelMethod(
         beforeStart,
@@ -4006,10 +4248,7 @@ class Parser {
     }
 
     if (getOrSet != null) {
-      reportRecoverableErrorWithToken(
-        getOrSet,
-        codes.templateExtraneousModifier,
-      );
+      reportRecoverableErrorWithToken(getOrSet, diag.extraneousModifier);
     }
     return parseFields(
       beforeStart,
@@ -4063,36 +4302,34 @@ class Parser {
     // down.
     if (covariantToken != null && lateToken == null) {
       if (varFinalOrConst != null && varFinalOrConst.isA(Keyword.FINAL)) {
-        reportRecoverableError(covariantToken, codes.messageFinalAndCovariant);
+        reportRecoverableError(covariantToken, diag.finalAndCovariant);
         covariantToken = null;
       }
     }
     if (typeInfo == noType) {
       if (varFinalOrConst == null) {
-        reportRecoverableError(name, codes.messageMissingConstFinalVarOrType);
+        reportRecoverableError(name, diag.missingConstFinalVarOrType);
       }
     } else {
       if (varFinalOrConst != null && varFinalOrConst.isA(Keyword.VAR)) {
-        reportRecoverableError(varFinalOrConst, codes.messageTypeAfterVar);
+        reportRecoverableError(varFinalOrConst, diag.typeAfterVar);
       }
     }
     if (abstractToken != null && externalToken != null) {
-      reportRecoverableError(abstractToken, codes.messageAbstractExternalField);
+      reportRecoverableError(abstractToken, diag.abstractExternalField);
     }
 
     Token token = typeInfo.parseType(beforeType, this);
     assert(token.next == name || token.next!.isEof);
 
-    IdentifierContext context =
-        kind == DeclarationKind.TopLevel
-            ? IdentifierContext.topLevelVariableDeclaration
-            : IdentifierContext.fieldDeclaration;
-    Token firstName =
-        name = ensureIdentifierPotentiallyRecovered(
-          token,
-          context,
-          /* isRecovered = */ nameIsRecovered,
-        );
+    IdentifierContext context = kind == DeclarationKind.TopLevel
+        ? IdentifierContext.topLevelVariableDeclaration
+        : IdentifierContext.fieldDeclaration;
+    Token firstName = name = ensureIdentifierPotentiallyRecovered(
+      token,
+      context,
+      /* isRecovered = */ nameIsRecovered,
+    );
 
     // Check for covariant late final with initializer.
     if (covariantToken != null && lateToken != null) {
@@ -4101,7 +4338,7 @@ class Parser {
         if (next.isA(TokenType.EQ)) {
           reportRecoverableError(
             covariantToken,
-            codes.messageFinalAndCovariantLateWithInitializer,
+            diag.finalAndCovariantLateWithInitializer,
           );
           covariantToken = null;
         }
@@ -4144,106 +4381,57 @@ class Parser {
     switch (kind) {
       case DeclarationKind.TopLevel:
         assert(abstractToken == null);
-        listener.endTopLevelFields(
-          augmentToken,
-          externalToken,
-          staticToken,
-          covariantToken,
-          lateToken,
-          varFinalOrConst,
-          fieldCount,
-          beforeStart.next!,
-          token,
-        );
         break;
       case DeclarationKind.Class:
-        listener.endClassFields(
-          abstractToken,
-          augmentToken,
-          externalToken,
-          staticToken,
-          covariantToken,
-          lateToken,
-          varFinalOrConst,
-          fieldCount,
-          beforeStart.next!,
-          token,
-        );
-        break;
       case DeclarationKind.Mixin:
-        listener.endMixinFields(
-          abstractToken,
-          augmentToken,
-          externalToken,
-          staticToken,
-          covariantToken,
-          lateToken,
-          varFinalOrConst,
-          fieldCount,
-          beforeStart.next!,
-          token,
-        );
+      case DeclarationKind.Enum:
         break;
       case DeclarationKind.Extension:
         if (abstractToken != null) {
-          reportRecoverableError(
-            firstName,
-            codes.messageAbstractExtensionField,
-          );
+          reportRecoverableError(firstName, diag.abstractExtensionField);
         }
         if (staticToken == null && externalToken == null) {
           reportRecoverableError(
             firstName,
-            codes.messageExtensionDeclaresInstanceField,
+            diag.extensionDeclaresInstanceField,
           );
         }
-        listener.endExtensionFields(
-          abstractToken,
-          augmentToken,
-          externalToken,
-          staticToken,
-          covariantToken,
-          lateToken,
-          varFinalOrConst,
-          fieldCount,
-          beforeStart.next!,
-          token,
-        );
         break;
       case DeclarationKind.ExtensionType:
         if (staticToken == null && externalToken == null) {
           reportRecoverableError(
             firstName,
-            codes.messageExtensionTypeDeclaresInstanceField,
+            diag.extensionTypeDeclaresInstanceField,
           );
         }
-        listener.endExtensionTypeFields(
-          abstractToken,
-          augmentToken,
-          externalToken,
-          staticToken,
-          covariantToken,
-          lateToken,
-          varFinalOrConst,
-          fieldCount,
-          beforeStart.next!,
-          token,
-        );
         break;
-      case DeclarationKind.Enum:
-        listener.endEnumFields(
-          abstractToken,
-          augmentToken,
-          externalToken,
-          staticToken,
-          covariantToken,
-          lateToken,
-          varFinalOrConst,
-          fieldCount,
-          beforeStart.next!,
-          token,
-        );
-        break;
+    }
+    if (kind == DeclarationKind.TopLevel) {
+      listener.endTopLevelFields(
+        augmentToken,
+        externalToken,
+        staticToken,
+        covariantToken,
+        lateToken,
+        varFinalOrConst,
+        fieldCount,
+        beforeStart.next!,
+        token,
+      );
+    } else {
+      listener.endFields(
+        kind,
+        abstractToken,
+        augmentToken,
+        externalToken,
+        staticToken,
+        covariantToken,
+        lateToken,
+        varFinalOrConst,
+        fieldCount,
+        beforeStart.next!,
+        token,
+      );
     }
     return token;
   }
@@ -4286,19 +4474,16 @@ class Parser {
     Token asyncToken = token.next!;
     token = parseAsyncModifierOpt(token);
     if (getOrSet != null && !inPlainSync && getOrSet.isA(Keyword.SET)) {
-      reportRecoverableError(asyncToken, codes.messageSetterNotSync);
+      reportRecoverableError(asyncToken, diag.setterNotSync);
     }
     bool isExternal = externalToken != null;
     if (isExternal && !token.next!.isA(TokenType.SEMICOLON)) {
-      reportRecoverableError(
-        externalToken,
-        codes.messageExternalMethodWithBody,
-      );
+      reportRecoverableError(externalToken, diag.externalMethodWithBody);
     }
     token = parseFunctionBody(
       token,
       /* ofFunctionExpression = */ false,
-      isExternal,
+      isExternal || _isAugmentationsFeatureEnabled,
     );
     asyncState = savedAsyncModifier;
     listener.endTopLevelMethod(beforeStart.next!, getOrSet, token);
@@ -4309,7 +4494,7 @@ class Parser {
     if (name.next!.isA(TokenType.BANG)) {
       // Recovery
       name = name.next!;
-      reportRecoverableErrorWithToken(name, codes.templateUnexpectedToken);
+      reportRecoverableErrorWithToken(name, diag.unexpectedToken);
     }
     if (!name.next!.isA(TokenType.LT)) {
       return noTypeParamOrArg.parseVariables(name, this);
@@ -4322,7 +4507,7 @@ class Parser {
     if (token.next!.isA(TokenType.EQ)) {
       // Recovery
       token = token.next!;
-      reportRecoverableErrorWithToken(token, codes.templateUnexpectedToken);
+      reportRecoverableErrorWithToken(token, diag.unexpectedToken);
     }
     return token;
   }
@@ -4339,7 +4524,7 @@ class Parser {
     String? enclosingDeclarationName,
   ) {
     if (name.lexeme == enclosingDeclarationName) {
-      reportRecoverableError(name, codes.messageMemberWithSameNameAsClass);
+      reportRecoverableError(name, diag.memberWithSameNameAsClass);
     }
     Token next = token.next!;
     if (next.isA(TokenType.EQ)) {
@@ -4352,9 +4537,7 @@ class Parser {
         if (varFinalOrConst.isA(Keyword.CONST)) {
           reportRecoverableError(
             name,
-            codes.templateConstFieldWithoutInitializer.withArguments(
-              name.lexeme,
-            ),
+            diag.constFieldWithoutInitializer.withArguments(name: name.lexeme),
           );
         } else if (kind == DeclarationKind.TopLevel &&
             varFinalOrConst.isA(Keyword.FINAL) &&
@@ -4363,9 +4546,7 @@ class Parser {
             externalToken == null) {
           reportRecoverableError(
             name,
-            codes.templateFinalFieldWithoutInitializer.withArguments(
-              name.lexeme,
-            ),
+            diag.finalFieldWithoutInitializer.withArguments(name: name.lexeme),
           );
         }
       }
@@ -4443,7 +4624,7 @@ class Parser {
         // expecting one of `,` or `;` or `{`
         reportRecoverableError(
           token,
-          codes.templateExpectedAfterButGot.withArguments(','),
+          diag.expectedAfterButGot.withArguments(expected: ','),
         );
         next = rewriter.insertSyntheticToken(token, TokenType.COMMA);
       }
@@ -4504,10 +4685,7 @@ class Parser {
         next = token.next!;
         if (next.isA(TokenType.OPEN_CURLY_BRACKET) ||
             next.isA(TokenType.FUNCTION)) {
-          reportRecoverableError(
-            next,
-            codes.messageRedirectingConstructorWithBody,
-          );
+          reportRecoverableError(next, diag.redirectingConstructorWithBody);
         }
         return token;
       }
@@ -4517,7 +4695,7 @@ class Parser {
         // `this.<fieldname>=` is expected.
         reportRecoverableError(
           next,
-          codes.templateExpectedButGot.withArguments('.'),
+          diag.expectedButGot.withArguments(expected: '.'),
         );
         rewriter.insertSyntheticToken(token, TokenType.PERIOD);
         token = rewriter.insertSyntheticIdentifier(token.next!);
@@ -4537,7 +4715,7 @@ class Parser {
         token = insertSyntheticIdentifier(
           token,
           IdentifierContext.expression,
-          message: codes.messageMissingAssignmentInInitializer,
+          message: diag.missingAssignmentInInitializer,
           messageOnToken: next,
         );
         return parseInitializerExpressionRest(beforeExpression);
@@ -4547,7 +4725,7 @@ class Parser {
       token = insertSyntheticIdentifier(
         token,
         IdentifierContext.fieldInitializer,
-        message: codes.messageExpectedAnInitializer,
+        message: diag.expectedAnInitializer,
         messageOnToken: token,
       );
       token = rewriter.insertSyntheticToken(token, TokenType.EQ);
@@ -4563,7 +4741,7 @@ class Parser {
     token = insertSyntheticIdentifier(
       beforeExpression,
       IdentifierContext.fieldInitializer,
-      message: codes.messageMissingAssignmentInInitializer,
+      message: diag.missingAssignmentInInitializer,
     );
     rewriter.insertSyntheticToken(token, TokenType.EQ);
     return parseInitializerExpressionRest(beforeExpression);
@@ -4612,13 +4790,13 @@ class Parser {
         } else {
           reportRecoverableError(
             token,
-            codes.messageFieldInitializedOutsideDeclaringClass,
+            diag.fieldInitializedOutsideDeclaringClass,
           );
         }
       } else if (!next.isA(TokenType.OPEN_PAREN)) {
         reportRecoverableError(
           next,
-          codes.templateExpectedAfterButGot.withArguments('('),
+          diag.expectedAfterButGot.withArguments(expected: '('),
         );
         rewriter.insertParens(token, /* includeIdentifier = */ false);
       }
@@ -4639,7 +4817,7 @@ class Parser {
   Token ensureBlock(Token token, BlockKind? missingBlockKind) {
     Token next = token.next!;
     if (next.isA(TokenType.OPEN_CURLY_BRACKET)) return next;
-    codes.Template<codes.Message Function(Token token)>? template =
+    codes.Template<codes.Message Function({required Token lexeme})>? template =
         missingBlockKind?.template;
     if (template == null) {
       codes.Message? message = missingBlockKind?.message;
@@ -4647,13 +4825,13 @@ class Parser {
         // TODO(danrubel): rename ExpectedButGot to ExpectedBefore
         reportRecoverableError(
           next,
-          codes.templateExpectedButGot.withArguments('{'),
+          diag.expectedButGot.withArguments(expected: '{'),
         );
       } else {
         reportRecoverableError(token, message);
       }
     } else {
-      reportRecoverableError(next, template.withArguments(next));
+      reportRecoverableError(next, template.withArguments(lexeme: next));
     }
     return insertBlock(token);
   }
@@ -4694,7 +4872,7 @@ class Parser {
     // TODO(danrubel): Pass in context for better error message.
     reportRecoverableError(
       next,
-      codes.templateExpectedButGot.withArguments(')'),
+      diag.expectedButGot.withArguments(expected: ')'),
     );
 
     // Scanner guarantees a closing parenthesis
@@ -4708,7 +4886,7 @@ class Parser {
   Token ensureColon(Token token) {
     Token next = token.next!;
     if (next.isA(TokenType.COLON)) return next;
-    codes.Message message = codes.templateExpectedButGot.withArguments(':');
+    codes.Message message = diag.expectedButGot.withArguments(expected: ':');
     Token newToken = new SyntheticToken(TokenType.COLON, next.charOffset);
     return rewriteAndRecover(token, message, newToken);
   }
@@ -4719,7 +4897,7 @@ class Parser {
   Token ensureFunctionArrow(Token token) {
     Token next = token.next!;
     if (next.isA(TokenType.FUNCTION)) return next;
-    codes.Message message = codes.templateExpectedButGot.withArguments('=>');
+    codes.Message message = diag.expectedButGot.withArguments(expected: '=>');
     Token newToken = new SyntheticToken(TokenType.FUNCTION, next.charOffset);
     return rewriteAndRecover(token, message, newToken);
   }
@@ -4730,7 +4908,7 @@ class Parser {
   Token ensureLiteralString(Token token) {
     Token next = token.next!;
     if (next.kind != STRING_TOKEN) {
-      codes.Message message = codes.templateExpectedString.withArguments(next);
+      codes.Message message = diag.expectedString.withArguments(lexeme: next);
       Token newToken = new SyntheticStringToken(
         TokenType.STRING,
         '""',
@@ -4757,7 +4935,7 @@ class Parser {
     // for users to understand and fix the error.
     reportRecoverableError(
       findPreviousNonZeroLengthToken(token),
-      codes.templateExpectedAfterButGot.withArguments(';'),
+      diag.expectedAfterButGot.withArguments(expected: ';'),
     );
     return rewriter.insertSyntheticToken(token, TokenType.SEMICOLON);
   }
@@ -4806,7 +4984,7 @@ class Parser {
       final String? nextValue = next.next!.stringValue;
       for (String expectedValue in expectedNext) {
         if (identical(nextValue, expectedValue)) {
-          reportRecoverableErrorWithToken(next, codes.templateUnexpectedToken);
+          reportRecoverableErrorWithToken(next, diag.unexpectedToken);
           return next;
         }
       }
@@ -4823,10 +5001,7 @@ class Parser {
       token = parseLiteralString(token);
     }
     listener.handleNativeClause(nativeToken, hasName);
-    reportRecoverableError(
-      nativeToken,
-      codes.messageNativeClauseShouldBeAnnotation,
-    );
+    reportRecoverableError(nativeToken, diag.nativeClauseShouldBeAnnotation);
     return token;
   }
 
@@ -4849,7 +5024,7 @@ class Parser {
     assert(token.isA(TokenType.OPEN_CURLY_BRACKET));
     listener.beginClassOrMixinOrExtensionBody(kind, token);
     int count = 0;
-    while (notEofOrValue('}', token.next!)) {
+    while (notEofOrType(TokenType.CLOSE_CURLY_BRACKET, token.next!)) {
       token = parseClassOrMixinOrExtensionOrEnumMemberImpl(
         token,
         kind,
@@ -5001,15 +5176,14 @@ class Parser {
             }
           }
           if (isModifier(next)) {
-            ModifierContext context =
-                new ModifierContext(this)
-                  ..covariantToken = covariantToken
-                  ..augmentToken = augmentToken
-                  ..externalToken = externalToken
-                  ..lateToken = lateToken
-                  ..staticToken = staticToken
-                  ..varFinalOrConst = varFinalOrConst
-                  ..abstractToken = abstractToken;
+            ModifierContext context = new ModifierContext(this)
+              ..covariantToken = covariantToken
+              ..augmentToken = augmentToken
+              ..externalToken = externalToken
+              ..lateToken = lateToken
+              ..staticToken = staticToken
+              ..varFinalOrConst = varFinalOrConst
+              ..abstractToken = abstractToken;
 
             token = context.parseClassMemberModifiers(token);
             next = token.next!;
@@ -5035,14 +5209,14 @@ class Parser {
     listener.beginMember();
 
     Token beforeType = token;
-    if (varFinalOrConst != null) {
+    if (varFinalOrConst != null && !varFinalOrConst.isA(Keyword.CONST)) {
       Token? afterOuterPattern = skipOuterPattern(beforeType);
       if (afterOuterPattern != null &&
           (afterOuterPattern.next!.isA(TokenType.EQ))) {
         reportRecoverableErrorWithEnd(
           beforeType.next!,
           afterOuterPattern,
-          codes.messagePatternVariableDeclarationOutsideFunctionOrMethod,
+          diag.patternVariableDeclarationOutsideFunctionOrMethod,
         );
         Token syntheticName = rewriter.insertSyntheticIdentifier(beforeType);
 
@@ -5075,9 +5249,19 @@ class Parser {
     token = typeInfo.skipType(token);
     next = token.next!;
 
+    Token? newToken;
     Token? getOrSet;
     bool nameIsRecovered = false;
-    if (next.type != TokenType.IDENTIFIER) {
+    if (next.isA(Keyword.NEW)) {
+      newToken = next;
+      if (!isPrimaryConstructorsFeatureEnabled) {
+        reportExperimentNotEnabled(
+          ExperimentalFlag.primaryConstructors,
+          newToken,
+          newToken,
+        );
+      }
+    } else if (next.type != TokenType.IDENTIFIER) {
       String? value = next.stringValue;
       if (identical(value, 'get') || identical(value, 'set')) {
         if (next.next!.isIdentifier) {
@@ -5093,15 +5277,12 @@ class Parser {
         // Fall through to continue parsing `get` or `set` as an identifier.
       } else if (identical(value, 'factory')) {
         Token next2 = next.next!;
-        if (next2.isIdentifier || next2.isModifier) {
+        if (next2.isIdentifier || next2.isModifier || next2.isA(Keyword.NEW)) {
           if (beforeType != token) {
-            reportRecoverableError(token, codes.messageTypeBeforeFactory);
+            reportRecoverableError(token, diag.typeBeforeFactory);
           }
           if (abstractToken != null) {
-            reportRecoverableError(
-              abstractToken,
-              codes.messageAbstractClassMember,
-            );
+            reportRecoverableError(abstractToken, diag.abstractClassMember);
           }
           token = parseFactoryMethod(
             token,
@@ -5110,9 +5291,31 @@ class Parser {
             externalToken,
             staticToken ?? covariantToken,
             varFinalOrConst,
+            /* hasName = */ true,
           );
           listener.endMember();
           return token;
+        } else if (isPrimaryConstructorsFeatureEnabled &&
+            next2.isA(TokenType.OPEN_PAREN)) {
+          if (typeInfo == noType &&
+              covariantToken == null &&
+              //externalToken = null &&
+              lateToken == null &&
+              staticToken == null &&
+              (varFinalOrConst == null || varFinalOrConst.isA(Keyword.CONST)) &&
+              abstractToken == null) {
+            token = parseFactoryMethod(
+              token,
+              kind,
+              beforeStart,
+              externalToken,
+              staticToken ?? covariantToken,
+              varFinalOrConst,
+              /* hasName = */ false,
+            );
+            listener.endMember();
+            return token;
+          }
         }
         // Fall through to continue parsing `factory` as an identifier.
       } else if (identical(value, 'operator')) {
@@ -5133,6 +5336,7 @@ class Parser {
             beforeType,
             typeInfo,
             getOrSet,
+            newToken,
             token.next!,
             kind,
             enclosingDeclarationName,
@@ -5173,6 +5377,7 @@ class Parser {
             beforeType,
             typeInfo,
             getOrSet,
+            newToken,
             token.next!,
             kind,
             enclosingDeclarationName,
@@ -5182,15 +5387,59 @@ class Parser {
           return token;
         }
         // Fall through to continue parsing `operator` as an identifier.
+      } else if (identical(value, 'this')) {
+        Token next2 = next.next!;
+        if (next2.isA(TokenType.COLON) ||
+            next2.isA(TokenType.SEMICOLON) ||
+            next2.isA(TokenType.OPEN_CURLY_BRACKET) ||
+            next2.isA(TokenType.FUNCTION) || // =>
+            next2.isA(Keyword.ASYNC) ||
+            next2.isA(Keyword.SYNC)) {
+          if (!isPrimaryConstructorsFeatureEnabled) {
+            reportExperimentNotEnabled(
+              ExperimentalFlag.primaryConstructors,
+              next,
+              next,
+            );
+          }
+
+          if (varFinalOrConst != null) {
+            reportRecoverableErrorWithToken(
+              varFinalOrConst,
+              diag.extraneousModifier,
+            );
+          }
+          if (externalToken != null) {
+            reportRecoverableErrorWithToken(
+              externalToken,
+              diag.extraneousModifier,
+            );
+          }
+          if (staticToken != null) {
+            reportRecoverableErrorWithToken(
+              staticToken,
+              diag.extraneousModifier,
+            );
+          }
+          if (covariantToken != null) {
+            reportRecoverableErrorWithToken(
+              covariantToken,
+              diag.extraneousModifier,
+            );
+          }
+          if (lateToken != null) {
+            reportRecoverableErrorWithToken(lateToken, diag.extraneousModifier);
+          }
+          token = parsePrimaryConstructorBody(next);
+          listener.endMember();
+          return token;
+        }
       } else if (!next.isIdentifier ||
           (identical(value, 'typedef') &&
               token == beforeStart &&
               next.next!.isIdentifier)) {
         if (abstractToken != null) {
-          reportRecoverableError(
-            abstractToken,
-            codes.messageAbstractClassMember,
-          );
+          reportRecoverableError(abstractToken, diag.abstractClassMember);
         }
         // Recovery
         return recoverFromInvalidMember(
@@ -5206,6 +5455,7 @@ class Parser {
           beforeType,
           typeInfo,
           getOrSet,
+          newToken,
           kind,
           enclosingDeclarationName,
         );
@@ -5250,6 +5500,7 @@ class Parser {
     next = next.next!;
     String? value = next.stringValue;
     if (getOrSet != null ||
+        newToken != null ||
         identical(value, '(') ||
         identical(value, '{') ||
         identical(value, '<') ||
@@ -5267,6 +5518,7 @@ class Parser {
         beforeType,
         typeInfo,
         getOrSet,
+        newToken,
         token.next!,
         kind,
         enclosingDeclarationName,
@@ -5274,10 +5526,7 @@ class Parser {
       );
     } else {
       if (getOrSet != null) {
-        reportRecoverableErrorWithToken(
-          getOrSet,
-          codes.templateExtraneousModifier,
-        );
+        reportRecoverableErrorWithToken(getOrSet, diag.extraneousModifier);
       }
       token = parseFields(
         beforeStart,
@@ -5300,6 +5549,84 @@ class Parser {
     return token;
   }
 
+  /// Returns `true` if a method-like declaration is determined to be a
+  /// constructor.
+  ///
+  /// [name] is the token for the (first) name of the declaration or the
+  /// `operator` token if [isOperator] is `true`.
+  ///
+  /// [getOrSet] is the token for `get` or `set` if this occurred prior to the
+  /// [name].
+  ///
+  /// [newToken] is the token for `new` if this occurred prior to the name.
+  ///
+  /// [enclosingDeclarationName] is the name of the enclosing class, mixin,
+  /// enum, extension or extension type.
+  bool _isConstructor(
+    Token name,
+    Token? getOrSet,
+    Token? newToken,
+    String? enclosingDeclarationName,
+    bool isOperator,
+  ) {
+    // TODO(johnniwinther): Update this to match what we want and not what we
+    //  happened to do during error recovery.
+    if (newToken != null) {
+      return true;
+    }
+    Token afterName;
+    if (name.isKeywordOrIdentifier) {
+      afterName = name.next!;
+    } else {
+      // Recovery (identifier is synthesized)
+      afterName = name;
+    }
+    if (afterName.isA(TokenType.PERIOD)) {
+      // This is only legal for constructors.
+      return true;
+    }
+
+    if (isOperator) {
+      if (afterName.isOperator) {
+        afterName = afterName.next!;
+      } else if (isUnaryMinus(afterName)) {
+        afterName = afterName.next!.next!;
+      }
+    }
+    if (afterName.isA(TokenType.BANG)) {
+      // Recovery
+      afterName = afterName.next!;
+    }
+    if (afterName.isA(TokenType.LT)) {
+      if (afterName.endGroup != null) {
+        afterName = afterName.endGroup!.next!;
+        if (afterName.isA(TokenType.EQ)) {
+          // Recovery
+          afterName = afterName.next!;
+        }
+      }
+    }
+
+    if (afterName.isA(TokenType.OPEN_PAREN)) {
+      Token afterParen = afterName.endGroup!.next!;
+      if (afterParen.isA(TokenType.COLON)) {
+        return true;
+      }
+    } else if (afterName.isA(TokenType.COLON)) {
+      return true;
+    }
+
+    if (getOrSet != null) {
+      return false;
+    }
+
+    if (name.lexeme == enclosingDeclarationName) {
+      return true;
+    }
+
+    return false;
+  }
+
   Token parseMethod(
     Token beforeStart,
     Token? abstractToken,
@@ -5312,19 +5639,17 @@ class Parser {
     Token beforeType,
     TypeInfo typeInfo,
     Token? getOrSet,
+    Token? newToken,
     Token name,
     DeclarationKind kind,
     String? enclosingDeclarationName,
     bool nameIsRecovered,
   ) {
     if (abstractToken != null) {
-      reportRecoverableError(abstractToken, codes.messageAbstractClassMember);
+      reportRecoverableError(abstractToken, diag.abstractClassMember);
     }
     if (lateToken != null) {
-      reportRecoverableErrorWithToken(
-        lateToken,
-        codes.templateExtraneousModifier,
-      );
+      reportRecoverableErrorWithToken(lateToken, diag.extraneousModifier);
     }
     bool isOperator = false;
     if (getOrSet == null && name.isA(Keyword.OPERATOR)) {
@@ -5352,14 +5677,22 @@ class Parser {
       }
     }
 
+    bool isConstructor = _isConstructor(
+      name,
+      getOrSet,
+      newToken,
+      enclosingDeclarationName,
+      isOperator,
+    );
+
     if (staticToken != null) {
       if (isOperator) {
-        reportRecoverableError(staticToken, codes.messageStaticOperator);
+        reportRecoverableError(staticToken, diag.staticOperator);
         staticToken = null;
       }
     } else if (covariantToken != null) {
       if (getOrSet == null || getOrSet.isA(Keyword.GET)) {
-        reportRecoverableError(covariantToken, codes.messageCovariantMember);
+        reportRecoverableError(covariantToken, diag.covariantMember);
         covariantToken = null;
       }
     }
@@ -5368,36 +5701,51 @@ class Parser {
         if (getOrSet != null) {
           reportRecoverableErrorWithToken(
             varFinalOrConst,
-            codes.templateExtraneousModifier,
+            diag.extraneousModifier,
           );
           varFinalOrConst = null;
         }
       } else if (varFinalOrConst.isA(Keyword.VAR)) {
-        reportRecoverableError(varFinalOrConst, codes.messageVarReturnType);
+        reportRecoverableError(varFinalOrConst, diag.varReturnType);
         varFinalOrConst = null;
       } else {
         assert(varFinalOrConst.isA(Keyword.FINAL));
         reportRecoverableErrorWithToken(
           varFinalOrConst,
-          codes.templateExtraneousModifier,
+          diag.extraneousModifier,
         );
         varFinalOrConst = null;
       }
     }
 
-    // TODO(danrubel): Consider parsing the name before calling beginMethod
-    // rather than passing the name token into beginMethod.
-    listener.beginMethod(
-      kind,
-      augmentToken,
-      externalToken,
-      staticToken,
-      covariantToken,
-      varFinalOrConst,
-      getOrSet,
-      name,
-      enclosingDeclarationName,
-    );
+    if (isConstructor) {
+      listener.beginConstructor(
+        kind,
+        augmentToken,
+        externalToken,
+        staticToken,
+        covariantToken,
+        varFinalOrConst,
+        getOrSet,
+        newToken,
+        name,
+        enclosingDeclarationName,
+      );
+    } else {
+      // TODO(danrubel): Consider parsing the name before calling beginMethod
+      // rather than passing the name token into beginMethod.
+      listener.beginMethod(
+        kind,
+        augmentToken,
+        externalToken,
+        staticToken,
+        covariantToken,
+        varFinalOrConst,
+        getOrSet,
+        name,
+        enclosingDeclarationName,
+      );
+    }
 
     Token token = typeInfo.parseType(beforeType, this);
     assert(
@@ -5415,6 +5763,60 @@ class Parser {
 
     if (isOperator) {
       token = parseOperatorName(token);
+    } else if (newToken != null) {
+      token = token.next!;
+      if (token.next!.isIdentifier) {
+        Token identifier = token = token.next!;
+        listener.handleIdentifier(
+          identifier,
+          IdentifierContext.methodDeclaration,
+        );
+        // Recovery: This call only does something if the next token is
+        // a '.' --- that's not legal for constructors using 'new' so we'll
+        // report an error and recover better by allowing it.
+        Token qualified = parseQualifiedRestOpt(
+          token,
+          IdentifierContext.methodDeclarationContinuation,
+        );
+        if (token != qualified) {
+          hasQualifiedName = true;
+          reportRecoverableError(token, diag.newConstructorQualifiedName);
+        }
+        token = qualified;
+      } else if (token.next!.isA(Keyword.NEW)) {
+        // This a constructor declaration like `new new();` which isn't allowed.
+        Token identifier = token = token.next!;
+        reportRecoverableError(identifier, diag.newConstructorNewName);
+        listener.handleIdentifier(
+          identifier,
+          IdentifierContext.methodDeclaration,
+        );
+      } else if (token.next!.isA(TokenType.PERIOD) &&
+          token.next!.next!.isIdentifier) {
+        // This a constructor declaration like `new.name();` which isn't
+        // allowed.
+        Token dot = token.next!;
+        reportRecoverableError(dot, diag.newConstructorDotName);
+        Token identifier = token = dot.next!;
+        listener.handleIdentifier(
+          identifier,
+          IdentifierContext.methodDeclaration,
+        );
+        // Recovery: This call only does something if the next token is
+        // a '.' --- that's not legal for constructors using 'new' so we'll
+        // report an error and recover better by allowing it.
+        Token qualified = parseQualifiedRestOpt(
+          token,
+          IdentifierContext.methodDeclarationContinuation,
+        );
+        if (token != qualified) {
+          hasQualifiedName = true;
+          reportRecoverableError(token, diag.newConstructorQualifiedName);
+        }
+        token = qualified;
+      } else {
+        listener.handleNoIdentifier(token, IdentifierContext.methodDeclaration);
+      }
     } else {
       token = ensureIdentifierPotentiallyRecovered(
         token,
@@ -5459,20 +5861,17 @@ class Parser {
       case DeclarationKind.Class:
       case DeclarationKind.Mixin:
       case DeclarationKind.Enum:
-        memberKind =
-            staticToken != null
-                ? MemberKind.StaticMethod
-                : MemberKind.NonStaticMethod;
+        memberKind = staticToken != null
+            ? MemberKind.StaticMethod
+            : MemberKind.NonStaticMethod;
       case DeclarationKind.Extension:
-        memberKind =
-            staticToken != null
-                ? MemberKind.ExtensionStaticMethod
-                : MemberKind.ExtensionNonStaticMethod;
+        memberKind = staticToken != null
+            ? MemberKind.ExtensionStaticMethod
+            : MemberKind.ExtensionNonStaticMethod;
       case DeclarationKind.ExtensionType:
-        memberKind =
-            staticToken != null
-                ? MemberKind.ExtensionTypeStaticMethod
-                : MemberKind.ExtensionTypeNonStaticMethod;
+        memberKind = staticToken != null
+            ? MemberKind.ExtensionTypeStaticMethod
+            : MemberKind.ExtensionTypeNonStaticMethod;
     }
 
     Token beforeParam = token;
@@ -5489,196 +5888,128 @@ class Parser {
     Token asyncToken = token.next!;
     token = parseAsyncModifierOpt(token);
     if (getOrSet != null && !inPlainSync && getOrSet.isA(Keyword.SET)) {
-      reportRecoverableError(asyncToken, codes.messageSetterNotSync);
+      reportRecoverableError(asyncToken, diag.setterNotSync);
     }
     final Token bodyStart = token.next!;
     if (externalToken != null) {
       if (!bodyStart.isA(TokenType.SEMICOLON)) {
-        reportRecoverableError(bodyStart, codes.messageExternalMethodWithBody);
+        reportRecoverableError(bodyStart, diag.externalMethodWithBody);
       }
     }
     if (bodyStart.isA(TokenType.EQ)) {
-      reportRecoverableError(bodyStart, codes.messageRedirectionInNonFactory);
+      reportRecoverableError(bodyStart, diag.redirectionInNonFactory);
       token = parseRedirectingFactoryBody(token);
     } else {
       token = parseFunctionBody(
         token,
         /* ofFunctionExpression = */ false,
-        (staticToken == null || externalToken != null) && inPlainSync,
+        /* allowAbstract = */ (staticToken == null ||
+                externalToken != null ||
+                _isAugmentationsFeatureEnabled) &&
+            inPlainSync,
       );
     }
     asyncState = savedAsyncModifier;
-
-    bool isConstructor = false;
-    if (name.next!.isA(TokenType.PERIOD) || beforeInitializers != null) {
-      // This is only legal for constructors.
-      isConstructor = true;
-    } else if (name.lexeme == enclosingDeclarationName) {
-      if (getOrSet != null) {
-        // Recovery: The (simple) get/set member name is invalid.
-        // Report an error and continue with invalid name
-        // (keeping it as a getter/setter).
-        reportRecoverableError(name, codes.messageMemberWithSameNameAsClass);
-      } else {
-        isConstructor = true;
-      }
-    }
 
     if (isConstructor) {
       //
       // constructor
       //
-      if (name.lexeme != enclosingDeclarationName) {
-        reportRecoverableError(name, codes.messageConstructorWithWrongName);
+      if (newToken == null && name.lexeme != enclosingDeclarationName) {
+        reportRecoverableError(name, diag.constructorWithWrongName);
       }
       if (staticToken != null) {
-        reportRecoverableError(staticToken, codes.messageStaticConstructor);
+        reportRecoverableError(staticToken, diag.staticConstructor);
       }
       if (getOrSet != null) {
         if (getOrSet.isA(Keyword.GET)) {
-          reportRecoverableError(getOrSet, codes.messageGetterConstructor);
+          reportRecoverableError(getOrSet, diag.getterConstructor);
         } else {
-          reportRecoverableError(getOrSet, codes.messageSetterConstructor);
+          reportRecoverableError(getOrSet, diag.setterConstructor);
         }
       }
       if (typeInfo != noType) {
         reportRecoverableError(
           beforeType.next!,
-          codes.messageConstructorWithReturnType,
+          diag.constructorWithReturnType,
         );
       }
       if (beforeInitializers != null && externalToken != null) {
         reportRecoverableError(
           beforeInitializers.next!,
-          codes.messageExternalConstructorWithInitializer,
+          diag.externalConstructorWithInitializer,
         );
       }
 
       switch (kind) {
-        case DeclarationKind.Class:
-          // TODO(danrubel): Remove getOrSet from constructor events
-          listener.endClassConstructor(
-            getOrSet,
-            beforeStart.next!,
-            beforeParam.next!,
-            beforeInitializers?.next,
-            token,
-          );
-          break;
         case DeclarationKind.Mixin:
-          reportRecoverableError(name, codes.messageMixinDeclaresConstructor);
-          listener.endMixinConstructor(
-            getOrSet,
-            beforeStart.next!,
-            beforeParam.next!,
-            beforeInitializers?.next,
-            token,
-          );
+          reportRecoverableError(name, diag.mixinDeclaresConstructor);
           break;
         case DeclarationKind.Extension:
-          reportRecoverableError(
-            name,
-            codes.messageExtensionDeclaresConstructor,
-          );
-          listener.endExtensionConstructor(
-            getOrSet,
-            beforeStart.next!,
-            beforeParam.next!,
-            beforeInitializers?.next,
-            token,
-          );
+          reportRecoverableError(name, diag.extensionDeclaresConstructor);
           break;
+        case DeclarationKind.Class:
         case DeclarationKind.ExtensionType:
-          listener.endExtensionTypeConstructor(
-            getOrSet,
-            beforeStart.next!,
-            beforeParam.next!,
-            beforeInitializers?.next,
-            token,
-          );
+        case DeclarationKind.Enum:
           break;
         case DeclarationKind.TopLevel:
           throw "Internal error: TopLevel constructor.";
-        case DeclarationKind.Enum:
-          listener.endEnumConstructor(
-            getOrSet,
-            beforeStart.next!,
-            beforeParam.next!,
-            beforeInitializers?.next,
-            token,
-          );
-          break;
       }
+      listener.endConstructor(
+        kind,
+        beforeStart.next!,
+        newToken,
+        beforeParam.next!,
+        beforeInitializers?.next,
+        token,
+      );
     } else {
       //
       // method
       //
+      if (name.lexeme == enclosingDeclarationName && getOrSet != null) {
+        // Recovery: The (simple) get/set member name is invalid.
+        // Report an error and continue with invalid name
+        // (keeping it as a getter/setter).
+        reportRecoverableError(name, diag.memberWithSameNameAsClass);
+      }
       if (varFinalOrConst != null) {
         assert(varFinalOrConst.isA(Keyword.CONST));
-        reportRecoverableError(varFinalOrConst, codes.messageConstMethod);
+        reportRecoverableError(varFinalOrConst, diag.constMethod);
       }
       switch (kind) {
         case DeclarationKind.Class:
-          // TODO(danrubel): Remove beginInitializers token from method events
-          listener.endClassMethod(
-            getOrSet,
-            beforeStart.next!,
-            beforeParam.next!,
-            beforeInitializers?.next,
-            token,
-          );
-          break;
         case DeclarationKind.Mixin:
-          listener.endMixinMethod(
-            getOrSet,
-            beforeStart.next!,
-            beforeParam.next!,
-            beforeInitializers?.next,
-            token,
-          );
+        case DeclarationKind.Enum:
           break;
         case DeclarationKind.Extension:
           if (bodyStart.isA(TokenType.SEMICOLON) && externalToken == null) {
             reportRecoverableError(
               isOperator ? name.next! : name,
-              codes.messageExtensionDeclaresAbstractMember,
+              diag.extensionDeclaresAbstractMember,
             );
           }
-          listener.endExtensionMethod(
-            getOrSet,
-            beforeStart.next!,
-            beforeParam.next!,
-            beforeInitializers?.next,
-            token,
-          );
           break;
         case DeclarationKind.ExtensionType:
           if (bodyStart.isA(TokenType.SEMICOLON) && externalToken == null) {
             reportRecoverableError(
               isOperator ? name.next! : name,
-              codes.messageExtensionTypeDeclaresAbstractMember,
+              diag.extensionTypeDeclaresAbstractMember,
             );
           }
-          listener.endExtensionTypeMethod(
-            getOrSet,
-            beforeStart.next!,
-            beforeParam.next!,
-            beforeInitializers?.next,
-            token,
-          );
           break;
         case DeclarationKind.TopLevel:
           throw "Internal error: TopLevel method.";
-        case DeclarationKind.Enum:
-          listener.endEnumMethod(
-            getOrSet,
-            beforeStart.next!,
-            beforeParam.next!,
-            beforeInitializers?.next,
-            token,
-          );
-          break;
       }
+      // TODO(danrubel): Remove beginInitializers token from method events
+      listener.endMethod(
+        kind,
+        getOrSet,
+        beforeStart.next!,
+        beforeParam.next!,
+        beforeInitializers?.next,
+        token,
+      );
     }
     return token;
   }
@@ -5690,17 +6021,17 @@ class Parser {
     Token? externalToken,
     Token? staticOrCovariant,
     Token? varFinalOrConst,
+    bool hasName,
   ) {
     Token factoryKeyword = token = token.next!;
     assert(factoryKeyword.isA(Keyword.FACTORY));
 
     if (!isValidNonRecordTypeReference(token.next!)) {
       // Recovery
-      ModifierContext context =
-          new ModifierContext(this)
-            ..externalToken = externalToken
-            ..staticOrCovariant = staticOrCovariant
-            ..varFinalOrConst = varFinalOrConst;
+      ModifierContext context = new ModifierContext(this)
+        ..externalToken = externalToken
+        ..staticOrCovariant = staticOrCovariant
+        ..varFinalOrConst = varFinalOrConst;
 
       token = context.parseModifiersAfterFactory(token);
 
@@ -5712,44 +6043,48 @@ class Parser {
     if (staticOrCovariant != null) {
       reportRecoverableErrorWithToken(
         staticOrCovariant,
-        codes.templateExtraneousModifier,
+        diag.extraneousModifier,
       );
     }
     if (varFinalOrConst != null && !varFinalOrConst.isA(Keyword.CONST)) {
-      reportRecoverableErrorWithToken(
-        varFinalOrConst,
-        codes.templateExtraneousModifier,
-      );
+      reportRecoverableErrorWithToken(varFinalOrConst, diag.extraneousModifier);
       varFinalOrConst = null;
     }
 
-    listener.beginFactoryMethod(
-      kind,
-      beforeStart,
-      externalToken,
-      varFinalOrConst,
-    );
-    token = ensureIdentifier(token, IdentifierContext.methodDeclaration);
-    token = parseQualifiedRestOpt(
-      token,
-      IdentifierContext.methodDeclarationContinuation,
-    );
+    listener.beginFactory(kind, beforeStart, externalToken, varFinalOrConst);
+    if (!hasName) {
+      listener.handleNoIdentifier(token, IdentifierContext.methodDeclaration);
+    } else if (token.next!.isA(Keyword.NEW) &&
+        !token.next!.next!.isA(TokenType.PERIOD)) {
+      Token identifier = token = token.next!;
+      reportRecoverableError(identifier, diag.factoryConstructorNewName);
+      listener.handleIdentifier(
+        identifier,
+        IdentifierContext.methodDeclaration,
+      );
+    } else {
+      token = ensureIdentifier(token, IdentifierContext.methodDeclaration);
+      token = parseQualifiedRestOpt(
+        token,
+        IdentifierContext.methodDeclarationContinuation,
+      );
+    }
     token = parseMethodTypeVar(token);
     token = parseFormalParametersRequiredOpt(token, MemberKind.Factory);
     Token asyncToken = token.next!;
     token = parseAsyncModifierOpt(token);
     Token next = token.next!;
     if (!inPlainSync) {
-      reportRecoverableError(asyncToken, codes.messageFactoryNotSync);
+      reportRecoverableError(asyncToken, diag.factoryNotSync);
     }
     if (next.isA(TokenType.EQ)) {
       if (externalToken != null) {
-        reportRecoverableError(next, codes.messageExternalFactoryRedirection);
+        reportRecoverableError(next, diag.externalFactoryRedirection);
       }
       token = parseRedirectingFactoryBody(token);
     } else if (externalToken != null) {
       if (!next.isA(TokenType.SEMICOLON)) {
-        reportRecoverableError(next, codes.messageExternalFactoryWithBody);
+        reportRecoverableError(next, diag.externalFactoryWithBody);
       }
       token = parseFunctionBody(
         token,
@@ -5770,47 +6105,22 @@ class Parser {
     }
     switch (kind) {
       case DeclarationKind.Class:
-        listener.endClassFactoryMethod(
-          beforeStart.next!,
-          factoryKeyword,
-          token,
-        );
+      case DeclarationKind.Enum:
+      case DeclarationKind.ExtensionType:
         break;
       case DeclarationKind.Mixin:
-        reportRecoverableError(
-          factoryKeyword,
-          codes.messageMixinDeclaresConstructor,
-        );
-        listener.endMixinFactoryMethod(
-          beforeStart.next!,
-          factoryKeyword,
-          token,
-        );
+        reportRecoverableError(factoryKeyword, diag.mixinDeclaresConstructor);
         break;
       case DeclarationKind.Extension:
         reportRecoverableError(
           factoryKeyword,
-          codes.messageExtensionDeclaresConstructor,
-        );
-        listener.endExtensionFactoryMethod(
-          beforeStart.next!,
-          factoryKeyword,
-          token,
-        );
-        break;
-      case DeclarationKind.ExtensionType:
-        listener.endExtensionTypeFactoryMethod(
-          beforeStart.next!,
-          factoryKeyword,
-          token,
+          diag.extensionDeclaresConstructor,
         );
         break;
       case DeclarationKind.TopLevel:
         throw "Internal error: TopLevel factory.";
-      case DeclarationKind.Enum:
-        listener.endEnumFactoryMethod(beforeStart.next!, factoryKeyword, token);
-        break;
     }
+    listener.endFactory(kind, beforeStart.next!, factoryKeyword, token);
     return token;
   }
 
@@ -5833,7 +6143,7 @@ class Parser {
       return ensureIdentifier(beforeToken, IdentifierContext.operatorName);
     } else if (isUnaryMinus(next)) {
       // Recovery
-      reportRecoverableErrorWithToken(next, codes.templateUnexpectedToken);
+      reportRecoverableErrorWithToken(next, diag.unexpectedToken);
       next = next.next!;
       listener.handleOperatorName(token, next);
       return next;
@@ -5844,7 +6154,7 @@ class Parser {
           next.type != TokenType.BANG_EQ_EQ) {
         // The user has specified an invalid operator name.
         // Report the error, accept the invalid operator name, and move on.
-        reportRecoverableErrorWithToken(next, codes.templateInvalidOperator);
+        reportRecoverableErrorWithToken(next, diag.invalidOperator);
       }
       listener.handleInvalidOperatorName(token, next);
       return next;
@@ -5907,16 +6217,12 @@ class Parser {
   ) {
     Token token = beforeName.next!;
     listener.beginFunctionName(token);
-    token =
-        ensureIdentifier(
-          beforeName,
-          IdentifierContext.localFunctionDeclaration,
-        ).next!;
+    token = ensureIdentifier(
+      beforeName,
+      IdentifierContext.localFunctionDeclaration,
+    ).next!;
     if (isFunctionExpression) {
-      reportRecoverableError(
-        beforeName.next!,
-        codes.messageNamedFunctionExpression,
-      );
+      reportRecoverableError(beforeName.next!, diag.namedFunctionExpression);
     }
     listener.endFunctionName(begin, token, isFunctionExpression);
     token = parseFormalParametersRequiredOpt(formals, MemberKind.Local);
@@ -6026,10 +6332,11 @@ class Parser {
     if (identical(value, ';')) {
       token = next;
       if (!allowAbstract) {
-        reportRecoverableError(token, codes.messageExpectedBody);
+        reportRecoverableError(token, diag.expectedBody);
       }
       listener.handleNoFunctionBody(token);
     } else if (identical(value, '=>')) {
+      Token beginToken = next;
       token = parseExpression(next);
       // There ought to be a semicolon following the expression, but we check
       // before advancing in order to be consistent with the way the method
@@ -6037,10 +6344,14 @@ class Parser {
       if (token.next!.isA(TokenType.SEMICOLON)) {
         token = token.next!;
       }
-      listener.handleFunctionBodySkipped(token, /* isExpressionBody = */ true);
+      listener.handleFunctionBodySkipped(
+        beginToken,
+        token,
+        /* isExpressionBody = */ true,
+      );
     } else if (identical(value, '=')) {
-      token = next;
-      reportRecoverableError(token, codes.messageExpectedBody);
+      Token beginToken = token = next;
+      reportRecoverableError(token, diag.expectedBody);
       token = parseExpression(token);
       // There ought to be a semicolon following the expression, but we check
       // before advancing in order to be consistent with the way the method
@@ -6048,10 +6359,19 @@ class Parser {
       if (token.next!.isA(TokenType.SEMICOLON)) {
         token = token.next!;
       }
-      listener.handleFunctionBodySkipped(token, /* isExpressionBody = */ true);
+      listener.handleFunctionBodySkipped(
+        beginToken,
+        token,
+        /* isExpressionBody = */ true,
+      );
     } else {
+      Token beginToken = token.next!;
       token = skipBlock(token);
-      listener.handleFunctionBodySkipped(token, /* isExpressionBody = */ false);
+      listener.handleFunctionBodySkipped(
+        beginToken,
+        token,
+        /* isExpressionBody = */ false,
+      );
     }
     return token;
   }
@@ -6076,13 +6396,13 @@ class Parser {
         listener.handleNativeFunctionBody(nativeToken, next);
         return next;
       }
-      reportRecoverableError(next, codes.messageExternalMethodWithBody);
+      reportRecoverableError(next, diag.externalMethodWithBody);
       listener.handleNativeFunctionBodyIgnored(nativeToken, next);
       // Ignore the native keyword and fall through to parse the body
     }
     if (next.isA(TokenType.SEMICOLON)) {
       if (!allowAbstract) {
-        reportRecoverableError(next, codes.messageExpectedBody);
+        reportRecoverableError(next, diag.expectedBody);
       }
       listener.handleEmptyFunctionBody(next);
       return next;
@@ -6090,7 +6410,7 @@ class Parser {
       return parseExpressionFunctionBody(next, ofFunctionExpression);
     } else if (next.isA(TokenType.EQ)) {
       // Recover from a bad factory method.
-      reportRecoverableError(next, codes.messageExpectedBody);
+      reportRecoverableError(next, diag.expectedBody);
       next = rewriter.insertToken(
         next,
         new SyntheticToken(TokenType.FUNCTION, next.next!.charOffset),
@@ -6111,7 +6431,7 @@ class Parser {
       // Recovery
       // If `return` used instead of `=>`, then report an error and continue
       if (next.isA(Keyword.RETURN)) {
-        reportRecoverableError(next, codes.messageExpectedBody);
+        reportRecoverableError(next, diag.expectedBody);
         next = rewriter.insertToken(
           next,
           new SyntheticToken(TokenType.FUNCTION, next.next!.charOffset),
@@ -6122,12 +6442,12 @@ class Parser {
       // because the user is typing (e.g. `() asy => null;`)
       // then report an error, skip the token, and continue parsing.
       if (next.isKeywordOrIdentifier && next.next!.isA(TokenType.FUNCTION)) {
-        reportRecoverableErrorWithToken(next, codes.templateUnexpectedToken);
+        reportRecoverableErrorWithToken(next, diag.unexpectedToken);
         return parseExpressionFunctionBody(next.next!, ofFunctionExpression);
       }
       if (next.isKeywordOrIdentifier &&
           next.next!.isA(TokenType.OPEN_CURLY_BRACKET)) {
-        reportRecoverableErrorWithToken(next, codes.templateUnexpectedToken);
+        reportRecoverableErrorWithToken(next, diag.unexpectedToken);
         token = next;
         begin = next = token.next!;
         // Fall through to parse the block.
@@ -6142,7 +6462,7 @@ class Parser {
     loopState = LoopState.OutsideLoop;
     listener.beginBlockFunctionBody(begin);
     token = next;
-    while (notEofOrValue('}', token.next!)) {
+    while (notEofOrType(TokenType.CLOSE_CURLY_BRACKET, token.next!)) {
       Token startToken = token.next!;
       token = parseStatement(token);
       if (identical(token.next!, startToken)) {
@@ -6150,7 +6470,7 @@ class Parser {
         // and move forward.
         reportRecoverableError(
           token,
-          codes.templateUnexpectedToken.withArguments(token),
+          diag.unexpectedToken.withArguments(lexeme: token),
         );
         token = token.next!;
       }
@@ -6174,10 +6494,7 @@ class Parser {
       listener.handleExpressionFunctionBody(begin, /* endToken = */ null);
     }
     if (inGenerator) {
-      listener.handleInvalidStatement(
-        begin,
-        codes.messageGeneratorReturnsValue,
-      );
+      listener.handleInvalidStatement(begin, diag.generatorReturnsValue);
     }
     return token;
   }
@@ -6225,12 +6542,12 @@ class Parser {
         star = next;
         token = next;
       } else {
-        reportRecoverableError(async, codes.messageInvalidSyncModifier);
+        reportRecoverableError(async, diag.invalidSyncModifier);
       }
     }
     listener.handleAsyncModifier(async, star);
     if (!inPlainSync && token.next!.isA(TokenType.SEMICOLON)) {
-      reportRecoverableError(token.next!, codes.messageAbstractNotSync);
+      reportRecoverableError(token.next!, diag.abstractNotSync);
     }
     return token;
   }
@@ -6264,7 +6581,8 @@ class Parser {
     final String? value = token.next!.stringValue;
     if (identical(value, '{')) {
       // The scanner ensures that `{` always has a closing `}`.
-      if (allowPatterns && token.next!.endGroup!.next!.isA(TokenType.EQ)) {
+      if (isPatternsFeatureEnabled &&
+          token.next!.endGroup!.next!.isA(TokenType.EQ)) {
         // Expression statement beginning with a pattern assignment
         return parseExpressionStatement(token);
       } else {
@@ -6345,10 +6663,7 @@ class Parser {
       return parseExpressionStatement(token);
     } else if (identical(value, 'set') && token.next!.next!.isIdentifier) {
       // Recovery: invalid use of `set`
-      reportRecoverableErrorWithToken(
-        token.next!,
-        codes.templateUnexpectedToken,
-      );
+      reportRecoverableErrorWithToken(token.next!, diag.unexpectedToken);
       return parseStatementX(token.next!);
     } else if (token.next!.isIdentifier) {
       if (token.next!.next!.isA(TokenType.COLON)) {
@@ -6378,7 +6693,7 @@ class Parser {
     if (inGenerator) {
       listener.endYieldStatement(begin, starToken, token);
     } else {
-      codes.MessageCode errorCode = codes.messageYieldNotGenerator;
+      codes.MessageCode errorCode = diag.yieldNotGenerator;
       reportRecoverableError(begin, errorCode);
       // TODO(srawlins): Add tests in analyzer to ensure the AstBuilder
       //  correctly handles invalid yields, and that the error message is
@@ -6406,10 +6721,7 @@ class Parser {
     token = ensureSemicolon(token);
     listener.endReturnStatement(/* hasExpression = */ true, begin, token);
     if (inGenerator) {
-      listener.handleInvalidStatement(
-        begin,
-        codes.messageGeneratorReturnsValue,
-      );
+      listener.handleInvalidStatement(begin, diag.generatorReturnsValue);
     }
     return token;
   }
@@ -6477,7 +6789,7 @@ class Parser {
       // list literals. This is provoked by, for example, the language test
       // deep_nesting1_negative_test.
       Token next = token.next!;
-      reportRecoverableError(next, codes.messageStackOverflow);
+      reportRecoverableError(next, diag.stackOverflow);
 
       // Recovery
       Token? endGroup = next.endGroup;
@@ -6500,18 +6812,17 @@ class Parser {
         listener.handleIdentifier(token, IdentifierContext.expression);
       }
     } else {
-      if (allowPatterns && looksLikeOuterPatternEquals(token)) {
+      if (isPatternsFeatureEnabled && looksLikeOuterPatternEquals(token)) {
         token = parsePatternAssignment(token);
       } else {
-        token =
-            token.next!.isA(Keyword.THROW)
-                ? parseThrowExpression(token, /* allowCascades = */ true)
-                : parsePrecedenceExpression(
-                  token,
-                  ASSIGNMENT_PRECEDENCE,
-                  /* allowCascades = */ true,
-                  ConstantPatternContext.none,
-                );
+        token = token.next!.isA(Keyword.THROW)
+            ? parseThrowExpression(token, /* allowCascades = */ true)
+            : parsePrecedenceExpression(
+                token,
+                ASSIGNMENT_PRECEDENCE,
+                /* allowCascades = */ true,
+                ConstantPatternContext.none,
+              );
       }
     }
     expressionDepth--;
@@ -6522,11 +6833,11 @@ class Parser {
     return token.next!.isA(Keyword.THROW)
         ? parseThrowExpression(token, /* allowCascades = */ false)
         : parsePrecedenceExpression(
-          token,
-          ASSIGNMENT_PRECEDENCE,
-          /* allowCascades = */ false,
-          ConstantPatternContext.none,
-        );
+            token,
+            ASSIGNMENT_PRECEDENCE,
+            /* allowCascades = */ false,
+            ConstantPatternContext.none,
+          );
   }
 
   bool canParseAsConditional(Token question) {
@@ -6592,13 +6903,27 @@ class Parser {
     assert(precedence >= 1);
     assert(precedence <= SELECTOR_PRECEDENCE);
 
-    bool isDotShorthand = _isDotShorthand(token.next!);
+    Token nextToken = token.next!;
+    bool isDotShorthand = _isDotShorthand(nextToken);
     if (!isDotShorthand) {
-      token = parseUnaryExpression(
-        token,
-        allowCascades,
-        constantPatternContext,
-      );
+      if (nextToken.isA(TokenType.PERIOD)) {
+        // Recovery.
+        // This is an incomplete dot shorthand like `var x = .`.
+        // This allows for better code completion, assuming the user wanted to
+        // write a dot shorthand.
+        token = ensureIdentifier(
+          nextToken,
+          IdentifierContext.expressionContinuation,
+        );
+        listener.handleDotShorthandHead(nextToken);
+        listener.handleDotShorthandContext(nextToken);
+      } else {
+        token = parseUnaryExpression(
+          token,
+          allowCascades,
+          constantPatternContext,
+        );
+      }
     }
 
     Token bangToken = token;
@@ -6618,7 +6943,7 @@ class Parser {
         if (constantPatternContext != ConstantPatternContext.none) {
           reportRecoverableError(
             bangToken.next!,
-            codes.messageInvalidConstantPatternGeneric,
+            diag.invalidConstantPatternGeneric,
           );
         }
         listener.handleTypeArgumentApplication(bangToken.next!);
@@ -6695,14 +7020,13 @@ class Parser {
       // supported but we allow for parsing [EQUALITY_PRECEDENCE] and higher for
       // better error recovery.
       if (constantPatternContext == ConstantPatternContext.explicit) {
-        reportRecoverableError(
-          token,
-          codes.messageInvalidConstantPatternConstPrefix,
-        );
+        reportRecoverableError(token, diag.invalidConstantPatternConstPrefix);
       } else if (tokenLevel <= MULTIPLICATIVE_PRECEDENCE) {
         reportRecoverableError(
           next,
-          codes.templateInvalidConstantPatternBinary.withArguments(type.lexeme),
+          diag.invalidConstantPatternBinary.withArguments(
+            operatorName: type.lexeme,
+          ),
         );
       } else {
         // These are prefix or postfix ++/-- and will not be constant
@@ -6715,86 +7039,110 @@ class Parser {
       // Avoid additional constant pattern errors.
       constantPatternContext = ConstantPatternContext.none;
     }
-    bool enteredLoop = false;
-    for (int level = tokenLevel; level >= precedence; --level) {
-      int lastBinaryExpressionLevel = -1;
-      Token? lastCascade;
-      while (tokenLevel == level) {
-        enteredLoop = true;
-        Token operator = next;
-        if (tokenLevel == CASCADE_PRECEDENCE) {
-          if (!allowCascades) {
-            return token;
-          } else if (lastCascade != null &&
-              next.isA(TokenType.QUESTION_PERIOD_PERIOD)) {
-            reportRecoverableError(
-              next,
-              codes.messageNullAwareCascadeOutOfOrder,
-            );
-          }
-          lastCascade = next;
-          token = parseCascadeExpression(token);
-        } else if (tokenLevel == ASSIGNMENT_PRECEDENCE) {
-          // Right associative, so we recurse at the same precedence
-          // level.
-          Token next = token.next!;
-          if (next.next!.isA(TokenType.GT_EQ)) {
-            // Special case use of triple-shift in cases where it isn't
-            // enabled.
-            reportExperimentNotEnabled(
-              ExperimentalFlag.tripleShift,
-              next,
-              next.next!,
-            );
-            assert(next == operator);
-            next = rewriter.replaceNextTokensWithSyntheticToken(
-              token,
-              /* count = */ 2,
-              TokenType.GT_GT_GT_EQ,
-            );
-            operator = next;
-          }
-          token =
-              next.next!.isA(Keyword.THROW)
-                  ? parseThrowExpression(next, allowCascades)
-                  : parsePrecedenceExpression(
-                    next,
-                    level,
-                    allowCascades,
-                    ConstantPatternContext.none,
-                  );
-          listener.handleAssignmentExpression(operator, token);
-        } else if (tokenLevel == POSTFIX_PRECEDENCE) {
-          if ((identical(type, TokenType.PLUS_PLUS)) ||
-              (identical(type, TokenType.MINUS_MINUS))) {
-            listener.handleUnaryPostfixAssignmentExpression(token.next!);
-            token = next;
-          } else if (identical(type, TokenType.BANG)) {
-            listener.handleNonNullAssertExpression(next);
-            token = next;
-          }
-        } else if (tokenLevel == SELECTOR_PRECEDENCE) {
-          if (identical(type, TokenType.PERIOD) ||
-              identical(type, TokenType.QUESTION_PERIOD)) {
+    if (tokenLevel < precedence) {
+      if (_recoverAtPrecedenceLevel && !_currentlyRecovering) {
+        // Attempt recovery
+        if (_attemptPrecedenceLevelRecovery(
+          token,
+          precedence,
+          /* currentLevel = */ -1,
+          allowCascades,
+          typeArg,
+        )) {
+          return _parsePrecedenceExpressionLoop(
+            precedence,
+            allowCascades,
+            typeArg,
+            token,
+            ConstantPatternContext.none,
+          );
+        }
+      }
+      return token;
+    }
+    int level = tokenLevel;
+    int lastBinaryExpressionLevel = -1;
+    Token? lastCascade;
+    while (true) {
+      Token operator = next;
+      if (tokenLevel == CASCADE_PRECEDENCE) {
+        if (!allowCascades) {
+          return token;
+        } else if (lastCascade != null &&
+            next.isA(TokenType.QUESTION_PERIOD_PERIOD)) {
+          reportRecoverableError(next, diag.nullAwareCascadeOutOfOrder);
+        }
+        lastCascade = next;
+        token = parseCascadeExpression(token);
+      } else if (tokenLevel == ASSIGNMENT_PRECEDENCE) {
+        // Right associative, so we recurse at the same precedence
+        // level.
+        Token next = token.next!;
+        if (next.next!.isA(TokenType.GT_EQ)) {
+          // Special case use of triple-shift in cases where it isn't
+          // enabled.
+          reportExperimentNotEnabled(
+            ExperimentalFlag.tripleShift,
+            next,
+            next.next!,
+          );
+          assert(next == operator);
+          next = rewriter.replaceNextTokensWithSyntheticToken(
+            token,
+            /* count = */ 2,
+            TokenType.GT_GT_GT_EQ,
+          );
+          operator = next;
+        }
+        token = next.next!.isA(Keyword.THROW)
+            ? parseThrowExpression(next, allowCascades)
+            : parsePrecedenceExpression(
+                next,
+                level,
+                allowCascades,
+                ConstantPatternContext.none,
+              );
+        listener.handleAssignmentExpression(operator, token);
+      } else if (tokenLevel == POSTFIX_PRECEDENCE) {
+        if ((identical(type, TokenType.PLUS_PLUS)) ||
+            (identical(type, TokenType.MINUS_MINUS))) {
+          listener.handleUnaryPostfixAssignmentExpression(token.next!);
+          token = next;
+        } else if (identical(type, TokenType.BANG)) {
+          listener.handleNonNullAssertExpression(next);
+          token = next;
+        }
+      } else if (tokenLevel == SELECTOR_PRECEDENCE) {
+        if (identical(type, TokenType.PERIOD) ||
+            identical(type, TokenType.QUESTION_PERIOD)) {
+          Token dot = token.next!;
+          Token afterDot = dot.next!;
+          // TODO(eernst): Call reportExperimentNotEnabled to guide user when
+          // `_beginsAnonymousMethod(afterDot)`, but experiment disabled.
+          if (_isAnonymousMethodsFeatureEnabled &&
+              _beginsAnonymousMethod(afterDot)) {
+            token = _parseAnonymousMethod(dot, afterDot);
+          } else {
             // Left associative, so we recurse at the next higher precedence
             // level. However, SELECTOR_PRECEDENCE is the highest level, so we
             // should just call [parseUnaryExpression] directly. However, a
             // unary expression isn't legal after a period, so we call
             // [parsePrimary] instead.
-            Token dot = token.next!;
             token = parsePrimary(
               dot,
               IdentifierContext.expressionContinuation,
               constantPatternContext,
             );
-
             if (isDotShorthand) {
               listener.handleDotShorthandHead(dot);
               isDotShorthand = false;
             } else {
-              listener.handleEndingBinaryExpression(operator, token);
+              listener.handleDotAccess(
+                operator,
+                token,
+                /* isNullAware = */ identical(type, TokenType.QUESTION_PERIOD),
+              );
             }
-
             Token bangToken = token;
             if (token.next!.isA(TokenType.BANG)) {
               bangToken = token.next!;
@@ -6810,118 +7158,113 @@ class Parser {
                 if (constantPatternContext != ConstantPatternContext.none) {
                   reportRecoverableError(
                     bangToken.next!,
-                    codes.messageInvalidConstantPatternGeneric,
+                    diag.invalidConstantPatternGeneric,
                   );
                 }
                 listener.handleTypeArgumentApplication(bangToken.next!);
                 typeArg = noTypeParamOrArg;
               }
             }
-          } else if (identical(type, TokenType.OPEN_PAREN) ||
-              identical(type, TokenType.OPEN_SQUARE_BRACKET)) {
-            token = parseArgumentOrIndexStar(
-              token,
-              typeArg,
-              /* checkedNullAware = */ false,
-            );
-          } else if (identical(type, TokenType.QUESTION)) {
-            // We have determined selector precedence so this is a null-aware
-            // bracket operator.
-            token = parseArgumentOrIndexStar(
-              token,
-              typeArg,
-              /* checkedNullAware = */ true,
-            );
-          } else if (identical(type, TokenType.INDEX)) {
-            rewriteSquareBrackets(token);
-            token = parseArgumentOrIndexStar(
-              token,
-              noTypeParamOrArg,
-              /* checkedNullAware = */ false,
-            );
-          } else if (identical(type, TokenType.BANG)) {
-            listener.handleNonNullAssertExpression(token.next!);
-            token = next;
-          } else {
-            // Recovery
-            reportRecoverableErrorWithToken(
-              token.next!,
-              codes.templateUnexpectedToken,
-            );
-            token = next;
           }
-        } else if (identical(type, TokenType.IS)) {
-          token = parseIsOperatorRest(token);
-        } else if (identical(type, TokenType.AS)) {
-          token = parseAsOperatorRest(token);
-        } else if (identical(type, TokenType.QUESTION)) {
-          token = parseConditionalExpressionRest(token);
-        } else {
-          if (level == EQUALITY_PRECEDENCE || level == RELATIONAL_PRECEDENCE) {
-            // We don't allow (a == b == c) or (a < b < c).
-            if (lastBinaryExpressionLevel == level) {
-              // Report an error, then continue parsing as if it is legal.
-              reportRecoverableError(
-                next,
-                codes.messageEqualityCannotBeEqualityOperand,
-              );
-            } else {
-              // Set a flag to catch subsequent binary expressions of this type.
-              lastBinaryExpressionLevel = level;
-            }
-          }
-          if (next.isA(TokenType.GT_GT) &&
-              next.charEnd == next.next!.charOffset) {
-            if (next.next!.isA(TokenType.GT)) {
-              // Special case use of triple-shift in cases where it isn't
-              // enabled.
-              reportExperimentNotEnabled(
-                ExperimentalFlag.tripleShift,
-                next,
-                next.next!,
-              );
-              assert(next == operator);
-              next = rewriter.replaceNextTokensWithSyntheticToken(
-                token,
-                /* count = */ 2,
-                TokenType.GT_GT_GT,
-              );
-              operator = next;
-            }
-          }
-          listener.beginBinaryExpression(next);
-          // Left associative, so we recurse at the next higher
-          // precedence level.
-          token = parsePrecedenceExpression(
-            token.next!,
-            level + 1,
-            allowCascades,
-            ConstantPatternContext.none,
+        } else if (identical(type, TokenType.OPEN_PAREN) ||
+            identical(type, TokenType.OPEN_SQUARE_BRACKET)) {
+          token = parseArgumentOrIndexStar(
+            token,
+            typeArg,
+            /* checkedNullAware = */ false,
           );
-          listener.endBinaryExpression(operator, token);
+        } else if (identical(type, TokenType.QUESTION)) {
+          // We have determined selector precedence so this is a null-aware
+          // bracket operator.
+          token = parseArgumentOrIndexStar(
+            token,
+            typeArg,
+            /* checkedNullAware = */ true,
+          );
+        } else if (identical(type, TokenType.INDEX)) {
+          rewriteSquareBrackets(token);
+          token = parseArgumentOrIndexStar(
+            token,
+            noTypeParamOrArg,
+            /* checkedNullAware = */ false,
+          );
+        } else if (identical(type, TokenType.BANG)) {
+          listener.handleNonNullAssertExpression(token.next!);
+          token = next;
+        } else {
+          // Recovery
+          reportRecoverableErrorWithToken(token.next!, diag.unexpectedToken);
+          token = next;
         }
-        next = token.next!;
-        type = next.type;
-        tokenLevel = _computePrecedence(next, forPattern: false);
-        if (constantPatternContext != ConstantPatternContext.none) {
-          // For error recovery we allow too much when parsing constant
-          // patterns, so for the cases that shouldn't be parsed as expressions
-          // in this context we break out of the parsing loop directly.
-          if (type == TokenType.BANG) {
-            if (tokenLevel == POSTFIX_PRECEDENCE) {
-              // This is a suffixed ! which is a null assert pattern.
-              return token;
-            } else if (next.next!.isA(TokenType.QUESTION)) {
-              // This is a suffixed !? which is a null assert pattern in a null
-              // check pattern.
-              return token;
-            }
-          } else if (type == TokenType.AS) {
-            // This is a suffixed `as` which is a case pattern.
+      } else if (identical(type, TokenType.IS)) {
+        token = parseIsOperatorRest(token);
+      } else if (identical(type, TokenType.AS)) {
+        token = parseAsOperatorRest(token);
+      } else if (identical(type, TokenType.QUESTION)) {
+        token = parseConditionalExpressionRest(token);
+      } else {
+        if (level == EQUALITY_PRECEDENCE || level == RELATIONAL_PRECEDENCE) {
+          // We don't allow (a == b == c) or (a < b < c).
+          if (lastBinaryExpressionLevel == level) {
+            // Report an error, then continue parsing as if it is legal.
+            reportRecoverableError(next, diag.equalityCannotBeEqualityOperand);
+          } else {
+            // Set a flag to catch subsequent binary expressions of this type.
+            lastBinaryExpressionLevel = level;
+          }
+        }
+        if (next.isA(TokenType.GT_GT) &&
+            next.charEnd == next.next!.charOffset) {
+          if (next.next!.isA(TokenType.GT)) {
+            // Special case use of triple-shift in cases where it isn't
+            // enabled.
+            reportExperimentNotEnabled(
+              ExperimentalFlag.tripleShift,
+              next,
+              next.next!,
+            );
+            assert(next == operator);
+            next = rewriter.replaceNextTokensWithSyntheticToken(
+              token,
+              /* count = */ 2,
+              TokenType.GT_GT_GT,
+            );
+            operator = next;
+          }
+        }
+        listener.beginBinaryExpression(next);
+        // Left associative, so we recurse at the next higher
+        // precedence level.
+        token = parsePrecedenceExpression(
+          token.next!,
+          level + 1,
+          allowCascades,
+          ConstantPatternContext.none,
+        );
+        listener.endBinaryExpression(operator, token);
+      }
+      next = token.next!;
+      type = next.type;
+      tokenLevel = _computePrecedence(next, forPattern: false);
+      if (constantPatternContext != ConstantPatternContext.none) {
+        // For error recovery we allow too much when parsing constant
+        // patterns, so for the cases that shouldn't be parsed as expressions
+        // in this context we break out of the parsing loop directly.
+        if (type == TokenType.BANG) {
+          if (tokenLevel == POSTFIX_PRECEDENCE) {
+            // This is a suffixed ! which is a null assert pattern.
+            return token;
+          } else if (next.next!.isA(TokenType.QUESTION)) {
+            // This is a suffixed !? which is a null assert pattern in a null
+            // check pattern.
             return token;
           }
+        } else if (type == TokenType.AS) {
+          // This is a suffixed `as` which is a case pattern.
+          return token;
         }
       }
+
       if (_recoverAtPrecedenceLevel && !_currentlyRecovering) {
         // Attempt recovery
         if (_attemptPrecedenceLevelRecovery(
@@ -6932,33 +7275,101 @@ class Parser {
           typeArg,
         )) {
           // Recovered - try again at same level with the replacement token.
-          level++;
           next = token.next!;
           type = next.type;
           tokenLevel = _computePrecedence(next, forPattern: false);
         }
       }
-    }
 
-    if (!enteredLoop && _recoverAtPrecedenceLevel && !_currentlyRecovering) {
-      // Attempt recovery
-      if (_attemptPrecedenceLevelRecovery(
-        token,
-        precedence,
-        /* currentLevel = */ -1,
-        allowCascades,
-        typeArg,
-      )) {
-        return _parsePrecedenceExpressionLoop(
-          precedence,
-          allowCascades,
-          typeArg,
-          token,
-          ConstantPatternContext.none,
-        );
+      if (tokenLevel <= level) {
+        if (tokenLevel < precedence) {
+          break;
+        }
+        level = tokenLevel;
+      } else {
+        break;
       }
     }
+
     return token;
+  }
+
+  /// Can the next input be an anonymous method?
+  ///
+  /// Used during `_parsePrecedenceExpressionLoop` and
+  /// `parseCascadeExpression`.
+  ///
+  /// Should only be invoked in a situation where the input before
+  /// [token] is a period or two periods, or a question mark followed by
+  /// one or two periods. Returns true if [token] shows that the next
+  /// construct to parse can only be an anonymous method.
+  bool _beginsAnonymousMethod(Token token) {
+    if (token.isA(TokenType.OPEN_CURLY_BRACKET) ||
+        token.isA(TokenType.FUNCTION)) {
+      return true;
+    }
+    if (token.isA(TokenType.OPEN_PAREN)) {
+      Token? matchingParenthesis = token.endGroup;
+      if (matchingParenthesis != null) {
+        Token? afterMatch = matchingParenthesis.next;
+        if (afterMatch != null &&
+            (afterMatch.isA(TokenType.OPEN_CURLY_BRACKET) ||
+                afterMatch.isA(TokenType.FUNCTION))) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /// Parse an anonymous method.
+  ///
+  /// Used during `_parsePrecedenceExpressionLoop` and
+  /// `parseCascadeExpression`.
+  ///
+  /// Should only be invoked in a situation where
+  /// `_beginsAnonymousMethod(afterPunctuation)` has returned true.
+  Token _parseAnonymousMethod(Token punctuation, Token afterPunctuation) {
+    Token currentToken;
+    listener.beginAnonymousMethodInvocation(punctuation);
+    if (afterPunctuation.isA(TokenType.OPEN_PAREN)) {
+      currentToken = parseFormalParameters(
+        punctuation,
+        MemberKind.AnonymousMethod,
+      );
+    } else {
+      listener.handleImplicitFormalParameters(punctuation);
+      currentToken = punctuation;
+    }
+    Token afterParameters = currentToken.next!;
+    Token? functionDefinition = null;
+    final bool isExpression;
+    if (afterParameters.isA(TokenType.OPEN_CURLY_BRACKET)) {
+      isExpression = false;
+      currentToken = parseBlock(currentToken, BlockKind.functionBody);
+    } else if (afterParameters.isA(TokenType.FUNCTION)) {
+      isExpression = true;
+      functionDefinition = afterParameters;
+      currentToken = parseExpressionWithoutCascade(afterParameters);
+    } else {
+      reportRecoverableError(
+        afterParameters,
+        diag.expectedButGot2.withArguments(expected: "{", expected2: "=>"),
+      );
+      functionDefinition = rewriter.insertSyntheticToken(
+        currentToken,
+        TokenType.FUNCTION,
+      );
+      isExpression = true;
+      currentToken = parseExpressionWithoutCascade(functionDefinition);
+    }
+    listener.endAnonymousMethodInvocation(
+      punctuation,
+      functionDefinition,
+      currentToken,
+      isExpression: isExpression,
+    );
+    return currentToken;
   }
 
   /// Attempt a recovery where [token].next is replaced.
@@ -6971,7 +7382,11 @@ class Parser {
   ) {
     // Attempt recovery.
     _recoverAtPrecedenceLevel = false;
-    assert(_tokenRecoveryReplacements.containsKey(token.next!.lexeme));
+    if (!_tokenRecoveryReplacements.containsKey(token.next!.lexeme)) {
+      // This shouldn't happen. But if it does we don't want to crash.
+      assert(false, "Faulty logic for _recoverAtPrecedenceLevel");
+      return false;
+    }
     List<TokenType> replacements =
         _tokenRecoveryReplacements[token.next!.lexeme]!;
     for (int i = 0; i < replacements.length; i++) {
@@ -7035,6 +7450,7 @@ class Parser {
 
       // Undo all changes and reset.
       _currentlyRecovering = false;
+      _recoverAtPrecedenceLevel = false;
       undoableTokenStreamRewriter.undo();
       listener = originalListener;
       cachedRewriter = originalRewriter;
@@ -7043,9 +7459,9 @@ class Parser {
         // Report and redo recovery.
         reportRecoverableError(
           token.next!,
-          codes.templateBinaryOperatorWrittenOut.withArguments(
-            token.next!.lexeme,
-            replacement.lexeme,
+          diag.binaryOperatorWrittenOut.withArguments(
+            actualOperator: token.next!.lexeme,
+            expectedOperator: replacement.lexeme,
           ),
         );
         rewriter.replaceNextTokenWithSyntheticToken(token, replacement);
@@ -7109,7 +7525,8 @@ class Parser {
     } else if (identical(type, TokenType.IDENTIFIER)) {
       // An identifier at this point is not right. So some recovery is going to
       // happen soon. The question is, if we can do a better recovery here.
-      if (!_currentlyRecovering &&
+      if (!forPattern &&
+          !_currentlyRecovering &&
           _tokenRecoveryReplacements.containsKey(token.lexeme)) {
         _recoverAtPrecedenceLevel = true;
       }
@@ -7125,33 +7542,54 @@ class Parser {
           cascadeOperator.isA(TokenType.QUESTION_PERIOD_PERIOD),
     );
     listener.beginCascade(cascadeOperator);
-    if (token.next!.isA(TokenType.OPEN_SQUARE_BRACKET)) {
+    Token afterDots = token.next!;
+    if (afterDots.isA(TokenType.OPEN_SQUARE_BRACKET)) {
       token = parseArgumentOrIndexStar(
         token,
         noTypeParamOrArg,
         /* checkedNullAware = */ false,
       );
+    } else if (_isAnonymousMethodsFeatureEnabled &&
+        _beginsAnonymousMethod(afterDots)) {
+      token = _parseAnonymousMethod(cascadeOperator, afterDots);
     } else {
+      // TODO(eernst): Call `reportExperimentNotEnabled` to guide user when
+      // `_beginsAnonymousMethod(afterDots)`.
       token = parseSend(
         token,
         IdentifierContext.expressionContinuation,
         ConstantPatternContext.none,
       );
-      listener.handleEndingBinaryExpression(cascadeOperator, token);
+      listener.handleCascadeAccess(
+        cascadeOperator,
+        token,
+        /* isNullAware = */ cascadeOperator.isA(
+          TokenType.QUESTION_PERIOD_PERIOD,
+        ),
+      );
     }
     Token next = token.next!;
     Token mark;
     do {
       mark = token;
       if (next.isA(TokenType.PERIOD) || next.isA(TokenType.QUESTION_PERIOD)) {
+        bool isNullAware = next.isA(TokenType.QUESTION_PERIOD);
         Token period = next;
-        token = parseSend(
-          next,
-          IdentifierContext.expressionContinuation,
-          ConstantPatternContext.none,
-        );
-        next = token.next!;
-        listener.handleEndingBinaryExpression(period, token);
+        Token afterPeriod = period.next!;
+        // TODO(eernst): Call `reportExperimentNotEnabled` to guide user when
+        // there is a match except for the experiment being disabled.
+        if (_isAnonymousMethodsFeatureEnabled &&
+            _beginsAnonymousMethod(afterPeriod)) {
+          token = _parseAnonymousMethod(period, afterPeriod);
+        } else {
+          token = parseSend(
+            next,
+            IdentifierContext.expressionContinuation,
+            ConstantPatternContext.none,
+          );
+          next = token.next!;
+          listener.handleDotAccess(period, token, isNullAware);
+        }
       } else if (next.isA(TokenType.BANG)) {
         listener.handleNonNullAssertExpression(next);
         token = next;
@@ -7220,7 +7658,7 @@ class Parser {
       rewriteAndRecover(
         token,
         // TODO(danrubel): Consider reporting "missing identifier" instead.
-        codes.messageUnsupportedPrefixPlus,
+        diag.unsupportedPrefixPlus,
         new SyntheticStringToken(TokenType.IDENTIFIER, '', token.next!.offset),
       );
       return parsePrimary(
@@ -7233,7 +7671,7 @@ class Parser {
       if (constantPatternContext != ConstantPatternContext.none) {
         reportRecoverableError(
           operator,
-          codes.templateInvalidConstantPatternUnary.withArguments(value!),
+          diag.invalidConstantPatternUnary.withArguments(operatorName: value!),
         );
       }
       // Right associative, so we recurse at the same precedence
@@ -7251,7 +7689,7 @@ class Parser {
       if (constantPatternContext == ConstantPatternContext.explicit) {
         reportRecoverableError(
           operator,
-          codes.messageInvalidConstantPatternConstPrefix,
+          diag.invalidConstantPatternConstPrefix,
         );
         // Avoid subsequent errors.
         constantPatternContext = ConstantPatternContext.none;
@@ -7325,7 +7763,7 @@ class Parser {
     while (true) {
       bool potentialNullAware =
           (next.isA(TokenType.QUESTION) &&
-              next.next!.isA(TokenType.OPEN_SQUARE_BRACKET));
+          next.next!.isA(TokenType.OPEN_SQUARE_BRACKET));
       if (potentialNullAware && !checkedNullAware) {
         // While it's a potential null aware index it hasn't been checked.
         // It might be a conditional expression.
@@ -7353,7 +7791,7 @@ class Parser {
           // Recovery
           reportRecoverableError(
             next,
-            codes.templateExpectedButGot.withArguments(']'),
+            diag.expectedButGot.withArguments(expected: ']'),
           );
           // Scanner ensures a closing ']'
           Token endGroup = openSquareBracket.endGroup!;
@@ -7424,20 +7862,14 @@ class Parser {
     final int kind = next.kind;
     if (kind == IDENTIFIER_TOKEN) {
       if (constantPatternContext == ConstantPatternContext.numericLiteralOnly) {
-        reportRecoverableError(
-          next,
-          codes.messageInvalidConstantPatternNegation,
-        );
+        reportRecoverableError(next, diag.invalidConstantPatternNegation);
         // Avoid subsequent errors.
         constantPatternContext == ConstantPatternContext.none;
       }
       return parseSendOrFunctionLiteral(token, context, constantPatternContext);
     } else if (kind == INT_TOKEN || kind == HEXADECIMAL_TOKEN) {
       if (constantPatternContext == ConstantPatternContext.explicit) {
-        reportRecoverableError(
-          next,
-          codes.messageInvalidConstantPatternConstPrefix,
-        );
+        reportRecoverableError(next, diag.invalidConstantPatternConstPrefix);
       }
       if (identical(next.type, TokenType.INT_WITH_SEPARATORS) ||
           identical(next.type, TokenType.HEXADECIMAL_WITH_SEPARATORS)) {
@@ -7447,10 +7879,7 @@ class Parser {
       }
     } else if (kind == DOUBLE_TOKEN) {
       if (constantPatternContext == ConstantPatternContext.explicit) {
-        reportRecoverableError(
-          next,
-          codes.messageInvalidConstantPatternConstPrefix,
-        );
+        reportRecoverableError(next, diag.invalidConstantPatternConstPrefix);
       }
       if (identical(next.type, TokenType.DOUBLE_WITH_SEPARATORS)) {
         return parseLiteralDoubleWithSeparators(token);
@@ -7459,60 +7888,36 @@ class Parser {
       }
     } else if (kind == STRING_TOKEN) {
       if (constantPatternContext == ConstantPatternContext.explicit) {
-        reportRecoverableError(
-          next,
-          codes.messageInvalidConstantPatternConstPrefix,
-        );
+        reportRecoverableError(next, diag.invalidConstantPatternConstPrefix);
       } else if (constantPatternContext ==
           ConstantPatternContext.numericLiteralOnly) {
-        reportRecoverableError(
-          next,
-          codes.messageInvalidConstantPatternNegation,
-        );
+        reportRecoverableError(next, diag.invalidConstantPatternNegation);
       }
       return parseLiteralString(token);
     } else if (kind == HASH_TOKEN) {
       if (constantPatternContext == ConstantPatternContext.explicit) {
-        reportRecoverableError(
-          next,
-          codes.messageInvalidConstantPatternConstPrefix,
-        );
+        reportRecoverableError(next, diag.invalidConstantPatternConstPrefix);
       } else if (constantPatternContext ==
           ConstantPatternContext.numericLiteralOnly) {
-        reportRecoverableError(
-          next,
-          codes.messageInvalidConstantPatternNegation,
-        );
+        reportRecoverableError(next, diag.invalidConstantPatternNegation);
       }
       return parseLiteralSymbol(token);
     } else if (kind == KEYWORD_TOKEN) {
       final String? value = next.stringValue;
       if (identical(value, "true") || identical(value, "false")) {
         if (constantPatternContext == ConstantPatternContext.explicit) {
-          reportRecoverableError(
-            next,
-            codes.messageInvalidConstantPatternConstPrefix,
-          );
+          reportRecoverableError(next, diag.invalidConstantPatternConstPrefix);
         } else if (constantPatternContext ==
             ConstantPatternContext.numericLiteralOnly) {
-          reportRecoverableError(
-            next,
-            codes.messageInvalidConstantPatternNegation,
-          );
+          reportRecoverableError(next, diag.invalidConstantPatternNegation);
         }
         return parseLiteralBool(token);
       } else if (identical(value, "null")) {
         if (constantPatternContext == ConstantPatternContext.explicit) {
-          reportRecoverableError(
-            next,
-            codes.messageInvalidConstantPatternConstPrefix,
-          );
+          reportRecoverableError(next, diag.invalidConstantPatternConstPrefix);
         } else if (constantPatternContext ==
             ConstantPatternContext.numericLiteralOnly) {
-          reportRecoverableError(
-            next,
-            codes.messageInvalidConstantPatternNegation,
-          );
+          reportRecoverableError(next, diag.invalidConstantPatternNegation);
         }
         return parseLiteralNull(token);
       } else if (identical(value, "this")) {
@@ -7528,7 +7933,7 @@ class Parser {
         if (constantPatternContext == ConstantPatternContext.explicit) {
           reportRecoverableError(
             next,
-            codes.messageInvalidConstantPatternDuplicateConst,
+            diag.invalidConstantPatternDuplicateConst,
           );
         }
         return parseConstExpression(token);
@@ -7543,15 +7948,12 @@ class Parser {
         // Fall through to the recovery code.
       } else if (identical(value, "assert")) {
         return parseAssert(token, Assert.Expression);
-      } else if (allowPatterns && identical(value, "switch")) {
+      } else if (isPatternsFeatureEnabled && identical(value, "switch")) {
         return parseSwitchExpression(token);
       } else if (next.isIdentifier) {
         if (constantPatternContext ==
             ConstantPatternContext.numericLiteralOnly) {
-          reportRecoverableError(
-            next,
-            codes.messageInvalidConstantPatternNegation,
-          );
+          reportRecoverableError(next, diag.invalidConstantPatternNegation);
           // Avoid subsequent errors.
           constantPatternContext == ConstantPatternContext.none;
         }
@@ -7563,7 +7965,7 @@ class Parser {
       } else if (identical(value, "return")) {
         // Recovery
         token = token.next!;
-        reportRecoverableErrorWithToken(token, codes.templateUnexpectedToken);
+        reportRecoverableErrorWithToken(token, diag.unexpectedToken);
         return parsePrimary(token, context, ConstantPatternContext.none);
       } else {
         // Fall through to the recovery code.
@@ -7644,7 +8046,7 @@ class Parser {
       // Recover
       reportRecoverableError(
         openParen,
-        codes.templateExpectedToken.withArguments('('),
+        diag.expectedToken.withArguments(expected: '('),
       );
       openParen = rewriter.insertParens(token, /* includeIdentifier = */ false);
     }
@@ -7692,17 +8094,21 @@ class Parser {
           next.isA(TokenType.COLON)) {
         // Record with named expression.
         wasRecord = true;
-        token =
-            ensureIdentifier(
-              token,
-              IdentifierContext.namedRecordFieldReference,
-            ).next!;
+        token = ensureIdentifier(
+          token,
+          IdentifierContext.namedRecordFieldReference,
+        ).next!;
         colon = token;
         wasValidRecord = true;
       }
+      Token beginExpressionToken = token;
       token = parseExpression(token);
       next = token.next!;
-      if (colon != null) listener.handleNamedRecordField(colon);
+      if (colon != null) {
+        listener.handleNamedRecordField(colon);
+      } else {
+        listener.handlePositionalRecordField(beginExpressionToken.next!);
+      }
       ++count;
       if (!next.isA(TokenType.COMMA)) {
         // TODO(jensj): Possible more specific recovery.
@@ -7724,18 +8130,18 @@ class Parser {
         // Empty record literal with a comma `(,)`.
         reportRecoverableError(
           illegalTrailingComma,
-          codes.messageRecordLiteralZeroFieldsWithTrailingComma,
+          diag.recordLiteralZeroFieldsWithTrailingComma,
         );
       } else if (count == 1 && !wasValidRecord) {
         reportRecoverableError(
           token,
-          codes.messageRecordLiteralOnePositionalFieldNoTrailingComma,
+          diag.recordLiteralOnePositionalFieldNoTrailingComma,
         );
       } else if (count == 0 &&
           constantPatternContext != ConstantPatternContext.none) {
         reportRecoverableError(
           begin,
-          codes.messageInvalidConstantPatternEmptyRecordLiteral,
+          diag.invalidConstantPatternEmptyRecordLiteral,
         );
       }
       listener.endRecordLiteral(begin, count, constKeywordForRecord);
@@ -7760,7 +8166,7 @@ class Parser {
     BeginToken begin = token as BeginToken;
     token = parseExpression(token);
     Token next = token.next!;
-    if (allowPatterns && next.isA(Keyword.CASE)) {
+    if (isPatternsFeatureEnabled && next.isA(Keyword.CASE)) {
       Token case_ = token = next;
       token = parsePattern(token, PatternContext.matching);
       next = token.next!;
@@ -7810,7 +8216,7 @@ class Parser {
       token = parseArguments(token);
       listener.handleSend(superToken, token);
     } else if (next.isA(TokenType.QUESTION_PERIOD)) {
-      reportRecoverableError(next, codes.messageSuperNullAware);
+      reportRecoverableError(next, diag.superNullAware);
     }
     return token;
   }
@@ -7835,7 +8241,7 @@ class Parser {
   ///
   /// ```
   /// listLiteral:
-  ///   'const'? typeArguments? '[' (expressionList ','?)? ']'
+  ///   'const'? typeArguments? '[' (elementList ','?)? ']'
   /// ;
   /// ```
   ///
@@ -7868,12 +8274,13 @@ class Parser {
         break;
       }
       int ifCount = 0;
-      LiteralEntryInfo? info = computeLiteralEntry(token);
+      LiteralEntryInfo? info = _computeLiteralEntry(token);
       while (info != null) {
+        next = token.next!;
         if (info.hasEntry) {
-          if (token.next!.isA(TokenType.QUESTION)) {
-            Token nullAwareToken = token.next!;
-            token = token.next!;
+          if (next.isA(TokenType.QUESTION)) {
+            Token nullAwareToken = next;
+            token = next;
             token = parseExpression(token);
             listener.handleNullAwareElement(nullAwareToken);
           } else {
@@ -7883,7 +8290,7 @@ class Parser {
           token = info.parse(token, this);
         }
         ifCount += info.ifConditionDelta;
-        info = info.computeNext(token);
+        info = _nextLiteralEntry(info, token);
       }
       next = token.next!;
       ++count;
@@ -7903,7 +8310,7 @@ class Parser {
             // Report an error and jump to the end of the list.
             reportRecoverableError(
               next,
-              codes.templateExpectedButGot.withArguments(']'),
+              diag.expectedButGot.withArguments(expected: ']'),
             );
             token = beginToken.endGroup!;
           }
@@ -7912,10 +8319,9 @@ class Parser {
         // This looks like the start of an expression.
         // Report an error, insert the comma, and continue parsing.
         SyntheticToken comma = new SyntheticToken(TokenType.COMMA, next.offset);
-        codes.Message message =
-            ifCount > 0
-                ? codes.messageExpectedElseOrComma
-                : codes.templateExpectedButGot.withArguments(',');
+        codes.Message message = ifCount > 0
+            ? diag.expectedElseOrComma
+            : diag.expectedButGot.withArguments(expected: ',');
         next = rewriteAndRecover(token, message, comma);
       }
       token = next;
@@ -7951,7 +8357,7 @@ class Parser {
 
     while (true) {
       int ifCount = 0;
-      LiteralEntryInfo? info = computeLiteralEntry(token);
+      LiteralEntryInfo? info = _computeLiteralEntry(token);
       if (info == simpleEntry) {
         // TODO(danrubel): Remove this section and use the while loop below
         // once hasSetEntry is no longer needed.
@@ -7960,77 +8366,67 @@ class Parser {
         hasSetEntry ??= !isMapEntry;
         if (isMapEntry) {
           Token colon = token.next!;
-          Token next = colon.next!;
-          if (next.isA(TokenType.QUESTION)) {
-            // Null-aware value. For example:
-            //   <int, String>{ x: ?y }
-            token = parseExpression(next);
-            listener.handleLiteralMapEntry(
-              colon,
-              token,
-              nullAwareKeyToken: null,
-              nullAwareValueToken: next,
-            );
-          } else {
-            // Non null-aware entry. For example:
-            //   <bool, num>{ x: y }
-            token = parseExpression(colon);
-            listener.handleLiteralMapEntry(colon, token.next!);
+          token = colon;
+          Token next = token.next!;
+          Token? nullAwareValueToken;
+          if (next.isA(TokenType.QUESTION_PERIOD)) {
+            token = nullAwareValueToken = _splitFollowingQuestionPeriod(token);
+          } else if (next.isA(TokenType.QUESTION)) {
+            token = nullAwareValueToken = next;
           }
+
+          token = parseExpression(token);
+          listener.handleLiteralMapEntry(
+            colon,
+            token.next!,
+            nullAwareValueToken: nullAwareValueToken,
+          );
         }
       } else {
         while (info != null) {
           if (info.hasEntry) {
             Token? nullAwareKeyToken;
-            if (token.next!.isA(TokenType.QUESTION)) {
+            Token next = token.next!;
+            if (next.isA(TokenType.QUESTION)) {
               // Null-aware key, for example:
               //   <double, Symbol>{ if (b) ?x: y }
               //   <double, Symbol>{ if (b) ?x: ?y }
-              nullAwareKeyToken = token.next!;
-
-              // Parse the expression after '?'.
+              nullAwareKeyToken = next;
               token = nullAwareKeyToken;
-              token = parseExpression(token);
-            } else {
-              token = parseExpression(token);
             }
+            token = parseExpression(token);
+
             if (token.next!.isA(TokenType.COLON)) {
               Token colon = token.next!;
-              Token next = colon.next!;
-              if (next.isA(TokenType.QUESTION)) {
-                token = parseExpression(next);
-                // Null-aware value. For example:
-                //   <double, Symbol>{ if (b) x: ?y }
-                //   <double, Symbol>{ if (b) ?x: ?y }
-                listener.handleLiteralMapEntry(
-                  colon,
-                  token.next!,
-                  nullAwareKeyToken: nullAwareKeyToken,
-                  nullAwareValueToken: next,
+              token = colon;
+
+              Token? nullAwareValueToken;
+              Token next = token.next!;
+              if (next.isA(TokenType.QUESTION_PERIOD)) {
+                token = nullAwareValueToken = _splitFollowingQuestionPeriod(
+                  token,
                 );
-              } else {
-                // Non null-aware value. For example:
-                //   <String, int>{ if (b) x : y }
-                //   <String, int>{ if (b) ?x : y }
-                token = parseExpression(colon);
-                listener.handleLiteralMapEntry(
-                  colon,
-                  token.next!,
-                  nullAwareKeyToken: nullAwareKeyToken,
-                );
+              } else if (next.isA(TokenType.QUESTION)) {
+                token = nullAwareValueToken = next;
               }
-            } else {
-              if (nullAwareKeyToken != null) {
-                // Null-aware element. For example:
-                //   <String>{ if (b) ?x }
-                listener.handleNullAwareElement(nullAwareKeyToken);
-              }
+
+              token = parseExpression(token);
+              listener.handleLiteralMapEntry(
+                colon,
+                token.next!,
+                nullAwareKeyToken: nullAwareKeyToken,
+                nullAwareValueToken: nullAwareValueToken,
+              );
+            } else if (nullAwareKeyToken != null) {
+              // Null-aware element. For example:
+              //   <String>{ if (b) ?x }
+              listener.handleNullAwareElement(nullAwareKeyToken);
             }
           } else {
             token = info.parse(token, this);
           }
           ifCount += info.ifConditionDelta;
-          info = info.computeNext(token);
+          info = _nextLiteralEntry(info, token);
         }
       }
       ++count;
@@ -8063,15 +8459,14 @@ class Parser {
             TokenType.COMMA,
             next.offset,
           );
-          codes.Message message =
-              ifCount > 0
-                  ? codes.messageExpectedElseOrComma
-                  : codes.templateExpectedButGot.withArguments(',');
+          codes.Message message = ifCount > 0
+              ? diag.expectedElseOrComma
+              : diag.expectedButGot.withArguments(expected: ',');
           token = rewriteAndRecover(token, message, comma);
         } else {
           reportRecoverableError(
             next,
-            codes.templateExpectedButGot.withArguments('}'),
+            diag.expectedButGot.withArguments(expected: '}'),
           );
           // Scanner guarantees a closing curly bracket
           next = leftBrace.endGroup!;
@@ -8089,6 +8484,32 @@ class Parser {
     }
   }
 
+  LiteralEntryInfo? _computeLiteralEntry(Token token) {
+    if (token.next!.isA(TokenType.QUESTION_PERIOD)) {
+      _splitFollowingQuestionPeriod(token);
+    }
+    return computeLiteralEntry(token);
+  }
+
+  LiteralEntryInfo? _nextLiteralEntry(LiteralEntryInfo info, Token token) {
+    if (token.next!.isA(TokenType.QUESTION_PERIOD)) {
+      _splitFollowingQuestionPeriod(token);
+    }
+    return info.computeNext(token);
+  }
+
+  Token _splitFollowingQuestionPeriod(Token token) {
+    Token next = token.next!;
+    assert(next.isA(TokenType.QUESTION_PERIOD));
+    int offset = next.charOffset;
+    Token newNext = rewriter.replaceTokenFollowing(
+      token,
+      new Token(TokenType.QUESTION, offset),
+    );
+    rewriter.insertToken(newNext, new Token(TokenType.PERIOD, offset + 1));
+    return newNext;
+  }
+
   /// formalParameterList functionBody.
   ///
   /// This is a suffix parser because it is assumed that type arguments have
@@ -8102,7 +8523,7 @@ class Parser {
         kind != OPEN_CURLY_BRACKET_TOKEN &&
         (kind != KEYWORD_TOKEN ||
             !next.isA(Keyword.ASYNC) && !next.isA(Keyword.SYNC))) {
-      reportRecoverableErrorWithToken(next, codes.templateUnexpectedToken);
+      reportRecoverableErrorWithToken(next, diag.unexpectedToken);
     }
     return parseFunctionExpression(token);
   }
@@ -8128,10 +8549,7 @@ class Parser {
     Token token = typeParamOrArg.skip(start);
     if (token.next!.isA(TokenType.OPEN_PAREN)) {
       if (constKeyword != null) {
-        reportRecoverableErrorWithToken(
-          constKeyword,
-          codes.templateUnexpectedToken,
-        );
+        reportRecoverableErrorWithToken(constKeyword, diag.unexpectedToken);
       }
       token = typeParamOrArg.parseVariables(start, this);
       return parseLiteralFunctionSuffix(token);
@@ -8144,7 +8562,7 @@ class Parser {
         reportRecoverableErrorWithEnd(
           start.next!,
           token,
-          codes.messageSetOrMapLiteralTooManyTypeArguments,
+          diag.setOrMapLiteralTooManyTypeArguments,
         );
       }
       return parseLiteralSetOrMapSuffix(token, constKeyword);
@@ -8154,7 +8572,7 @@ class Parser {
       // TODO(danrubel): Improve this error message.
       reportRecoverableError(
         next,
-        codes.templateExpectedButGot.withArguments('['),
+        diag.expectedButGot.withArguments(expected: '['),
       );
       rewriter.insertSyntheticToken(token, TokenType.INDEX);
     }
@@ -8227,7 +8645,7 @@ class Parser {
     if (!next.isA(TokenType.OPEN_PAREN)) {
       reportRecoverableError(
         token,
-        codes.templateExpectedAfterButGot.withArguments('('),
+        diag.expectedAfterButGot.withArguments(expected: '('),
       );
       next = rewriter.insertParens(token, /* includeIdentifier = */ false);
     }
@@ -8242,13 +8660,10 @@ class Parser {
       if (typeArg == noTypeParamOrArg) {
         reportRecoverableError(
           token,
-          codes.templateExpectedAfterButGot.withArguments('('),
+          diag.expectedAfterButGot.withArguments(expected: '('),
         );
       } else {
-        reportRecoverableError(
-          token,
-          codes.messageConstructorWithTypeArguments,
-        );
+        reportRecoverableError(token, diag.constructorWithTypeArguments);
         token = typeArg.parseArguments(token, this);
         listener.handleInvalidTypeArguments(token);
         next = token.next!;
@@ -8271,8 +8686,10 @@ class Parser {
 
     TypeParamOrArgInfo? potentialTypeArg;
 
-    if (isNextIdentifier(newKeyword)) {
-      Token identifier = newKeyword.next!;
+    Token next = newKeyword.next!;
+
+    if (next.kind == IDENTIFIER_TOKEN) {
+      Token identifier = next;
       String value = identifier.lexeme;
       if ((value == "Map" || value == "Set") &&
           !identifier.next!.isA(TokenType.PERIOD)) {
@@ -8284,9 +8701,9 @@ class Parser {
           reportRecoverableErrorWithEnd(
             newKeyword,
             identifier,
-            codes.templateLiteralWithClassAndNew.withArguments(
-              value.toLowerCase(),
-              identifier,
+            diag.literalWithClassAndNew.withArguments(
+              kind: value.toLowerCase(),
+              lexeme: identifier,
             ),
           );
           return parsePrimary(
@@ -8305,9 +8722,9 @@ class Parser {
           reportRecoverableErrorWithEnd(
             newKeyword,
             identifier,
-            codes.templateLiteralWithClassAndNew.withArguments(
-              value.toLowerCase(),
-              identifier,
+            diag.literalWithClassAndNew.withArguments(
+              kind: value.toLowerCase(),
+              lexeme: identifier,
             ),
           );
           return parsePrimary(
@@ -8322,7 +8739,7 @@ class Parser {
       // parseConstructorReference.
       // Do special recovery for literal maps/set/list erroneously prepended
       // with 'new'.
-      Token notIdentifier = newKeyword.next!;
+      Token notIdentifier = next;
       String value = notIdentifier.lexeme;
       if (value == "<") {
         potentialTypeArg = computeTypeParamOrArg(newKeyword);
@@ -8331,7 +8748,7 @@ class Parser {
             afterToken.isA(TokenType.OPEN_SQUARE_BRACKET) ||
             afterToken.isA(TokenType.INDEX)) {
           // Recover by ignoring the `new` and parse as a literal map/set/list.
-          reportRecoverableError(newKeyword, codes.messageLiteralWithNew);
+          reportRecoverableError(newKeyword, diag.literalWithNew);
           return parsePrimary(
             newKeyword,
             IdentifierContext.expression,
@@ -8340,7 +8757,7 @@ class Parser {
         }
       } else if (value == "{" || value == "[" || value == "[]") {
         // Recover by ignoring the `new` and parse as a literal map/set/list.
-        reportRecoverableError(newKeyword, codes.messageLiteralWithNew);
+        reportRecoverableError(newKeyword, diag.literalWithNew);
         return parsePrimary(
           newKeyword,
           IdentifierContext.expression,
@@ -8444,9 +8861,9 @@ class Parser {
           // Recover by ignoring the `Map`/`Set` and parse as a literal map/set.
           reportRecoverableError(
             next,
-            codes.templateLiteralWithClass.withArguments(
-              lexeme.toLowerCase(),
-              next,
+            diag.literalWithClass.withArguments(
+              kind: lexeme.toLowerCase(),
+              lexeme: next,
             ),
           );
           listener.beginConstLiteral(nextNext);
@@ -8459,9 +8876,9 @@ class Parser {
           // Recover by ignoring the `Map`/`Set` and parse as a literal map/set.
           reportRecoverableError(
             next,
-            codes.templateLiteralWithClass.withArguments(
-              lexeme.toLowerCase(),
-              next,
+            diag.literalWithClass.withArguments(
+              kind: lexeme.toLowerCase(),
+              lexeme: next,
             ),
           );
 
@@ -8483,9 +8900,9 @@ class Parser {
           // Recover by ignoring the `List` and parse as a literal list.
           reportRecoverableError(
             next,
-            codes.templateLiteralWithClass.withArguments(
-              lexeme.toLowerCase(),
-              next,
+            diag.literalWithClass.withArguments(
+              kind: lexeme.toLowerCase(),
+              lexeme: next,
             ),
           );
           listener.beginConstLiteral(nextNext);
@@ -8498,9 +8915,9 @@ class Parser {
           // Recover by ignoring the `List` and parse as a literal list.
           reportRecoverableError(
             next,
-            codes.templateLiteralWithClass.withArguments(
-              lexeme.toLowerCase(),
-              next,
+            diag.literalWithClass.withArguments(
+              kind: lexeme.toLowerCase(),
+              lexeme: next,
             ),
           );
           listener.beginConstLiteral(nextNext);
@@ -8512,17 +8929,29 @@ class Parser {
       }
     }
 
-    bool isDotShorthand = _isDotShorthand(token.next!);
-    if (isDotShorthand) {
-      Token dot = token.next!;
+    // Handling const dot shorthands.
+    if (next.isA(TokenType.PERIOD)) {
       listener.beginConstDotShorthand(constKeyword);
-      token = parsePrimary(
-        dot,
-        IdentifierContext.expressionContinuation,
-        ConstantPatternContext.explicit,
-      );
-      listener.handleDotShorthandHead(dot);
-      listener.handleDotShorthandContext(dot);
+
+      if (_isDotShorthand(next)) {
+        token = parsePrimary(
+          next,
+          IdentifierContext.expressionContinuation,
+          ConstantPatternContext.explicit,
+        );
+      } else {
+        // Recovery.
+        // This is an incomplete dot shorthand like `C c = const .`.
+        // This allows for better code completion, assuming the user wanted to
+        // write a dot shorthand.
+        token = ensureIdentifier(
+          next,
+          IdentifierContext.expressionContinuation,
+        );
+      }
+
+      listener.handleDotShorthandHead(next);
+      listener.handleDotShorthandContext(next);
       listener.endConstDotShorthand(constKeyword);
       return token;
     }
@@ -8653,7 +9082,7 @@ class Parser {
         if (!token.isA(TokenType.CLOSE_CURLY_BRACKET)) {
           reportRecoverableError(
             token,
-            codes.templateExpectedButGot.withArguments('}'),
+            diag.expectedButGot.withArguments(expected: '}'),
           );
           token = next.endGroup!;
         }
@@ -8725,38 +9154,38 @@ class Parser {
     // send an `handleIdentifier` if we end up recovering.
     TypeParamOrArgInfo? potentialTypeArg;
     Token? afterToken;
-    if (isNextIdentifier(token)) {
-      Token identifier = token.next!;
-      String value = identifier.lexeme;
-      if (value == "Map" || value == "Set") {
-        potentialTypeArg = computeTypeParamOrArg(identifier);
-        afterToken = potentialTypeArg.skip(identifier).next!;
-        if (afterToken.isA(TokenType.OPEN_CURLY_BRACKET)) {
+    Token next = token.next!;
+    if (next.kind == IDENTIFIER_TOKEN) {
+      Token identifier = next;
+      potentialTypeArg = computeTypeParamOrArg(identifier);
+      afterToken = potentialTypeArg.skip(identifier).next!;
+      if (afterToken.isA(TokenType.OPEN_CURLY_BRACKET)) {
+        String value = identifier.lexeme;
+        if (value == "Map" || value == "Set") {
           // Recover by ignoring the `Map`/`Set` and parse as a literal map/set.
           reportRecoverableError(
             identifier,
-            codes.templateLiteralWithClass.withArguments(
-              value.toLowerCase(),
-              identifier,
+            diag.literalWithClass.withArguments(
+              kind: value.toLowerCase(),
+              lexeme: identifier,
             ),
           );
           return parsePrimary(identifier, context, ConstantPatternContext.none);
         }
-      } else if (value == "List") {
-        potentialTypeArg = computeTypeParamOrArg(identifier);
-        afterToken = potentialTypeArg.skip(identifier).next!;
-        if ((potentialTypeArg != noTypeParamOrArg &&
-                afterToken.isA(TokenType.OPEN_SQUARE_BRACKET)) ||
-            afterToken.isA(TokenType.INDEX)) {
+      } else if ((potentialTypeArg != noTypeParamOrArg &&
+              afterToken.isA(TokenType.OPEN_SQUARE_BRACKET)) ||
+          afterToken.isA(TokenType.INDEX)) {
+        String value = identifier.lexeme;
+        if (value == "List") {
           // Recover by ignoring the `List` and parse as a literal List.
           // Note that we here require the `<...>` for `[` as `List[` would be
           // an indexed expression. `List[]` wouldn't though, so we don't
           // require it there.
           reportRecoverableError(
             identifier,
-            codes.templateLiteralWithClass.withArguments(
-              value.toLowerCase(),
-              identifier,
+            diag.literalWithClass.withArguments(
+              kind: value.toLowerCase(),
+              lexeme: identifier,
             ),
           );
           return parsePrimary(identifier, context, ConstantPatternContext.none);
@@ -8796,10 +9225,7 @@ class Parser {
       // For '.', '(' and '<' we might end up with a valid constant pattern,
       // i.e. a const constructor invocation, so we only report an error here
       // otherwise.
-      reportRecoverableError(
-        token,
-        codes.messageInvalidConstantPatternConstPrefix,
-      );
+      reportRecoverableError(token, diag.invalidConstantPatternConstPrefix);
       // Avoid subsequent errors.
       constantPatternContext = ConstantPatternContext.none;
     }
@@ -8835,10 +9261,7 @@ class Parser {
       // if we know that it isn't a record type.
       if (hasTypeArguments) {
         // Arguments are required, so parse as arguments anyway.
-        reportRecoverableError(
-          next,
-          codes.messageMetadataSpaceBeforeParenthesis,
-        );
+        reportRecoverableError(next, diag.metadataSpaceBeforeParenthesis);
         return parseArguments(token);
       }
       final Token startParen = next;
@@ -8850,10 +9273,7 @@ class Parser {
         // should be safe. Other keywords aren't reserved and needs more
         // lookahead to determine if recovery here would be good.
         //For now we don't.
-        reportRecoverableError(
-          next,
-          codes.messageMetadataSpaceBeforeParenthesis,
-        );
+        reportRecoverableError(next, diag.metadataSpaceBeforeParenthesis);
         return parseArguments(token);
       }
 
@@ -8907,16 +9327,83 @@ class Parser {
       Token? colon = null;
       if (next.next!.isA(TokenType.COLON) || /* recovery */
           next.isA(TokenType.COLON)) {
-        token =
-            ensureIdentifier(
-              token,
-              IdentifierContext.namedArgumentReference,
-            ).next!;
+        token = ensureIdentifier(
+          token,
+          IdentifierContext.namedArgumentReference,
+        ).next!;
         colon = token;
       }
-      token = parseExpression(token);
+      bool expressionHandled = false;
+      Token beginExpressionToken = token;
+
+      // For increased performance we'd prefer to shortcut common cases, but if
+      // a subclass of the parser has a special implementation of
+      // [parseExpression] (say, wanting to skip expressions) we can't do that.
+      if (allowedToShortcutParseExpression) {
+        Token next1 = token.next!;
+        // TODO(jensj): Possibly also for STRING CLOSE_PAREN / STRING COMMA?
+        if (next1.isA(TokenType.IDENTIFIER)) {
+          Token next2 = next1.next!;
+          if (next2.isA(TokenType.COMMA) || next2.isA(TokenType.CLOSE_PAREN)) {
+            // Shortcut common cases:
+            // "IDENTIFIER COMMA" and "IDENTIFIER CLOSE_PAREN"
+            listener.handleIdentifier(next1, IdentifierContext.expression);
+            listener.handleNoTypeArguments(next2);
+            listener.handleNoArguments(next2);
+            listener.handleSend(next1, next1);
+            token = next1;
+            expressionHandled = true;
+          } else if (next2.isA(TokenType.PERIOD)) {
+            Token next3 = next2.next!;
+            if (next3.isA(TokenType.IDENTIFIER)) {
+              Token next4 = next3.next!;
+              if (next4.isA(TokenType.COMMA) ||
+                  next4.isA(TokenType.CLOSE_PAREN)) {
+                // Shortcut common cases:
+                // "IDENTIFIER DOT IDENTIFIER COMMA" and
+                // "IDENTIFIER DOT IDENTIFIER CLOSE_PAREN"
+                listener.handleIdentifier(next1, IdentifierContext.expression);
+                listener.handleNoTypeArguments(next2);
+                listener.handleNoArguments(next2);
+                listener.handleSend(next1, next1);
+                listener.handleIdentifier(
+                  next3,
+                  IdentifierContext.expressionContinuation,
+                );
+                listener.handleNoTypeArguments(next4);
+                listener.handleNoArguments(next4);
+                listener.handleSend(next3, next3);
+                listener.handleDotAccess(
+                  next2,
+                  next3,
+                  /* isNullAware = */ false,
+                );
+                token = next3;
+                expressionHandled = true;
+              }
+            }
+          }
+        } else if (next1.isA(TokenType.STRING)) {
+          Token next2 = next1.next!;
+          if (next2.isA(TokenType.COMMA) || next2.isA(TokenType.CLOSE_PAREN)) {
+            // Shortcut common cases:
+            // "STRING COMMA" and "STRING CLOSE_PAREN"
+            listener.beginLiteralString(next1);
+            listener.endLiteralString(0, next2);
+            token = next1;
+            expressionHandled = true;
+          }
+        }
+      }
+      if (!expressionHandled) {
+        token = parseExpression(token);
+      }
       next = token.next!;
-      if (colon != null) listener.handleNamedArgument(colon);
+      if (colon != null) {
+        listener.handleNamedArgument(colon);
+      } else {
+        listener.handlePositionalArgument(beginExpressionToken.next!);
+      }
       ++argumentCount;
       if (!next.isA(TokenType.COMMA)) {
         if (next.isA(TokenType.CLOSE_PAREN)) {
@@ -8929,7 +9416,7 @@ class Parser {
           // then report an error, insert the comma, and continue parsing.
           next = rewriteAndRecover(
             token,
-            codes.templateExpectedButGot.withArguments(','),
+            diag.expectedButGot.withArguments(expected: ','),
             new SyntheticToken(TokenType.COMMA, next.offset),
           );
         } else {
@@ -9033,7 +9520,7 @@ class Parser {
       }
       // The is- and as-operators cannot be chained.
       // TODO(danrubel): Consider a better error message.
-      reportRecoverableErrorWithToken(next, codes.templateUnexpectedToken);
+      reportRecoverableErrorWithToken(next, diag.unexpectedToken);
       if (next.next!.isA(TokenType.BANG)) {
         next = next.next!;
       }
@@ -9160,10 +9647,9 @@ class Parser {
 
       if (isModifier(next)) {
         // Recovery
-        ModifierContext context =
-            new ModifierContext(this)
-              ..lateToken = lateToken
-              ..varFinalOrConst = varFinalOrConst;
+        ModifierContext context = new ModifierContext(this)
+          ..lateToken = lateToken
+          ..varFinalOrConst = varFinalOrConst;
 
         token = context.parseVariableDeclarationModifiers(token);
         next = token.next!;
@@ -9196,7 +9682,7 @@ class Parser {
     TypeInfo? typeInfo, [
     ForPartsContext? forPartsContext,
   ]) {
-    if (allowPatterns &&
+    if (isPatternsFeatureEnabled &&
         varFinalOrConst != null &&
         (varFinalOrConst.isA(Keyword.VAR) ||
             varFinalOrConst.isA(Keyword.FINAL))) {
@@ -9208,7 +9694,7 @@ class Parser {
         if (lateToken != null) {
           reportRecoverableError(
             lateToken,
-            codes.messageLatePatternVariableDeclaration,
+            diag.latePatternVariableDeclaration,
           );
         }
         // If there was any metadata, then the caller was responsible for
@@ -9238,10 +9724,7 @@ class Parser {
 
     if (forPartsContext != null) {
       if (lateToken != null) {
-        reportRecoverableErrorWithToken(
-          lateToken,
-          codes.templateExtraneousModifier,
-        );
+        reportRecoverableErrorWithToken(lateToken, diag.extraneousModifier);
       }
     } else {
       if (looksLikeLocalFunction(next)) {
@@ -9249,13 +9732,10 @@ class Parser {
         if (varFinalOrConst != null) {
           reportRecoverableErrorWithToken(
             varFinalOrConst,
-            codes.templateExtraneousModifier,
+            diag.extraneousModifier,
           );
         } else if (lateToken != null) {
-          reportRecoverableErrorWithToken(
-            lateToken,
-            codes.templateExtraneousModifier,
-          );
+          reportRecoverableErrorWithToken(lateToken, diag.extraneousModifier);
         }
         // If there was any metadata, then the caller was responsible for
         // parsing it; if not, then we need to let the listener know there
@@ -9285,7 +9765,7 @@ class Parser {
       if (!looksLikeName(next)) {
         reportRecoverableError(
           next,
-          codes.templateExpectedIdentifier.withArguments(next),
+          diag.expectedIdentifier.withArguments(lexeme: next),
         );
         next = rewriter.insertSyntheticIdentifier(next);
       }
@@ -9305,8 +9785,9 @@ class Parser {
         UndoableTokenStreamRewriter undoableTokenStreamRewriter =
             new UndoableTokenStreamRewriter();
         cachedRewriter = undoableTokenStreamRewriter;
-        Token afterExpression =
-            parseExpressionWithoutCascade(afterIdentifier).next!;
+        Token afterExpression = parseExpressionWithoutCascade(
+          afterIdentifier,
+        ).next!;
         // Undo all changes and reset.
         undoableTokenStreamRewriter.undo();
         listener = originalListener;
@@ -9369,11 +9850,11 @@ class Parser {
       // and don't report errors here.
       if (varFinalOrConst == null) {
         if (typeInfo == noType) {
-          reportRecoverableError(next, codes.messageMissingConstFinalVarOrType);
+          reportRecoverableError(next, diag.missingConstFinalVarOrType);
         }
       } else if (varFinalOrConst.isA(Keyword.VAR)) {
         if (typeInfo != noType) {
-          reportRecoverableError(varFinalOrConst, codes.messageTypeAfterVar);
+          reportRecoverableError(varFinalOrConst, diag.typeAfterVar);
         }
       }
     }
@@ -9391,8 +9872,8 @@ class Parser {
       insertSyntheticIdentifier(
         beforeType,
         IdentifierContext.localVariableDeclaration,
-        message: codes.templateExpectedIdentifier.withArguments(
-          beforeType.next!,
+        message: diag.expectedIdentifier.withArguments(
+          lexeme: beforeType.next!,
         ),
       );
       typeInfo = computeType(beforeType, /* required = */ true);
@@ -9446,7 +9927,10 @@ class Parser {
     Token ifToken = token.next!;
     assert(ifToken.isA(Keyword.IF));
     listener.beginIfStatement(ifToken);
-    token = ensureParenthesizedCondition(ifToken, allowCase: allowPatterns);
+    token = ensureParenthesizedCondition(
+      ifToken,
+      allowCase: isPatternsFeatureEnabled,
+    );
     Token thenBeginToken = token.next!;
     listener.beginThenStatement(thenBeginToken);
     token = parseStatement(token);
@@ -9540,7 +10024,7 @@ class Parser {
       // Recovery
       reportRecoverableError(
         leftParenthesis,
-        codes.templateExpectedButGot.withArguments('('),
+        diag.expectedButGot.withArguments(expected: '('),
       );
 
       BeginToken openParen =
@@ -9563,11 +10047,10 @@ class Parser {
         token = rewriter.insertSyntheticToken(token, TokenType.SEMICOLON);
       }
 
-      openParen.endGroup =
-          token = rewriter.insertToken(
-            token,
-            new SyntheticToken(TokenType.CLOSE_PAREN, leftParenthesis.offset),
-          );
+      openParen.endGroup = token = rewriter.insertToken(
+        token,
+        new SyntheticToken(TokenType.CLOSE_PAREN, leftParenthesis.offset),
+      );
 
       token = rewriter.insertSyntheticIdentifier(token);
       rewriter.insertSyntheticToken(token, TokenType.SEMICOLON);
@@ -9613,16 +10096,16 @@ class Parser {
     Token next = token.next!;
     if (next.isA(TokenType.SEMICOLON)) {
       if (awaitToken != null) {
-        reportRecoverableError(awaitToken, codes.messageInvalidAwaitFor);
+        reportRecoverableError(awaitToken, diag.invalidAwaitFor);
       }
     } else if (!next.isA(Keyword.IN)) {
       // Recovery
       if (next.isA(TokenType.COLON)) {
-        reportRecoverableError(next, codes.messageColonInPlaceOfIn);
+        reportRecoverableError(next, diag.colonInPlaceOfIn);
       } else if (awaitToken != null) {
         reportRecoverableError(
           next,
-          codes.templateExpectedButGot.withArguments('in'),
+          diag.expectedButGot.withArguments(expected: 'in'),
         );
         token.setNext(
           new SyntheticKeywordToken(Keyword.IN, next.offset)..setNext(next),
@@ -9681,7 +10164,7 @@ class Parser {
       }
     }
     if (token != leftParenthesis.endGroup) {
-      reportRecoverableErrorWithToken(token, codes.templateUnexpectedToken);
+      reportRecoverableErrorWithToken(token, diag.unexpectedToken);
       token = leftParenthesis.endGroup!;
     }
     listener.handleForLoopParts(
@@ -9744,27 +10227,24 @@ class Parser {
     assert(inKeyword.isA(Keyword.IN) || inKeyword.isA(TokenType.COLON));
 
     if (awaitToken != null && !inAsync) {
-      reportRecoverableError(awaitToken, codes.messageAwaitForNotAsync);
+      reportRecoverableError(awaitToken, diag.awaitForNotAsync);
     }
 
     if (identifier != null) {
       if (!identifier.isIdentifier) {
         // TODO(jensj): This should probably (sometimes) be
-        // templateExpectedIdentifierButGotKeyword instead.
-        reportRecoverableErrorWithToken(
-          identifier,
-          codes.templateExpectedIdentifier,
-        );
+        // codeExpectedIdentifierButGotKeyword instead.
+        reportRecoverableErrorWithToken(identifier, diag.expectedIdentifier);
       } else if (identifier != token) {
         if (identifier.next!.isA(TokenType.EQ)) {
           reportRecoverableError(
             identifier.next!,
-            codes.messageInitializedVariableInForEach,
+            diag.initializedVariableInForEach,
           );
         } else {
           reportRecoverableErrorWithToken(
             identifier.next!,
-            codes.templateUnexpectedToken,
+            diag.unexpectedToken,
           );
         }
       }
@@ -9822,7 +10302,7 @@ class Parser {
     if (!whileToken.isA(Keyword.WHILE)) {
       reportRecoverableError(
         whileToken,
-        codes.templateExpectedButGot.withArguments('while'),
+        diag.expectedButGot.withArguments(expected: 'while'),
       );
       whileToken = rewriter.insertSyntheticKeyword(token, Keyword.WHILE);
     }
@@ -9842,7 +10322,7 @@ class Parser {
     listener.beginBlock(begin, blockKind);
     int statementCount = 0;
     Token startToken = token.next!;
-    while (notEofOrValue('}', startToken)) {
+    while (notEofOrType(TokenType.CLOSE_CURLY_BRACKET, startToken)) {
       token = parseStatement(token);
       if (identical(token.next!, startToken)) {
         // No progress was made, so we report the current token as being invalid
@@ -9850,7 +10330,7 @@ class Parser {
         token = token.next!;
         reportRecoverableError(
           token,
-          codes.templateUnexpectedToken.withArguments(token),
+          diag.unexpectedToken.withArguments(lexeme: token),
         );
       }
       ++statementCount;
@@ -9979,7 +10459,7 @@ class Parser {
     if (inAsync) {
       listener.endAwaitExpression(awaitToken, token);
     } else {
-      codes.MessageCode errorCode = codes.messageAwaitNotAsync;
+      codes.MessageCode errorCode = diag.awaitNotAsync;
       reportRecoverableError(awaitToken, errorCode);
       listener.endInvalidAwaitExpression(awaitToken, token, errorCode);
     }
@@ -10002,10 +10482,7 @@ class Parser {
       // TODO(danrubel): Find a better way to intercept the parseExpression
       // recovery to generate this error message rather than explicitly
       // checking the next token as we are doing here.
-      reportRecoverableError(
-        throwToken.next!,
-        codes.messageMissingExpressionInThrow,
-      );
+      reportRecoverableError(throwToken.next!, diag.missingExpressionInThrow);
       rewriter.insertToken(
         throwToken,
         new SyntheticStringToken(
@@ -10016,10 +10493,9 @@ class Parser {
         ),
       );
     }
-    token =
-        allowCascades
-            ? parseExpression(throwToken)
-            : parseExpressionWithoutCascade(throwToken);
+    token = allowCascades
+        ? parseExpression(throwToken)
+        : parseExpressionWithoutCascade(throwToken);
     listener.handleThrowExpression(throwToken, token);
     return token;
   }
@@ -10092,7 +10568,7 @@ class Parser {
 
         Token openParens = catchKeyword.next!;
         if (!openParens.isA(TokenType.OPEN_PAREN)) {
-          reportRecoverableError(openParens, codes.messageCatchSyntax);
+          reportRecoverableError(openParens, diag.catchSyntax);
           openParens = rewriter.insertParens(
             catchKeyword,
             /* includeIdentifier = */ true,
@@ -10114,7 +10590,7 @@ class Parser {
           if (!comma.isA(TokenType.COMMA)) {
             // Recovery
             if (!exceptionName.isSynthetic) {
-              reportRecoverableError(comma, codes.messageCatchSyntax);
+              reportRecoverableError(comma, diag.catchSyntax);
             }
 
             // TODO(danrubel): Consider inserting `on` clause if
@@ -10162,7 +10638,7 @@ class Parser {
               if (!traceName.isSynthetic) {
                 reportRecoverableError(
                   traceName.next!,
-                  codes.messageCatchSyntaxExtraParameters,
+                  diag.catchSyntaxExtraParameters,
                 );
               }
               if (openParens.endGroup!.isSynthetic) {
@@ -10190,7 +10666,7 @@ class Parser {
       listener.handleFinallyBlock(finallyKeyword);
     } else {
       if (catchCount == 0) {
-        reportRecoverableError(tryKeyword, codes.messageOnlyTry);
+        reportRecoverableError(tryKeyword, diag.onlyTry);
       }
     }
     listener.endTryStatement(
@@ -10233,7 +10709,7 @@ class Parser {
     int caseCount = 0;
     Token? defaultKeyword = null;
     Token? colonAfterDefault = null;
-    while (notEofOrValue('}', token.next!)) {
+    while (notEofOrType(TokenType.CLOSE_CURLY_BRACKET, token.next!)) {
       Token beginCase = token.next!;
       int expressionCount = 0;
       int labelCount = 0;
@@ -10247,10 +10723,7 @@ class Parser {
             labelCount++;
           }
           if (defaultKeyword != null) {
-            reportRecoverableError(
-              token.next!,
-              codes.messageSwitchHasMultipleDefaults,
-            );
+            reportRecoverableError(token.next!, diag.switchHasMultipleDefaults);
           }
           defaultKeyword = token.next!;
           colonAfterDefault = token = ensureColon(defaultKeyword);
@@ -10263,13 +10736,10 @@ class Parser {
           }
           Token caseKeyword = token.next!;
           if (defaultKeyword != null) {
-            reportRecoverableError(
-              caseKeyword,
-              codes.messageSwitchHasCaseAfterDefault,
-            );
+            reportRecoverableError(caseKeyword, diag.switchHasCaseAfterDefault);
           }
           listener.beginCaseExpression(caseKeyword);
-          if (allowPatterns) {
+          if (isPatternsFeatureEnabled) {
             token = parsePattern(caseKeyword, PatternContext.matching);
           } else {
             token = parseExpression(caseKeyword);
@@ -10294,7 +10764,7 @@ class Parser {
           // Recovery
           reportRecoverableError(
             peek,
-            codes.templateExpectedToken.withArguments("case"),
+            diag.expectedToken.withArguments(expected: "case"),
           );
           Token endGroup = beginSwitch.endGroup!;
           while (token.next != endGroup) {
@@ -10360,7 +10830,7 @@ class Parser {
           // invalid and move forward.
           reportRecoverableError(
             next,
-            codes.templateUnexpectedToken.withArguments(next),
+            diag.unexpectedToken.withArguments(lexeme: next),
           );
           token = next;
         }
@@ -10393,7 +10863,7 @@ class Parser {
       token = ensureIdentifier(token, IdentifierContext.labelReference);
       hasTarget = true;
     } else if (!isBreakAllowed) {
-      reportRecoverableError(breakKeyword, codes.messageBreakOutsideOfLoop);
+      reportRecoverableError(breakKeyword, diag.breakOutsideOfLoop);
     }
     token = ensureSemicolon(token);
     listener.handleBreakStatement(hasTarget, breakKeyword, token);
@@ -10415,7 +10885,7 @@ class Parser {
       // Recovery
       reportRecoverableError(
         leftParenthesis,
-        codes.templateExpectedButGot.withArguments('('),
+        diag.expectedButGot.withArguments(expected: '('),
       );
       leftParenthesis = rewriter.insertParens(
         token,
@@ -10449,10 +10919,7 @@ class Parser {
         // The scanner did not place the synthetic ')' correctly, so move it.
         token = rewriter.moveSynthetic(token, endGroup);
       } else {
-        reportRecoverableErrorWithToken(
-          token.next!,
-          codes.templateUnexpectedToken,
-        );
+        reportRecoverableErrorWithToken(token.next!, diag.unexpectedToken);
         token = endGroup;
       }
     }
@@ -10460,7 +10927,7 @@ class Parser {
     assert(token.isA(TokenType.CLOSE_PAREN));
     mayParseFunctionExpressions = old;
     if (kind == Assert.Expression) {
-      reportRecoverableError(assertKeyword, codes.messageAssertAsExpression);
+      reportRecoverableError(assertKeyword, diag.assertAsExpression);
     } else if (kind == Assert.Statement) {
       ensureSemicolon(token);
     }
@@ -10492,17 +10959,14 @@ class Parser {
       token = ensureIdentifier(token, IdentifierContext.labelReference);
       hasTarget = true;
       if (!isContinueWithLabelAllowed) {
-        reportRecoverableError(
-          continueKeyword,
-          codes.messageContinueOutsideOfLoop,
-        );
+        reportRecoverableError(continueKeyword, diag.continueOutsideOfLoop);
       }
     } else if (!isContinueAllowed) {
       reportRecoverableError(
         continueKeyword,
         loopState == LoopState.InsideSwitch
-            ? codes.messageContinueWithoutLabelInCase
-            : codes.messageContinueOutsideOfLoop,
+            ? diag.continueWithoutLabelInCase
+            : diag.continueOutsideOfLoop,
       );
     }
     token = ensureSemicolon(token);
@@ -10567,7 +11031,7 @@ class Parser {
         beforeName = next;
         operator = next.next!;
       }
-      reportRecoverableError(operator, codes.messageMissingOperatorKeyword);
+      reportRecoverableError(operator, diag.missingOperatorKeyword);
       rewriter.insertSyntheticKeyword(beforeName, Keyword.OPERATOR);
 
       // Having inserted the keyword the type now possibly compute differently.
@@ -10606,6 +11070,7 @@ class Parser {
       beforeType,
       typeInfo,
       /* getOrSet = */ null,
+      /* newToken = */ null,
       beforeName.next!,
       kind,
       enclosingDeclarationName,
@@ -10631,6 +11096,7 @@ class Parser {
     Token beforeType,
     TypeInfo typeInfo,
     Token? getOrSet,
+    Token? newToken,
     DeclarationKind kind,
     String? enclosingDeclarationName,
   ) {
@@ -10675,6 +11141,7 @@ class Parser {
         beforeType,
         typeInfo,
         getOrSet,
+        newToken,
         token.next!,
         kind,
         enclosingDeclarationName,
@@ -10682,7 +11149,7 @@ class Parser {
       );
     } else if (token == beforeStart) {
       // TODO(danrubel): Provide a more specific error message for extra ';'.
-      reportRecoverableErrorWithToken(next, codes.templateExpectedClassMember);
+      reportRecoverableErrorWithToken(next, diag.expectedClassMember);
       listener.handleInvalidMember(next);
       if (!identical(value, '}')) {
         // Ensure we make progress.
@@ -10715,11 +11182,11 @@ class Parser {
   /// the parser to safely handle. Return the next `}` or EOF.
   Token recoverFromStackOverflow(Token token) {
     Token next = token.next!;
-    reportRecoverableError(next, codes.messageStackOverflow);
+    reportRecoverableError(next, diag.stackOverflow);
     next = rewriter.insertSyntheticToken(token, TokenType.SEMICOLON);
     listener.handleEmptyStatement(next);
 
-    while (notEofOrValue('}', next)) {
+    while (notEofOrType(TokenType.CLOSE_CURLY_BRACKET, next)) {
       token = next;
       next = token.next!;
     }
@@ -10750,12 +11217,12 @@ class Parser {
 
   void reportRecoverableErrorWithToken(
     Token token,
-    codes.Template<_MessageWithArgument<Token>> template,
+    codes.Template<codes.Message Function({required Token lexeme})> template,
   ) {
     // Find a non-synthetic token on which to report the error.
     token = findNonZeroLengthToken(token);
     listener.handleRecoverableError(
-      template.withArguments(token),
+      template.withArguments(lexeme: token),
       token,
       token,
     );
@@ -10781,8 +11248,8 @@ class Parser {
     reportRecoverableErrorWithToken(
       next,
       next.isA(TokenType.SEMICOLON)
-          ? codes.templateUnexpectedToken
-          : codes.templateExpectedDeclaration,
+          ? diag.unexpectedToken
+          : diag.expectedDeclaration,
     );
     if (next.isA(TokenType.OPEN_CURLY_BRACKET)) {
       next = parseInvalidBlock(token);
@@ -10793,7 +11260,7 @@ class Parser {
 
   Token reportAndSkipClassInClass(Token token) {
     assert(token.isA(Keyword.CLASS));
-    reportRecoverableError(token, codes.messageClassInClass);
+    reportRecoverableError(token, diag.classInClass);
     listener.handleInvalidMember(token);
     Token next = token.next!;
     // If the declaration appears to be a valid class declaration
@@ -10816,7 +11283,7 @@ class Parser {
 
   Token reportAndSkipEnumInClass(Token token) {
     assert(token.isA(Keyword.ENUM));
-    reportRecoverableError(token, codes.messageEnumInClass);
+    reportRecoverableError(token, diag.enumInClass);
     listener.handleInvalidMember(token);
     Token next = token.next!;
     // If the declaration appears to be a valid enum declaration
@@ -10839,7 +11306,7 @@ class Parser {
 
   Token reportAndSkipTypedefInClass(Token token) {
     assert(token.isA(Keyword.TYPEDEF));
-    reportRecoverableError(token, codes.messageTypedefInClass);
+    reportRecoverableError(token, diag.typedefInClass);
     listener.handleInvalidMember(token);
     // TODO(brianwilkerson): If the declaration appears to be a valid typedef
     // then skip the entire declaration so that we generate a single error
@@ -10933,7 +11400,7 @@ class Parser {
             reportRecoverableErrorWithEnd(
               start,
               token,
-              codes.messageInvalidInsideUnaryPattern,
+              diag.invalidInsideUnaryPattern,
             );
           }
           Token operator = token = next;
@@ -10948,7 +11415,7 @@ class Parser {
             reportRecoverableErrorWithEnd(
               start,
               token,
-              codes.messageInvalidInsideUnaryPattern,
+              diag.invalidInsideUnaryPattern,
             );
           }
           // nullAssertPattern ::= primaryPattern '!'
@@ -10960,7 +11427,7 @@ class Parser {
             reportRecoverableErrorWithEnd(
               start,
               token,
-              codes.messageInvalidInsideUnaryPattern,
+              diag.invalidInsideUnaryPattern,
             );
           }
           // nullCheckPattern ::= primaryPattern '?'
@@ -11197,8 +11664,8 @@ class Parser {
         } else if (illegalPatternIdentifiers.contains(name)) {
           reportRecoverableError(
             firstIdentifier,
-            codes.templateIllegalPatternIdentifierName.withArguments(
-              firstIdentifier,
+            diag.illegalPatternIdentifierName.withArguments(
+              identifier: firstIdentifier,
             ),
           );
         }
@@ -11265,7 +11732,7 @@ class Parser {
         if (keyword != null) {
           reportRecoverableError(
             keyword,
-            codes.messageVariablePatternKeywordInDeclarationContext,
+            diag.variablePatternKeywordInDeclarationContext,
           );
         }
         break;
@@ -11273,7 +11740,7 @@ class Parser {
         // All forms of variable patterns are valid in a matching context.  But
         // we do need to check for redundant `var`.
         if (typeInfo != noType && keyword != null && keyword.isA(Keyword.VAR)) {
-          reportRecoverableError(keyword, codes.messageTypeAfterVar);
+          reportRecoverableError(keyword, diag.typeAfterVar);
         }
         break;
       case PatternContext.assignment:
@@ -11283,8 +11750,8 @@ class Parser {
         if (!isBareIdentifier) {
           reportRecoverableError(
             token,
-            codes.templatePatternAssignmentDeclaresVariable.withArguments(
-              variableName.isEmpty ? '(unnamed)' : variableName,
+            diag.patternAssignmentDeclaresVariable.withArguments(
+              variableName: variableName.isEmpty ? '(unnamed)' : variableName,
             ),
           );
         }
@@ -11300,8 +11767,8 @@ class Parser {
       if (illegalPatternIdentifiers.contains(variableName)) {
         reportRecoverableError(
           token,
-          codes.templateIllegalPatternAssignmentVariableName.withArguments(
-            token,
+          diag.illegalPatternAssignmentVariableName.withArguments(
+            variableName: token,
           ),
         );
       }
@@ -11310,7 +11777,7 @@ class Parser {
       if (illegalPatternIdentifiers.contains(variableName)) {
         reportRecoverableError(
           token,
-          codes.templateIllegalPatternVariableName.withArguments(token),
+          diag.illegalPatternVariableName.withArguments(variableName: token),
         );
       }
       if (isBareIdentifier) {
@@ -11385,7 +11852,7 @@ class Parser {
             // Report an error and jump to the end of the list.
             reportRecoverableError(
               next,
-              codes.templateExpectedButGot.withArguments(']'),
+              diag.expectedButGot.withArguments(expected: ']'),
             );
             token = beginToken.endGroup!;
           }
@@ -11394,7 +11861,9 @@ class Parser {
         // This looks like the start of an expression.
         // Report an error, insert the comma, and continue parsing.
         SyntheticToken comma = new SyntheticToken(TokenType.COMMA, next.offset);
-        codes.Message message = codes.templateExpectedButGot.withArguments(',');
+        codes.Message message = diag.expectedButGot.withArguments(
+          expected: ',',
+        );
         next = rewriteAndRecover(token, message, comma);
       }
       token = next;
@@ -11439,7 +11908,7 @@ class Parser {
           // Recover from a missing colon by inserting one.
           colon = rewriteAndRecover(
             token,
-            codes.templateExpectedButGot.withArguments(':'),
+            diag.expectedButGot.withArguments(expected: ':'),
             new SyntheticToken(TokenType.COLON, next.charOffset),
           );
         }
@@ -11473,14 +11942,14 @@ class Parser {
             TokenType.COMMA,
             next.offset,
           );
-          codes.Message message = codes.templateExpectedButGot.withArguments(
-            ',',
+          codes.Message message = diag.expectedButGot.withArguments(
+            expected: ',',
           );
           token = rewriteAndRecover(token, message, comma);
         } else {
           reportRecoverableError(
             next,
-            codes.templateExpectedButGot.withArguments('}'),
+            diag.expectedButGot.withArguments(expected: '}'),
           );
           // Scanner guarantees a closing curly bracket
           next = leftBrace.endGroup!;
@@ -11529,11 +11998,10 @@ class Parser {
         // `((:a, :b), :c, :d)` (and similar) is fine.
         // Record with named expression.
         wasRecord = true;
-        token =
-            ensureIdentifier(
-              token,
-              IdentifierContext.namedRecordFieldReference,
-            ).next!;
+        token = ensureIdentifier(
+          token,
+          IdentifierContext.namedRecordFieldReference,
+        ).next!;
         colon = token;
         wasValidRecord = true;
       }
@@ -11564,7 +12032,7 @@ class Parser {
       if (count == 1 && !wasValidRecord) {
         reportRecoverableError(
           token,
-          codes.messageRecordLiteralOnePositionalFieldNoTrailingComma,
+          diag.recordLiteralOnePositionalFieldNoTrailingComma,
         );
       }
       listener.handleRecordPattern(begin, count);
@@ -11600,11 +12068,10 @@ class Parser {
         // This is different from `parseParenthesizedPatternOrRecordPattern`
         // because this isn't valid because of the missing name:
         // `var Point((:x, :y), :z) = Point((x: 1, y: 2), 3);`
-        token =
-            ensureIdentifier(
-              token,
-              IdentifierContext.namedArgumentReference,
-            ).next!;
+        token = ensureIdentifier(
+          token,
+          IdentifierContext.namedArgumentReference,
+        ).next!;
         colon = token;
       }
       token = parsePattern(token, patternContext);
@@ -11622,7 +12089,7 @@ class Parser {
           // then report an error, insert the comma, and continue parsing.
           next = rewriteAndRecover(
             token,
-            codes.templateExpectedButGot.withArguments(','),
+            diag.expectedButGot.withArguments(expected: ','),
             new SyntheticToken(TokenType.COMMA, next.offset),
           );
         } else {
@@ -11762,7 +12229,7 @@ class Parser {
         listener.beginSwitchExpressionCase();
         Token beginToken = next = token.next!;
         if (next.isA(Keyword.DEFAULT)) {
-          reportRecoverableError(next, codes.messageDefaultInSwitchExpression);
+          reportRecoverableError(next, diag.defaultInSwitchExpression);
           listener.handleNoType(next);
           listener.handleWildcardPattern(null, next);
           token = next;
@@ -11770,7 +12237,7 @@ class Parser {
           if (next.isA(Keyword.CASE)) {
             reportRecoverableError(
               next,
-              codes.templateUnexpectedToken.withArguments(next),
+              diag.unexpectedToken.withArguments(lexeme: next),
             );
             token = next;
           }
@@ -11789,7 +12256,7 @@ class Parser {
           arrow = next;
           reportRecoverableError(
             arrow,
-            codes.templateExpectedButGot.withArguments('=>'),
+            diag.expectedButGot.withArguments(expected: '=>'),
           );
         } else {
           arrow = ensureFunctionArrow(token);
@@ -11810,7 +12277,7 @@ class Parser {
           // User accidentally used `;` instead of `,`
           reportRecoverableError(
             next,
-            codes.templateExpectedButGot.withArguments(','),
+            diag.expectedButGot.withArguments(expected: ','),
           );
           comma = token = next;
           next = token.next!;
@@ -11828,8 +12295,8 @@ class Parser {
               TokenType.COMMA,
               next.offset,
             );
-            codes.Message message = codes.templateExpectedButGot.withArguments(
-              ',',
+            codes.Message message = diag.expectedButGot.withArguments(
+              expected: ',',
             );
             token = rewriteAndRecover(token, message, comma);
           } else {
@@ -11839,7 +12306,7 @@ class Parser {
             if (comma == null) {
               reportRecoverableError(
                 next,
-                codes.templateExpectedButGot.withArguments('}'),
+                diag.expectedButGot.withArguments(expected: '}'),
               );
               next = closingBracket;
               break;
@@ -11849,7 +12316,7 @@ class Parser {
               // error.
               reportRecoverableError(
                 next,
-                codes.templateExpectedButGot.withArguments(','),
+                diag.expectedButGot.withArguments(expected: ','),
               );
               token = comma;
               next = token.next!;
@@ -11880,9 +12347,6 @@ class Parser {
     }
   }
 }
-
-// TODO(ahe): Remove when analyzer supports generalized function syntax.
-typedef _MessageWithArgument<T> = codes.Message Function(T);
 
 enum AwaitOrYieldContext { Statement, UnaryExpression }
 

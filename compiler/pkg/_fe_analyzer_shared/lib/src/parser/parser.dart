@@ -4,16 +4,18 @@
 
 library _fe_analyzer_shared.parser;
 
+import 'package:_fe_analyzer_shared/src/messages/diagnostic.dart' as diag;
+
 import '../scanner/token.dart' show Token;
 
+import 'experimental_features.dart';
 import 'listener.dart' show Listener;
 
 import 'parser_impl.dart' show Parser;
 
 import 'parser_error.dart' show ParserError;
 
-import '../messages/codes.dart'
-    show Message, messageNativeClauseShouldBeAnnotation;
+import '../messages/codes.dart' show Message;
 
 export 'assert.dart' show Assert;
 
@@ -22,6 +24,8 @@ export 'block_kind.dart' show BlockKind;
 export 'class_member_parser.dart' show ClassMemberParser;
 
 export 'constructor_reference_context.dart' show ConstructorReferenceContext;
+
+export 'experimental_features.dart' show ExperimentalFeatures;
 
 export 'formal_parameter_kind.dart' show FormalParameterKind;
 
@@ -61,7 +65,7 @@ class ErrorCollectingListener extends Listener {
     Token endToken,
   ) {
     /// TODO(danrubel): Ignore this error until we deprecate `native` support.
-    if (message == messageNativeClauseShouldBeAnnotation) {
+    if (message == diag.nativeClauseShouldBeAnnotation) {
       return;
     }
     recoverableErrors.add(
@@ -72,12 +76,14 @@ class ErrorCollectingListener extends Listener {
 
 List<ParserError> parse(
   Token tokens, {
+  required ExperimentalFeatures experimentalFeatures,
   bool useImplicitCreationExpression = true,
 }) {
   ErrorCollectingListener listener = new ErrorCollectingListener();
   Parser parser = new Parser(
     listener,
     useImplicitCreationExpression: useImplicitCreationExpression,
+    experimentalFeatures: experimentalFeatures,
   );
   parser.parseUnit(tokens);
   return listener.recoverableErrors;

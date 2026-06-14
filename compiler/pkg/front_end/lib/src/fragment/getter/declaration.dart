@@ -6,6 +6,7 @@ import 'package:kernel/ast.dart';
 import 'package:kernel/class_hierarchy.dart';
 import 'package:kernel/type_environment.dart';
 
+import '../../api_prototype/experimental_flags.dart';
 import '../../base/local_scope.dart';
 import '../../base/messages.dart';
 import '../../base/scope.dart';
@@ -26,6 +27,7 @@ import '../../source/source_loader.dart';
 import '../../source/source_member_builder.dart';
 import '../../source/source_property_builder.dart';
 import '../../source/type_parameter_factory.dart';
+import '../../type_inference/type_schema.dart';
 import '../fragment.dart';
 import 'body_builder_context.dart';
 import 'encoding.dart';
@@ -42,44 +44,54 @@ abstract class GetterDeclaration {
 
   Member get readTarget;
 
-  void buildGetterOutlineExpressions(
-      {required ClassHierarchy classHierarchy,
-      required SourceLibraryBuilder libraryBuilder,
-      required DeclarationBuilder? declarationBuilder,
-      required SourcePropertyBuilder propertyBuilder,
-      required Annotatable annotatable,
-      required Uri annotatableFileUri,
-      required bool isClassInstanceMember});
+  void buildGetterOutlineExpressions({
+    required ClassHierarchy classHierarchy,
+    required SourceLibraryBuilder libraryBuilder,
+    required DeclarationBuilder? declarationBuilder,
+    required SourcePropertyBuilder propertyBuilder,
+    required Annotatable annotatable,
+    required Uri annotatableFileUri,
+  });
 
-  void buildGetterOutlineNode(
-      {required SourceLibraryBuilder libraryBuilder,
-      required NameScheme nameScheme,
-      required BuildNodesCallback f,
-      required PropertyReferences? references,
-      required List<TypeParameter>? classTypeParameters});
+  void buildGetterOutlineNode({
+    required SourceLibraryBuilder libraryBuilder,
+    required NameScheme nameScheme,
+    required BuildNodesCallback f,
+    required PropertyReferences? references,
+    required List<TypeParameter>? classTypeParameters,
+  });
 
-  void checkGetterTypes(SourceLibraryBuilder libraryBuilder,
-      TypeEnvironment typeEnvironment, SourcePropertyBuilder? setterBuilder);
+  void checkGetterTypes(
+    ProblemReporting problemReporting,
+    LibraryFeatures libraryFeatures,
+    TypeEnvironment typeEnvironment,
+    SourcePropertyBuilder? setterBuilder,
+  );
 
   void checkGetterVariance(
-      SourceClassBuilder sourceClassBuilder, TypeEnvironment typeEnvironment);
+    SourceClassBuilder sourceClassBuilder,
+    TypeEnvironment typeEnvironment,
+  );
 
   int computeGetterDefaultTypes(ComputeDefaultTypeContext context);
 
   void createGetterEncoding(
-      ProblemReporting problemReporting,
-      SourcePropertyBuilder builder,
-      PropertyEncodingStrategy encodingStrategy,
-      TypeParameterFactory typeParameterFactory);
+    ProblemReporting problemReporting,
+    SourcePropertyBuilder builder,
+    PropertyEncodingStrategy encodingStrategy,
+    TypeParameterFactory typeParameterFactory,
+  );
 
-  void ensureGetterTypes(
-      {required SourceLibraryBuilder libraryBuilder,
-      required DeclarationBuilder? declarationBuilder,
-      required ClassMembersBuilder membersBuilder,
-      required Set<ClassMember>? getterOverrideDependencies});
+  void ensureGetterTypes({
+    required SourceLibraryBuilder libraryBuilder,
+    required DeclarationBuilder? declarationBuilder,
+    required ClassMembersBuilder membersBuilder,
+    required Set<ClassMember>? getterOverrideDependencies,
+  });
 
   Iterable<Reference> getExportedGetterReferences(
-      PropertyReferences references);
+    PropertyReferences references,
+  );
 
   List<ClassMember> get localMembers;
 }
@@ -107,14 +119,14 @@ class RegularGetterDeclaration
   List<FormalParameterBuilder>? get formals => _encoding.formals;
 
   @override
-  FunctionNode get function => _encoding.function;
+  bool get isNoSuchMethodForwarder => _encoding.isNoSuchMethodForwarder;
 
   @override
   GetterQuality get getterQuality => _fragment.modifiers.isAbstract
       ? GetterQuality.Abstract
       : _fragment.modifiers.isExternal
-          ? GetterQuality.External
-          : GetterQuality.Concrete;
+      ? GetterQuality.External
+      : GetterQuality.Concrete;
 
   @override
   bool get isExternal => _fragment.modifiers.isExternal;
@@ -124,6 +136,7 @@ class RegularGetterDeclaration
   List<MetadataBuilder>? get metadata => _fragment.metadata;
 
   @override
+  // Coverage-ignore(suite): Not run.
   String get name => _fragment.name;
 
   @override
@@ -147,52 +160,66 @@ class RegularGetterDeclaration
   }
 
   @override
-  void buildGetterOutlineExpressions(
-      {required ClassHierarchy classHierarchy,
-      required SourceLibraryBuilder libraryBuilder,
-      required DeclarationBuilder? declarationBuilder,
-      required SourcePropertyBuilder propertyBuilder,
-      required Annotatable annotatable,
-      required Uri annotatableFileUri,
-      required bool isClassInstanceMember}) {
+  void buildGetterOutlineExpressions({
+    required ClassHierarchy classHierarchy,
+    required SourceLibraryBuilder libraryBuilder,
+    required DeclarationBuilder? declarationBuilder,
+    required SourcePropertyBuilder propertyBuilder,
+    required Annotatable annotatable,
+    required Uri annotatableFileUri,
+  }) {
     _encoding.buildOutlineExpressions(
-        classHierarchy: classHierarchy,
-        libraryBuilder: libraryBuilder,
-        declarationBuilder: declarationBuilder,
-        bodyBuilderContext: createBodyBuilderContext(propertyBuilder),
-        annotatable: annotatable,
-        annotatableFileUri: annotatableFileUri,
-        isClassInstanceMember: isClassInstanceMember);
+      classHierarchy: classHierarchy,
+      libraryBuilder: libraryBuilder,
+      declarationBuilder: declarationBuilder,
+      propertyBuilder: propertyBuilder,
+      bodyBuilderContext: createBodyBuilderContext(propertyBuilder),
+      annotatable: annotatable,
+      annotatableFileUri: annotatableFileUri,
+    );
   }
 
   @override
-  void buildGetterOutlineNode(
-      {required SourceLibraryBuilder libraryBuilder,
-      required NameScheme nameScheme,
-      required BuildNodesCallback f,
-      required PropertyReferences? references,
-      required List<TypeParameter>? classTypeParameters}) {
+  void buildGetterOutlineNode({
+    required SourceLibraryBuilder libraryBuilder,
+    required NameScheme nameScheme,
+    required BuildNodesCallback f,
+    required PropertyReferences? references,
+    required List<TypeParameter>? classTypeParameters,
+  }) {
     _encoding.buildOutlineNode(
-        libraryBuilder: libraryBuilder,
-        nameScheme: nameScheme,
-        f: f,
-        references: references,
-        isAbstractOrExternal:
-            _fragment.modifiers.isAbstract || _fragment.modifiers.isExternal,
-        classTypeParameters: classTypeParameters);
+      libraryBuilder: libraryBuilder,
+      nameScheme: nameScheme,
+      f: f,
+      references: references,
+      isAbstractOrExternal:
+          _fragment.modifiers.isAbstract || _fragment.modifiers.isExternal,
+      classTypeParameters: classTypeParameters,
+    );
   }
 
   @override
-  void checkGetterTypes(SourceLibraryBuilder libraryBuilder,
-      TypeEnvironment typeEnvironment, SourcePropertyBuilder? setterBuilder) {
-    _encoding.checkTypes(libraryBuilder, typeEnvironment, setterBuilder,
-        isAbstract: _fragment.modifiers.isAbstract,
-        isExternal: _fragment.modifiers.isExternal);
+  void checkGetterTypes(
+    ProblemReporting problemReporting,
+    LibraryFeatures libraryFeatures,
+    TypeEnvironment typeEnvironment,
+    SourcePropertyBuilder? setterBuilder,
+  ) {
+    _encoding.checkTypes(
+      problemReporting,
+      libraryFeatures,
+      typeEnvironment,
+      setterBuilder,
+      isAbstract: _fragment.modifiers.isAbstract,
+      isExternal: _fragment.modifiers.isExternal,
+    );
   }
 
   @override
   void checkGetterVariance(
-      SourceClassBuilder sourceClassBuilder, TypeEnvironment typeEnvironment) {
+    SourceClassBuilder sourceClassBuilder,
+    TypeEnvironment typeEnvironment,
+  ) {
     _encoding.checkVariance(sourceClassBuilder, typeEnvironment);
   }
 
@@ -203,28 +230,40 @@ class RegularGetterDeclaration
 
   @override
   BodyBuilderContext createBodyBuilderContext(
-      SourcePropertyBuilder propertyBuilder) {
-    return new GetterFragmentBodyBuilderContext(propertyBuilder, this,
-        propertyBuilder.libraryBuilder, propertyBuilder.declarationBuilder,
-        isDeclarationInstanceMember:
-            propertyBuilder.isDeclarationInstanceMember);
+    SourcePropertyBuilder propertyBuilder,
+  ) {
+    return new GetterFragmentBodyBuilderContext(
+      propertyBuilder,
+      this,
+      propertyBuilder.libraryBuilder,
+      propertyBuilder.declarationBuilder,
+      isDeclarationInstanceMember: propertyBuilder.isDeclarationInstanceMember,
+    );
   }
 
   @override
   void createGetterEncoding(
-      ProblemReporting problemReporting,
-      SourcePropertyBuilder builder,
-      PropertyEncodingStrategy encodingStrategy,
-      TypeParameterFactory typeParameterFactory) {
+    ProblemReporting problemReporting,
+    SourcePropertyBuilder builder,
+    PropertyEncodingStrategy encodingStrategy,
+    TypeParameterFactory typeParameterFactory,
+  ) {
     _fragment.builder = builder;
-    typeParameterFactory
-        .createNominalParameterBuilders(_fragment.declaredTypeParameters);
+    typeParameterFactory.createNominalParameterBuilders(
+      _fragment.declaredTypeParameters,
+    );
 
     _encoding = encodingStrategy.createGetterEncoding(
-        builder, _fragment, typeParameterFactory);
+      builder,
+      _fragment,
+      typeParameterFactory,
+    );
     _fragment.typeParameterNameSpace.addTypeParameters(
-        problemReporting, _encoding.clonedAndDeclaredTypeParameters,
-        ownerName: _fragment.name, allowNameConflict: true);
+      problemReporting,
+      _encoding.clonedAndDeclaredTypeParameters,
+      ownerName: _fragment.name,
+      allowNameConflict: true,
+    );
     _fragment.returnType.registerInferredTypeListener(_encoding);
   }
 
@@ -234,35 +273,65 @@ class RegularGetterDeclaration
   }
 
   @override
-  void ensureGetterTypes(
-      {required SourceLibraryBuilder libraryBuilder,
-      required DeclarationBuilder? declarationBuilder,
-      required ClassMembersBuilder membersBuilder,
-      required Set<ClassMember>? getterOverrideDependencies}) {
+  void ensureGetterTypes({
+    required SourceLibraryBuilder libraryBuilder,
+    required DeclarationBuilder? declarationBuilder,
+    required ClassMembersBuilder membersBuilder,
+    required Set<ClassMember>? getterOverrideDependencies,
+  }) {
     if (getterOverrideDependencies != null) {
-      membersBuilder.inferGetterType(declarationBuilder as SourceClassBuilder,
-          _fragment.returnType, getterOverrideDependencies,
-          name: _fragment.name,
-          fileUri: _fragment.fileUri,
-          nameOffset: _fragment.nameOffset,
-          nameLength: _fragment.name.length);
+      membersBuilder.inferGetterType(
+        declarationBuilder as SourceClassBuilder,
+        _fragment.returnType,
+        getterOverrideDependencies,
+        name: _fragment.name,
+        fileUri: _fragment.fileUri,
+        nameOffset: _fragment.nameOffset,
+        nameLength: _fragment.name.length,
+      );
     }
     _encoding.ensureTypes(libraryBuilder, membersBuilder.hierarchyBuilder);
   }
 
   @override
   Iterable<Reference> getExportedGetterReferences(
-          PropertyReferences references) =>
-      [references.getterReference];
+    PropertyReferences references,
+  ) => [references.getterReference];
 
   @override
-  VariableDeclaration getFormalParameter(int index) {
-    return _encoding.getFormalParameter(index);
+  List<ClassMember> get localMembers => [
+    new GetterClassMember(_fragment.builder),
+  ];
+
+  @override
+  void registerFunctionBody({
+    required Statement? body,
+    required Scope? scope,
+    required AsyncMarker asyncMarker,
+    required DartType? emittedValueType,
+  }) {
+    assert(
+      asyncMarker == asyncModifier,
+      "Unexpected change in async modifier on $this from "
+      "${asyncModifier} to $asyncMarker.",
+    );
+    _encoding.registerFunctionBody(
+      body: body,
+      scope: scope,
+      asyncMarker: asyncMarker,
+      emittedValueType: emittedValueType,
+    );
   }
 
   @override
-  List<ClassMember> get localMembers =>
-      [new GetterClassMember(_fragment.builder)];
+  DartType get returnTypeContext {
+    final bool isReturnTypeUndeclared =
+        returnType is OmittedTypeBuilder &&
+        _encoding.function.returnType is DynamicType;
+    return isReturnTypeUndeclared
+        ? const UnknownType()
+        : _encoding.function.returnType;
+  }
 }
 
 /// Interface for using a [GetterFragment] to create a [BodyBuilderContext].
@@ -271,7 +340,7 @@ abstract class GetterFragmentDeclaration {
 
   List<FormalParameterBuilder>? get formals;
 
-  FunctionNode get function;
+  bool get isNoSuchMethodForwarder;
 
   bool get isExternal;
 
@@ -288,9 +357,17 @@ abstract class GetterFragmentDeclaration {
   void becomeNative(SourceLoader loader);
 
   BodyBuilderContext createBodyBuilderContext(
-      SourcePropertyBuilder propertyBuilder);
+    SourcePropertyBuilder propertyBuilder,
+  );
 
   LocalScope createFormalParameterScope(LookupScope typeParameterScope);
 
-  VariableDeclaration getFormalParameter(int index);
+  void registerFunctionBody({
+    required Statement? body,
+    required Scope? scope,
+    required AsyncMarker asyncMarker,
+    required DartType? emittedValueType,
+  });
+
+  DartType get returnTypeContext;
 }

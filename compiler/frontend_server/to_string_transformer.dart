@@ -54,7 +54,12 @@ class ToStringVisitor extends RecursiveVisitor {
         !_hasKeepAnnotation(node)) {
       node.function.body?.replaceWith(
         ReturnStatement(
-          SuperMethodInvocation(node.name, Arguments(<Expression>[]), node),
+          SuperMethodInvocation(
+            ThisExpression(),
+            node.name,
+            Arguments(<Expression>[]),
+            node,
+          ),
         ),
       );
     }

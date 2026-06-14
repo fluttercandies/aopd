@@ -6,8 +6,11 @@
 /// @docImport 'type_analyzer_operations.dart';
 library;
 
+import 'package:_fe_analyzer_shared/src/types/shared_type.dart';
+
 import '../flow_analysis/flow_analysis.dart';
 import '../flow_analysis/flow_analysis_operations.dart';
+import 'type_analysis_result.dart';
 
 /// Null shorting logic to be shared between the analyzer and the CFE.
 ///
@@ -19,10 +22,9 @@ import '../flow_analysis/flow_analysis_operations.dart';
 mixin NullShortingMixin<
   Guard,
   Expression extends Object,
-  Variable extends Object,
-  Type extends Object
+  Variable extends Object
 >
-    on TypeAnalysisNullShortingInterface<Expression, Variable, Type> {
+    on TypeAnalysisNullShortingInterface<Expression, Variable> {
   /// Stack of [Guard] objects associated with null-shorting operations that
   /// haven't been terminated yet.
   final _guards = <Guard>[];
@@ -31,38 +33,64 @@ mixin NullShortingMixin<
   int get nullShortingDepth => _guards.length;
 
   @override
-  Type finishNullShorting(int targetDepth, Type inferredType) {
+  ExpressionTypeAnalysisResult finishNullShorting(
+    int targetDepth,
+    ExpressionTypeAnalysisResult innerResult, {
+    required Expression wholeExpression,
+  }) {
     assert(targetDepth < nullShortingDepth);
-    inferredType = operations.makeNullable(inferredType);
+    SharedTypeView inferredType = operations.makeNullable(innerResult.type);
     do {
       // End non-nullable promotion of the null-aware variable.
       flow.nullAwareAccess_end();
-      handleNullShortingStep(_guards.removeLast(), inferredType);
+      innerResult = handleNullShortingStep(
+        innerResult,
+        _guards.removeLast(),
+        inferredType,
+      );
+      assert(identical(innerResult.type, inferredType));
     } while (nullShortingDepth > targetDepth);
     handleNullShortingFinished(inferredType);
-    return inferredType;
+    return innerResult;
   }
 
   /// Hook called by [finishNullShorting] after terminating all the null
   /// shorting that needs to be terminated for a given expression.
   ///
   /// [inferredType] is the (nullable) type of the final expression.
-  void handleNullShortingFinished(Type inferredType) {}
+  void handleNullShortingFinished(SharedTypeView inferredType) {}
 
   /// Hook called by [finishNullShorting] after terminating a single
   /// null-shorting operation.
+  ///
+  /// [innerResult] is the result of analyzing the expression, before
+  /// termination of null shorting.
   ///
   /// [guard] is the value that was passed to [startNullShorting] when the
   /// null-shorting operation was started.
   ///
   /// [inferredType] is the (nullable) type of the final expression.
-  void handleNullShortingStep(Guard guard, Type inferredType) {}
+  ///
+  /// The return value is an [ExpressionTypeAnalysisResult] representing the
+  /// result of analyzing the expression, after termination of null shorting.
+  ExpressionTypeAnalysisResult handleNullShortingStep(
+    ExpressionTypeAnalysisResult innerResult,
+    Guard guard,
+    SharedTypeView inferredType,
+  ) => new ExpressionTypeAnalysisResult(type: inferredType);
 
   /// Starts null shorting for a null-aware expression that participates in
   /// null-shorting.
   ///
-  /// [target] should be the target of the null-aware operation (the expression
-  /// to the left of the `?.`), and [targetType] should be its static type.
+  /// Note: there is no corresponding "stop" method. Null shorting will be
+  /// automatically stopped by [TypeAnalyzer.analyzeExpression].
+  ///
+  /// [targetInfo] should be the flow analysis expression info for the target of
+  /// the null-aware operation (the expression to the left of the `?.`), and
+  /// [targetType] should be its static type.
+  ///
+  /// The flow analysis expression info for the target (assuming it is not null)
+  /// is returned.
   ///
   /// [guard] should be the data structure that will be used by the client to
   /// desugar the null-aware access. It will be passed to
@@ -74,30 +102,30 @@ mixin NullShortingMixin<
   /// should pass in the variable used for desugaring as [guardVariable]. Flow
   /// analysis will ensure that this variable is promoted to the appropriate
   /// type in the "not null" code path.
-  void startNullShorting(
+  ExpressionInfo? startNullShorting(
     Guard guard,
-    Expression target,
-    Type targetType, {
+    ExpressionInfo? targetInfo,
+    SharedTypeView targetType, {
     Variable? guardVariable,
   }) {
     // Ensure the initializer of [_nullAwareVariable] is promoted to
     // non-nullable.
-    flow.nullAwareAccess_rightBegin(
-      target,
+    targetInfo = flow.nullAwareAccess_rightBegin(
+      targetInfo,
       targetType,
       guardVariable: guardVariable,
     );
     _guards.add(guard);
+    return targetInfo;
   }
 }
 
 abstract interface class TypeAnalysisNullShortingInterface<
   Expression extends Object,
-  Variable extends Object,
-  Type extends Object
+  Variable extends Object
 > {
   /// Returns the client's [FlowAnalysis] object.
-  FlowAnalysisNullShortingInterface<Expression, Variable, Type> get flow;
+  FlowAnalysisNullShortingInterface<Expression, Variable> get flow;
 
   /// Returns the number of null-shorting operations that haven't been
   /// terminated yet.
@@ -107,7 +135,7 @@ abstract interface class TypeAnalysisNullShortingInterface<
   /// subtyping.
   ///
   /// Typically this will be an instance of [TypeAnalyzerOperations].
-  FlowAnalysisTypeOperations<Type> get operations;
+  FlowAnalysisTypeOperations get operations;
 
   /// Terminates one or more null-shorting operations that were previously
   /// started using [NullShortingMixin.startNullShorting].
@@ -123,14 +151,20 @@ abstract interface class TypeAnalysisNullShortingInterface<
   /// a value that is strictly less than [nullShortingDepth] (that is, there
   /// must be at least one null-shorting operation that needs to be terminated).
   ///
-  /// [inferredType] should be the type of the expression that was just
-  /// analyzed, prior to termination of null shorting. For example, if the
-  /// expression that is being analyzed is `i?.toString()`, [inferredType]
-  /// should represent the non-nullable type `String`.
+  /// [innerResult] should be the analysis results from the expression that was
+  /// just analyzed, prior to termination of null shorting. For example, if the
+  /// expression that is being analyzed is `i?.toString()`, [innerResult]
+  /// should represent `i.toString()`.
   ///
-  /// The return value represents the type of the full expression, after
-  /// termination of null shorting. For example, if the expression that is being
-  /// analyzed is `i?.toString()`, the return value will represent the type
-  /// `String?`.
-  Type finishNullShorting(int targetDepth, Type inferredType);
+  /// The return value is an [ExpressionTypeAnalysisResult] representing the
+  /// result of analyzing the full expression, after termination of null
+  /// shorting. The value of the [ExpressionTypeAnalysisResult.type] field will
+  /// account for the fact that the full expression might evaluate to `null`;
+  /// for example, if the expression that is being analyzed is `i?.toString()`,
+  /// that type will be `String?`.
+  ExpressionTypeAnalysisResult finishNullShorting(
+    int targetDepth,
+    ExpressionTypeAnalysisResult innerResult, {
+    required Expression wholeExpression,
+  });
 }

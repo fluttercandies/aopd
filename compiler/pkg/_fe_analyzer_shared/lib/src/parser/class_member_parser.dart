@@ -19,9 +19,12 @@ class ClassMemberParser extends Parser {
   ClassMemberParser(
     super.listener, {
     super.useImplicitCreationExpression,
-    super.allowPatterns,
-    super.enableFeatureEnhancedParts,
+    required super.experimentalFeatures,
   });
+
+  @override
+  // This parser skips expressions so [parseExpression] has to be called.
+  bool get allowedToShortcutParseExpression => false;
 
   @override
   Token parseExpression(Token token) {
@@ -41,9 +44,8 @@ class ClassMemberParser extends Parser {
     // feature together with a no-op listener instead.
     this.skipParser ??= new Parser(
       new ErrorDelegationListener(listener),
+      experimentalFeatures: experimentalFeatures,
       useImplicitCreationExpression: useImplicitCreationExpression,
-      allowPatterns: allowPatterns,
-      enableFeatureEnhancedParts: enableFeatureEnhancedParts,
     );
     Parser skipParser = this.skipParser!;
     skipParser.mayParseFunctionExpressions = mayParseFunctionExpressions;

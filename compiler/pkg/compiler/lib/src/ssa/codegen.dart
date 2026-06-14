@@ -5,13 +5,22 @@
 import 'dart:collection' show Queue;
 
 // ignore: implementation_imports
+import 'package:front_end/src/api_prototype/lowering_predicates.dart'
+    show
+        isExtensionMemberTearOff,
+        getExtensionMemberImplementation,
+        isExtensionThisName,
+        isTearOffLowering,
+        getConstructorTearOffLoweringTarget;
+// ignore: implementation_imports
 import 'package:front_end/src/api_unstable/dart2js.dart' show Link;
+import 'package:kernel/ast.dart' as ir;
 
 import '../common.dart';
+import '../common/codegen.dart' show CodegenRegistry;
 import '../common/elements.dart' show JCommonElements;
 import '../common/metrics.dart';
 import '../common/names.dart';
-import '../common/codegen.dart' show CodegenRegistry;
 import '../common/tasks.dart' show CompilerTask;
 import '../constants/constant_system.dart' as constant_system;
 import '../constants/values.dart';
@@ -21,10 +30,10 @@ import '../elements/types.dart';
 import '../inferrer/abstract_value_domain.dart';
 import '../io/source_information.dart';
 import '../js/js.dart' as js;
-import '../js_backend/interceptor_data.dart';
 import '../js_backend/codegen_inputs.dart' show CodegenInputs;
-import '../js_backend/native_data.dart';
+import '../js_backend/interceptor_data.dart';
 import '../js_backend/namer.dart' show ModularNamer;
+import '../js_backend/native_data.dart';
 import '../js_backend/runtime_types_codegen.dart';
 import '../js_backend/runtime_types_new.dart'
     show RecipeEncoder, RecipeEncoding, indexTypeVariable;
@@ -39,7 +48,7 @@ import '../native/behavior.dart';
 import '../options.dart';
 import '../tracer.dart' show Tracer;
 import '../universe/call_structure.dart' show CallStructure;
-import '../universe/resource_identifier.dart';
+import '../universe/recorded_use.dart';
 import '../universe/selector.dart' show Selector;
 import '../universe/use.dart' show ConstantUse, DynamicUse, StaticUse, TypeUse;
 import 'codegen_helpers.dart';
@@ -56,6 +65,14 @@ class SsaCodeGeneratorTask extends CompilerTask {
   final SourceInformationStrategy sourceInformationStrategy;
   CodegenMetrics? _codegenMetrics;
   CodegenMetrics get codegenMetrics => _codegenMetrics ??= CodegenMetrics();
+
+  /// Set of constants that have already been recorded for uses. Shard-global to
+  /// avoid redundant traversal of recurring deep constants.
+  ///
+  /// Similar to the VM's `_ConstantCollector` in
+  /// `pkg/vm/lib/transformations/record_use/constant_collector.dart`.
+  final Map<ConstantValue, _RecordedUseSequence> _recordedConstantUsesVisited =
+      {};
 
   SsaCodeGeneratorTask(
     super.measurer,
@@ -164,6 +181,8 @@ class SsaCodeGeneratorTask extends CompilerTask {
         codegen.tracer,
         closedWorld,
         registry,
+        field,
+        _recordedConstantUsesVisited,
       );
       codeGenerator.visitGraph(graph);
       codegen.tracer.traceGraph("codegen", graph);
@@ -198,6 +217,8 @@ class SsaCodeGeneratorTask extends CompilerTask {
         codegen.tracer,
         closedWorld,
         registry,
+        method,
+        _recordedConstantUsesVisited,
       );
       codeGenerator.visitGraph(graph);
       codegen.tracer.traceGraph("codegen", graph);
@@ -287,6 +308,13 @@ class SsaCodeGenerator implements HVisitor<void>, HBlockInformationVisitor {
   final JClosedWorld _closedWorld;
   final CodegenRegistry _registry;
   final CodegenMetrics _metrics;
+  final MemberEntity _member;
+
+  /// Set of constants that have already been recorded for uses. Shard-global.
+  ///
+  /// Similar to the VM's `_ConstantCollector` in
+  /// `pkg/vm/lib/transformations/record_use/constant_collector.dart`.
+  final Map<ConstantValue, _RecordedUseSequence> _recordedConstantUsesVisited;
 
   final Set<HInstruction> generateAtUseSite = {};
   final Set<HIf> controlFlowOperators = {};
@@ -346,6 +374,8 @@ class SsaCodeGenerator implements HVisitor<void>, HBlockInformationVisitor {
     this._tracer,
     this._closedWorld,
     this._registry,
+    this._member,
+    this._recordedConstantUsesVisited,
   );
 
   JCommonElements get _commonElements => _closedWorld.commonElements;
@@ -1109,11 +1139,11 @@ class SsaCodeGenerator implements HVisitor<void>, HBlockInformationVisitor {
           currentContainer = body;
           visitBodyIgnoreLabels(info);
           currentContainer = oldContainer;
-          loop = js.For(
-            jsInitialization,
-            jsCondition,
-            jsUpdates,
-            unwrapStatement(body),
+          loop = newLoop(
+            init: jsInitialization,
+            condition: jsCondition,
+            update: jsUpdates,
+            body: unwrapStatement(body),
             sourceInformation: info.sourceInformation,
           );
         } else {
@@ -1129,7 +1159,6 @@ class SsaCodeGenerator implements HVisitor<void>, HBlockInformationVisitor {
             jsCondition = generateExpression(condition);
             currentContainer = body;
           } else {
-            jsCondition = newLiteralBool(true, info.sourceInformation);
             currentContainer = body;
             generateStatements(condition);
             use(condition.conditionExpression!);
@@ -1151,9 +1180,9 @@ class SsaCodeGenerator implements HVisitor<void>, HBlockInformationVisitor {
             visitBodyIgnoreLabels(info);
           }
           currentContainer = oldContainer;
-          loop = js.While(
-            jsCondition!,
-            unwrapStatement(body),
+          loop = newLoop(
+            condition: jsCondition,
+            body: unwrapStatement(body),
             sourceInformation: info.sourceInformation,
           );
         }
@@ -1206,9 +1235,8 @@ class SsaCodeGenerator implements HVisitor<void>, HBlockInformationVisitor {
           // If the condition is dead code, we turn the do-while into
           // a simpler while because we will never reach the condition
           // at the end of the loop anyway.
-          loop = js.While(
-            newLiteralBool(true, info.sourceInformation),
-            unwrapStatement(body),
+          loop = newLoop(
+            body: unwrapStatement(body),
             sourceInformation: info.sourceInformation,
           );
         } else {
@@ -1313,7 +1341,9 @@ class SsaCodeGenerator implements HVisitor<void>, HBlockInformationVisitor {
     }
 
     currentContainer = oldContainer;
-    pushStatement(result);
+    if (body.statements.isNotEmpty) {
+      pushStatement(result);
+    }
     return true;
   }
 
@@ -2347,17 +2377,38 @@ class SsaCodeGenerator implements HVisitor<void>, HBlockInformationVisitor {
       );
     } else {
       StaticUse staticUse;
-      Object? resourceIdentifierAnnotation;
+      RecordedUse? recordedMethodUses;
       if (element is ConstructorEntity) {
         CallStructure callStructure = CallStructure.unnamed(
           arguments.length,
           node.typeArguments.length,
         );
         staticUse = StaticUse.constructorInvoke(element, callStructure);
+        if (_shouldRecordConstructor(element)) {
+          recordedMethodUses = _recordConstructorUses(
+            element,
+            node.inputs,
+            node.sourceInformation!,
+          );
+        }
       } else if (element.isGetter) {
         staticUse = StaticUse.staticGet(element);
+        if (_shouldRecordMethodUses(element)) {
+          recordedMethodUses = _recordMethodUses(
+            element,
+            node.inputs,
+            node.sourceInformation!,
+          );
+        }
       } else if (element.isSetter) {
         staticUse = StaticUse.staticSet(element);
+        if (_shouldRecordMethodUses(element)) {
+          recordedMethodUses = _recordMethodUses(
+            element,
+            node.inputs,
+            node.sourceInformation!,
+          );
+        }
       } else {
         assert(element.isFunction);
         CallStructure callStructure = CallStructure.unnamed(
@@ -2369,13 +2420,30 @@ class SsaCodeGenerator implements HVisitor<void>, HBlockInformationVisitor {
           callStructure,
           node.typeArguments,
         );
-        if (_closedWorld.annotationsData.methodIsResourceIdentifier(element)) {
-          resourceIdentifierAnnotation = _methodResourceIdentifier(
+        if (_shouldRecordMethodUses(element)) {
+          recordedMethodUses = _recordMethodUses(
             element,
-            callStructure,
             node.inputs,
-            node.sourceInformation,
+            node.sourceInformation!,
           );
+        }
+        if (_shouldRecordConstructor(element)) {
+          final elementNode = _closedWorld.elementMap
+              .getMemberDefinition(element)
+              .node;
+          if (elementNode is ir.Procedure &&
+              getConstructorTearOffLoweringTarget(elementNode) != null) {
+            recordedMethodUses = _recordConstructorTearOff(
+              element,
+              node.sourceInformation!,
+            );
+          } else {
+            recordedMethodUses = _recordConstructorUses(
+              element,
+              node.inputs,
+              node.sourceInformation!,
+            );
+          }
         }
       }
       _registry.registerStaticUse(staticUse);
@@ -2383,59 +2451,276 @@ class SsaCodeGenerator implements HVisitor<void>, HBlockInformationVisitor {
       push(
         js.Call(pop(), arguments, sourceInformation: node.sourceInformation),
       );
-      if (resourceIdentifierAnnotation != null) {
-        push(pop().withAnnotation(resourceIdentifierAnnotation));
+      if (recordedMethodUses != null) {
+        push(pop().withAnnotation(recordedMethodUses));
       }
     }
   }
 
-  ResourceIdentifier _methodResourceIdentifier(
-    FunctionEntity element,
-    CallStructure callStructure,
+  bool _shouldRecordMethodUses(FunctionEntity element) {
+    if (_closedWorld.annotationsData.shouldRecordMethodUses(element)) {
+      final currentElement = currentGraph.element;
+      if (currentElement is FunctionEntity) {
+        final currentNode = _closedWorld.elementMap
+            .getMemberDefinition(currentElement)
+            .node;
+        if (currentNode is ir.Procedure) {
+          final implementation = getExtensionMemberImplementation(currentNode);
+          if (implementation != null &&
+              _closedWorld.elementMap.containsMethod(implementation)) {
+            final implementationEntity = _closedWorld.elementMap.getMember(
+              implementation,
+            );
+            if (element == implementationEntity) return false;
+          }
+        }
+        // If we are currently compiling a tear-off closure's call method,
+        // we should also skip recording the call to the implementation method.
+        final enclosingMember = _closedWorld.closureDataLookup
+            .getEnclosingMember(currentElement);
+        if (enclosingMember != currentElement &&
+            enclosingMember is FunctionEntity) {
+          final enclosingNode = _closedWorld.elementMap
+              .getMemberDefinition(enclosingMember)
+              .node;
+          if (enclosingNode is ir.Procedure) {
+            final implementation = getExtensionMemberImplementation(
+              enclosingNode,
+            );
+            if (implementation != null &&
+                _closedWorld.elementMap.containsMethod(implementation)) {
+              final implementationEntity = _closedWorld.elementMap.getMember(
+                implementation,
+              );
+              if (element == implementationEntity) return false;
+            }
+          }
+        }
+      }
+      return true;
+    }
+    return _shouldRecordExtensionTearOff(element);
+  }
+
+  /// Returns `true` if [element] is an extension member tear-off that should
+  /// be recorded.
+  ///
+  /// When an extension member is annotated with `@RecordUse`, we want to
+  /// record whenever it is torn off.
+  bool _shouldRecordExtensionTearOff(FunctionEntity element) {
+    final node = _closedWorld.elementMap.getMemberDefinition(element).node;
+    if (node is ir.Procedure && isExtensionMemberTearOff(node)) {
+      final implementation = getExtensionMemberImplementation(node);
+      if (implementation != null &&
+          _closedWorld.elementMap.containsMethod(implementation)) {
+        return _closedWorld.annotationsData.shouldRecordMethodUses(
+          _closedWorld.elementMap.getMember(implementation) as FunctionEntity,
+        );
+      }
+    }
+    return false;
+  }
+
+  bool _shouldRecordConstructor(MemberEntity element) {
+    final callerNode = _closedWorld.elementMap
+        .getMemberDefinition(_member)
+        .node;
+    if (callerNode is ir.Procedure &&
+        (isTearOffLowering(callerNode) || callerNode.isRedirectingFactory)) {
+      // If we are currently compiling a constructor tear-off lowering, we
+      // don't want to record the generative constructor calls inside it.
+      return false;
+    }
+
+    final node = _closedWorld.elementMap.getMemberDefinition(element).node;
+    MemberEntity resolved = element;
+    bool isTearOff = false;
+    if (node is ir.Procedure) {
+      final target = getConstructorTearOffLoweringTarget(node);
+      if (target != null) {
+        resolved = _closedWorld.elementMap.getMember(target);
+        isTearOff = true;
+      }
+    }
+
+    final irResolved = _closedWorld.elementMap
+        .getMemberDefinition(resolved)
+        .node;
+
+    if (irResolved is ir.Procedure && irResolved.isRedirectingFactory) {
+      final ultimate = _getConstructorEffectiveTarget(irResolved);
+      if (ultimate == null) return false;
+      resolved = _closedWorld.elementMap.getMember(ultimate);
+    }
+
+    if (resolved is! ConstructorEntity) return false;
+    final constructor = resolved;
+
+    final classAnnotated = _closedWorld.annotationsData
+        .shouldRecordConstInstances(constructor.enclosingClass);
+
+    if (isTearOff) {
+      return classAnnotated;
+    }
+
+    if (constructor.isGenerativeConstructor) {
+      return classAnnotated;
+    }
+
+    // Regular factory call. Treat as static call. Don't record instances.
+    return false;
+  }
+
+  ir.Member? _getConstructorEffectiveTarget(ir.Member node) {
+    ir.Member? current = node;
+    while (current is ir.Procedure && current.isRedirectingFactory) {
+      current = current.function.redirectingFactoryTarget?.target;
+    }
+    return current;
+  }
+
+  RecordedUse _recordConstructorUses(
+    MemberEntity element,
     List<HInstruction> arguments,
-    SourceInformation? sourceInformation,
-  ) {
-    ConstantValue? findConstant(HInstruction node) {
-      while (node is HLateValue) {
-        node = node.target;
-      }
-      return node is HConstant ? node.constant : null;
-    }
-
-    final definition = _closedWorld.elementMap.getMemberDefinition(element);
-    final uri = definition.location.uri;
-
-    final builder = ResourceIdentifierBuilder(element.name!, uri);
-
-    if (sourceInformation != null) {
-      _addSourceInformationToResourceIdentiferBuilder(
-        builder,
-        sourceInformation,
-      );
-    }
-    for (int i = 0; i < arguments.length; i++) {
-      builder.add('${i + 1}', findConstant(arguments[i]));
-    }
-
-    return builder.finish();
-  }
-
-  void _addSourceInformationToResourceIdentiferBuilder(
-    ResourceIdentifierBuilder builder,
     SourceInformation sourceInformation,
   ) {
-    SourceLocation? location =
-        sourceInformation.startPosition ??
-        sourceInformation.innerPosition ??
-        sourceInformation.endPosition;
-    if (location != null) {
-      final sourceUri = location.sourceUri;
-      if (sourceUri != null) {
-        // Is [sourceUri] normalized in some way or does that need to be done
-        // here?
-        builder.addLocation(sourceUri, location.line, location.column);
+    ir.Member node =
+        _closedWorld.elementMap.getMemberDefinition(element).node as ir.Member;
+    node = _getConstructorEffectiveTarget(node)!;
+    final constructor =
+        _closedWorld.elementMap.getMember(node) as ConstructorEntity;
+
+    final positionalArguments = <ConstantValue?>[];
+    final namedArguments = <String, ConstantValue?>{};
+    var argumentIndex = 0;
+    _closedWorld.elementEnvironment.forEachParameter(constructor, (
+      DartType type,
+      String? name,
+      ConstantValue? defaultValue,
+    ) {
+      final value = argumentIndex < arguments.length
+          ? _findConstant(arguments[argumentIndex])
+          : defaultValue;
+      if (argumentIndex < constructor.parameterStructure.positionalParameters) {
+        positionalArguments.add(value);
+      } else {
+        namedArguments[name!] = value;
+      }
+      argumentIndex++;
+    });
+
+    return RecordedInstanceCreation(
+      constructor: constructor,
+      positionalArguments: positionalArguments,
+      namedArguments: namedArguments,
+      sourceInformation: sourceInformation,
+    );
+  }
+
+  RecordedUse _recordConstructorTearOff(
+    FunctionEntity element,
+    SourceInformation sourceInformation,
+  ) {
+    final node = _closedWorld.elementMap.getMemberDefinition(element).node;
+    ir.Member target = node as ir.Member;
+    if (node is ir.Procedure) {
+      target = getConstructorTearOffLoweringTarget(node) ?? target;
+    }
+    target = _getConstructorEffectiveTarget(target)!;
+    final constructor = _closedWorld.elementMap.getMember(target);
+
+    return RecordedConstructorTearOff(
+      constructor: constructor as ConstructorEntity,
+      sourceInformation: sourceInformation,
+    );
+  }
+
+  RecordedUse _recordMethodUses(
+    FunctionEntity element,
+    List<HInstruction> arguments,
+    SourceInformation sourceInformation,
+  ) {
+    final node = _closedWorld.elementMap.getMemberDefinition(element).node;
+    var definitionHasReceiver = false;
+    if (node is ir.Procedure) {
+      if (node.isExtensionMember || node.isExtensionTypeMember) {
+        definitionHasReceiver =
+            (node.function.positionalParameters.isNotEmpty &&
+                isExtensionThisName(
+                  node.function.positionalParameters[0].name,
+                )) ||
+            isExtensionMemberTearOff(node);
       }
     }
+
+    final originalParameterStructure = element.parameterStructure;
+
+    ConstantValue? constantReceiver;
+    final positionalArguments = <ConstantValue?>[];
+    final namedArguments = <String, ConstantValue?>{};
+    var argumentIndex = 0;
+    // Loop over arguments in namedOrdering or in nativeOrdering.
+    _closedWorld.elementEnvironment.forEachParameter(element, (
+      DartType type,
+      String? name,
+      ConstantValue? defaultValue,
+    ) {
+      if (argumentIndex == 0 && definitionHasReceiver) {
+        constantReceiver = _findConstant(arguments[argumentIndex++]);
+      } else {
+        final value = argumentIndex < arguments.length
+            ? _findConstant(arguments[argumentIndex])
+            : defaultValue;
+        if (argumentIndex < originalParameterStructure.positionalParameters) {
+          positionalArguments.add(value);
+        } else {
+          namedArguments[name!] = value;
+        }
+        argumentIndex++;
+      }
+    });
+
+    if (_shouldRecordExtensionTearOff(element)) {
+      return RecordedTearOff(
+        function: element,
+        definitionHasReceiver: definitionHasReceiver,
+        constantReceiver: constantReceiver,
+        sourceInformation: sourceInformation,
+      );
+    }
+
+    return RecordedCallWithArguments(
+      function: element,
+      definitionHasReceiver: definitionHasReceiver,
+      constantReceiver: constantReceiver,
+      sourceInformation: sourceInformation,
+      positionalArguments: positionalArguments,
+      namedArguments: namedArguments,
+    );
+  }
+
+  /// Records a tear-off of a static method.
+  ///
+  /// Since this is a tear-off of a static method, it has no receiver.
+  /// Extension member tear-offs are recorded as calls to their tear-off
+  /// implementation in [_recordMethodUses] instead.
+  RecordedUse _recordTearOff(
+    FunctionEntity element,
+    SourceInformation sourceInformation,
+  ) {
+    return RecordedTearOff(
+      function: element,
+      definitionHasReceiver: false,
+      constantReceiver: null,
+      sourceInformation: sourceInformation,
+    );
+  }
+
+  ConstantValue? _findConstant(HInstruction node) {
+    while (node is HLateValue) {
+      node = node.target;
+    }
+    return node is HConstant ? node.constant : null;
   }
 
   @override
@@ -2667,6 +2952,12 @@ class SsaCodeGenerator implements HVisitor<void>, HBlockInformationVisitor {
         ? _nativeData.getFixedBackendName(target)
         : target.name;
 
+    Object? recordedMethodUses;
+    final sourceInformation = node.sourceInformation;
+    if (sourceInformation != null && _shouldRecordMethodUses(target)) {
+      recordedMethodUses = _recordMethodUses(target, inputs, sourceInformation);
+    }
+
     void invokeWithJavaScriptReceiver(js.Expression receiverExpression) {
       // JS-interop target names can be paths ("a.b"), so we parse them to
       // re-associate the property accesses ("#.a.b" is `dot(dot(#,'a'),'b')`).
@@ -2696,6 +2987,9 @@ class SsaCodeGenerator implements HVisitor<void>, HBlockInformationVisitor {
       js.Expression expression = js.js
           .uncachedExpressionTemplate(template)
           .instantiateExpression(templateInputs);
+      if (recordedMethodUses != null) {
+        expression = expression.withAnnotation(recordedMethodUses);
+      }
       push(expression.withSourceInformation(node.sourceInformation));
       _registry.registerNativeMethod(target);
     }
@@ -2732,6 +3026,9 @@ class SsaCodeGenerator implements HVisitor<void>, HBlockInformationVisitor {
         } else {
           assert(target.isFunction);
           expression = js.js('#(#)', [targetExpression, arguments]);
+        }
+        if (recordedMethodUses != null) {
+          expression = expression.withAnnotation(recordedMethodUses);
         }
         push(expression.withSourceInformation(node.sourceInformation));
         _registry.registerNativeMethod(target);
@@ -2836,6 +3133,45 @@ class SsaCodeGenerator implements HVisitor<void>, HBlockInformationVisitor {
     }
   }
 
+  /// Returns a 'for' loop or 'while' loop depending on which parts of a 'for'
+  /// loop are present.  In effect, choose the loop kind by applying these
+  /// reductions:
+  ///
+  ///     for(init;true;update) -->  for(init;;update)
+  ///     for(;cond;)  -->  while(cond)
+  ///     while(true)  -->  for(;;)
+  js.Loop newLoop({
+    js.Expression? init,
+    js.Expression? condition, // `null` means indefinite, i.e. `true`.
+    js.Expression? update,
+    required js.Statement body,
+    SourceInformation? sourceInformation,
+  }) {
+    // `condition` with `true` replaced with `null`:
+    final conditionOrNull = switch (condition) {
+      js.LiteralBool(value: true) => null,
+      js.LiteralNumber(value: '1') => null,
+      // Minified `true` is `!0`:
+      js.Prefix(op: '!', argument: js.LiteralNumber(value: '0')) => null,
+      _ => condition,
+    };
+
+    if (init == null && update == null && conditionOrNull != null) {
+      return js.While(
+        conditionOrNull,
+        body,
+        sourceInformation: sourceInformation,
+      );
+    }
+    return js.For(
+      init,
+      conditionOrNull,
+      update,
+      body,
+      sourceInformation: sourceInformation,
+    );
+  }
+
   void generateConstant(
     ConstantValue constant,
     SourceInformation? sourceInformation,
@@ -2845,7 +3181,60 @@ class SsaCodeGenerator implements HVisitor<void>, HBlockInformationVisitor {
       // TODO(johnniwinther): Support source information on synthetic constants.
       expression = expression.withSourceInformation(sourceInformation);
     }
+    for (final recordedUse in _recordConstantUses(
+      constant,
+      sourceInformation,
+    )) {
+      expression = expression.withAnnotation(recordedUse);
+    }
     push(expression);
+  }
+
+  _RecordedUseSequence _recordConstantUses(
+    ConstantValue constant,
+    SourceInformation? sourceInformation,
+  ) {
+    if (_recordedConstantUsesVisited.containsKey(constant)) {
+      // Note: This returns the recorded uses with the wrong source information,
+      // but we're not using the source information anymore.
+      return _recordedConstantUsesVisited[constant]!;
+    }
+
+    final resultList = <RecordedUse>[];
+    switch (constant) {
+      case FunctionConstantValue():
+        final element = constant.element;
+        if (_shouldRecordMethodUses(element)) {
+          resultList.add(_recordTearOff(element, sourceInformation!));
+        }
+        if (_shouldRecordConstructor(element)) {
+          resultList.add(
+            _recordConstructorTearOff(element, sourceInformation!),
+          );
+        }
+      case ConstructedConstantValue():
+        final element = constant.type.element;
+        if (_closedWorld.annotationsData.shouldRecordConstInstances(element)) {
+          resultList.add(
+            RecordedConstInstance(
+              constant: constant,
+              sourceInformation: sourceInformation!,
+            ),
+          );
+        }
+      default:
+        break;
+    }
+
+    var result = _RecordedUseSequence.fromList(resultList);
+
+    // Cover nested constants.
+    for (final dependency in constant.getDependencies()) {
+      result += _recordConstantUses(dependency, sourceInformation);
+    }
+
+    _recordedConstantUsesVisited[constant] = result;
+    return result;
   }
 
   @override
@@ -3211,11 +3600,15 @@ class SsaCodeGenerator implements HVisitor<void>, HBlockInformationVisitor {
     MemberEntity element = node.element;
     if (element is FunctionEntity) {
       // TODO(sra): Static tear-offs should be constants.
-      push(
-        _emitter
-            .staticClosureAccess(element)
-            .withSourceInformation(node.sourceInformation),
-      );
+      js.Expression expression = _emitter
+          .staticClosureAccess(element)
+          .withSourceInformation(node.sourceInformation);
+      if (_shouldRecordConstructor(element)) {
+        expression = expression.withAnnotation(
+          _recordConstructorTearOff(element, node.sourceInformation!),
+        );
+      }
+      push(expression);
       _registry.registerStaticUse(StaticUse.staticTearOff(element));
     } else if (element is FieldEntity) {
       push(
@@ -4004,5 +4397,85 @@ class SsaCodeGenerator implements HVisitor<void>, HBlockInformationVisitor {
     }
 
     pushStatement(check.withSourceInformation(node.sourceInformation));
+  }
+}
+
+/// A sequence of [RecordedUse] that supports O(1) composition and
+/// linear iteration safe for deep, unbalanced trees.
+///
+/// Specialized for recording constant uses in [SsaCodeGenerator].
+abstract class _RecordedUseSequence extends Iterable<RecordedUse> {
+  static const _RecordedUseSequence _empty = _RecordedUseLeaf([], 0);
+
+  @override
+  final int length;
+
+  @override
+  bool get isEmpty => length == 0;
+
+  const _RecordedUseSequence._(this.length);
+
+  factory _RecordedUseSequence.fromList(List<RecordedUse> list) {
+    if (list.isEmpty) return _empty;
+    return _RecordedUseLeaf(list, list.length);
+  }
+
+  _RecordedUseSequence operator +(_RecordedUseSequence other) {
+    if (isEmpty) return other;
+    if (other.isEmpty) return this;
+    return _RecordedUseComposite(this, other);
+  }
+
+  @override
+  Iterator<RecordedUse> get iterator => _RecordedUseStackIterator(this);
+}
+
+class _RecordedUseLeaf extends _RecordedUseSequence {
+  final List<RecordedUse> items;
+  const _RecordedUseLeaf(this.items, int length) : super._(length);
+}
+
+class _RecordedUseComposite extends _RecordedUseSequence {
+  final _RecordedUseSequence left;
+  final _RecordedUseSequence right;
+  _RecordedUseComposite(this.left, this.right)
+    : super._(left.length + right.length);
+}
+
+class _RecordedUseStackIterator implements Iterator<RecordedUse> {
+  final List<_RecordedUseSequence> _stack = [];
+  Iterator<RecordedUse>? _currentLeafIterator;
+  RecordedUse? _currentValue;
+
+  _RecordedUseStackIterator(_RecordedUseSequence root) {
+    _pushLeft(root);
+  }
+
+  void _pushLeft(_RecordedUseSequence node) {
+    _RecordedUseSequence current = node;
+    while (current is _RecordedUseComposite) {
+      _stack.add(current.right);
+      current = current.left;
+    }
+    _currentLeafIterator = (current as _RecordedUseLeaf).items.iterator;
+  }
+
+  @override
+  RecordedUse get current => _currentValue!;
+
+  @override
+  bool moveNext() {
+    if (_currentLeafIterator != null && _currentLeafIterator!.moveNext()) {
+      _currentValue = _currentLeafIterator!.current;
+      return true;
+    }
+
+    if (_stack.isNotEmpty) {
+      _pushLeft(_stack.removeLast());
+      return moveNext();
+    }
+
+    _currentValue = null;
+    return false;
   }
 }

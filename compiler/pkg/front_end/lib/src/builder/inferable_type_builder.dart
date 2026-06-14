@@ -26,8 +26,11 @@ class InferableTypeUse implements InferableType {
 
   @override
   DartType inferType(ClassHierarchyBase hierarchy) {
-    return typeBuilder.build(sourceLibraryBuilder, typeUse,
-        hierarchy: hierarchy);
+    return typeBuilder.build(
+      sourceLibraryBuilder,
+      typeUse,
+      hierarchy: hierarchy,
+    );
   }
 }
 
@@ -45,6 +48,7 @@ mixin InferableTypeBuilderMixin {
   void registerInferredTypeListener(InferredTypeListener onType) {
     if (isExplicit) return;
     if (hasType) {
+      // Coverage-ignore-block(suite): Not run.
       onType.onInferredType(type);
     } else {
       (_listeners ??= []).add(onType);

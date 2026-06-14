@@ -15,7 +15,7 @@ class PrimaryConstructorFragment implements Fragment, FunctionFragment {
   final NominalParameterNameSpace typeParameterNameSpace;
   final LookupScope typeParameterScope;
   final List<FormalParameterBuilder>? formals;
-  final bool forAbstractClassOrMixin;
+  final bool forAbstractClassOrEnumOrMixin;
   Token? _beginInitializers;
   final DeclarationFragment enclosingDeclaration;
   final LibraryFragment enclosingCompilationUnit;
@@ -24,9 +24,14 @@ class PrimaryConstructorFragment implements Fragment, FunctionFragment {
 
   ConstructorFragmentDeclaration? _declaration;
 
+  PrimaryConstructorBodyFragment? _primaryConstructorBodyFragment;
+
   @override
   late final UriOffsetLength uriOffset = new UriOffsetLength(
-      fileUri, constructorName.fullNameOffset, constructorName.fullNameLength);
+    fileUri,
+    constructorName.fullNameOffset,
+    constructorName.fullNameLength,
+  );
 
   PrimaryConstructorFragment({
     required this.constructorName,
@@ -38,7 +43,7 @@ class PrimaryConstructorFragment implements Fragment, FunctionFragment {
     required this.typeParameterNameSpace,
     required this.typeParameterScope,
     required this.formals,
-    required this.forAbstractClassOrMixin,
+    required this.forAbstractClassOrEnumOrMixin,
     required Token? beginInitializers,
     required this.enclosingDeclaration,
     required this.enclosingCompilationUnit,
@@ -64,14 +69,24 @@ class PrimaryConstructorFragment implements Fragment, FunctionFragment {
 
   ConstructorFragmentDeclaration get declaration {
     assert(
-        _declaration != null, "Declaration has not been computed for $this.");
+      _declaration != null,
+      "Declaration has not been computed for $this.",
+    );
     return _declaration!;
   }
 
   void set declaration(ConstructorFragmentDeclaration value) {
-    assert(_declaration == null,
-        "Declaration has already been computed for $this.");
+    assert(
+      _declaration == null,
+      "Declaration has already been computed for $this.",
+    );
     _declaration = value;
+  }
+
+  void set primaryConstructorBodyFragment(
+    PrimaryConstructorBodyFragment? value,
+  ) {
+    _primaryConstructorBodyFragment = value;
   }
 
   int get fileOffset => constructorName.nameOffset ?? formalsOffset;
@@ -80,8 +95,11 @@ class PrimaryConstructorFragment implements Fragment, FunctionFragment {
   String get name => constructorName.name;
 
   @override
-  FunctionBodyBuildingContext createFunctionBodyBuildingContext() {
-    return new _PrimaryConstructorBodyBuildingContext(this);
+  FunctionBodyBuildingContext? createFunctionBodyBuildingContext() {
+    return new _PrimaryConstructorBodyBuildingContext(
+      this,
+      shouldFinishFunction: _primaryConstructorBodyFragment == null,
+    );
   }
 
   @override
@@ -90,9 +108,15 @@ class PrimaryConstructorFragment implements Fragment, FunctionFragment {
 
 class _PrimaryConstructorBodyBuildingContext
     implements FunctionBodyBuildingContext {
-  PrimaryConstructorFragment _fragment;
+  final PrimaryConstructorFragment _fragment;
 
-  _PrimaryConstructorBodyBuildingContext(this._fragment);
+  @override
+  final bool shouldFinishFunction;
+
+  _PrimaryConstructorBodyBuildingContext(
+    this._fragment, {
+    required this.shouldFinishFunction,
+  });
 
   @override
   InferenceDataForTesting? get inferenceDataForTesting => _fragment
@@ -109,7 +133,9 @@ class _PrimaryConstructorBodyBuildingContext
   MemberKind get memberKind => MemberKind.NonStaticMethod;
 
   @override
-  bool get shouldBuild => !_fragment.modifiers.isConst;
+  ExtensionScope get extensionScope {
+    return _fragment.enclosingCompilationUnit.extensionScope;
+  }
 
   @override
   List<TypeParameter>? get thisTypeParameters =>
@@ -124,9 +150,10 @@ class _PrimaryConstructorBodyBuildingContext
   }
 
   @override
-  LocalScope computeFormalParameterScope(LookupScope typeParameterScope) {
-    return _fragment.declaration
-        .computeFormalParameterScope(typeParameterScope);
+  LocalScope get formalParameterScope {
+    return _fragment.declaration.computeFormalParameterScope(
+      typeParameterScope,
+    );
   }
 
   @override

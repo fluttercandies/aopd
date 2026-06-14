@@ -4,10 +4,13 @@
 
 import 'package:kernel/ast.dart' show VariableDeclaration;
 
+import '../base/lookup_result.dart';
 import '../builder/builder.dart';
 import '../builder/variable_builder.dart';
 
-class VariableBuilderImpl extends NamedBuilderImpl implements VariableBuilder {
+class VariableBuilderImpl extends NamedBuilderImpl
+    with LookupResultMixin
+    implements VariableBuilder {
   @override
   final String name;
 
@@ -40,7 +43,16 @@ class VariableBuilderImpl extends NamedBuilderImpl implements VariableBuilder {
 
   @override
   // Coverage-ignore(suite): Not run.
-  String get fullNameForErrors => variable.name ?? "<unnamed>";
+  String get fullNameForErrors => variable.cosmeticName ?? "<unnamed>";
+
+  @override
+  bool get isPrimaryConstructorParameter => false;
+
+  @override
+  bool get isFinal => variable.isFinal;
+
+  @override
+  bool get isLate => variable.isLate;
 
   @override
   String toString() => 'VariableBuilderImpl($fullNameForErrors)';

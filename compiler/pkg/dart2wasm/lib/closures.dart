@@ -31,7 +31,10 @@ class ClosureImplementation {
   final List<w.BaseFunction> functions;
 
   /// The vtable entry used for dynamic calls.
-  final w.BaseFunction dynamicCallEntry;
+  ///
+  /// This will be non-null only if we emit dynamic call entries in the closure
+  /// vtable (see [ClosureLayouter.vtableBaseStruct]).
+  final w.BaseFunction? dynamicCallEntry;
 
   /// The constant global variable pointing to the vtable.
   final w.Global vtable;
@@ -43,12 +46,13 @@ class ClosureImplementation {
   final ParameterInfo directCallParamInfo;
 
   ClosureImplementation(
-      this.representation,
-      this.functions,
-      this.dynamicCallEntry,
-      this.vtable,
-      this.module,
-      this.directCallParamInfo);
+    this.representation,
+    this.functions,
+    this.dynamicCallEntry,
+    this.vtable,
+    this.module,
+    this.directCallParamInfo,
+  );
 }
 
 /// Describes the representation of closures for a particular function
@@ -59,9 +63,14 @@ class ClosureImplementation {
 /// an entry for each (non-empty) combination of argument names that closures
 /// with this layout can be called with.
 class ClosureRepresentation {
-  /// The struct field index in the vtable struct at which the function
-  /// entries start.
+  /// Where the vtable entries for function calls start in the vtable struct.
+  final int vtableBaseIndex;
+
+  /// The number of type arguments.
   final int typeCount;
+
+  /// The maximum number of positional parameters.
+  final int maxPositionalCount;
 
   /// The Wasm struct type for the vtable.
   final w.StructType vtableStruct;
@@ -78,19 +87,23 @@ class ClosureRepresentation {
   final Map<w.ModuleBuilder, List<w.BaseFunction>> _instantiationTrampolines =
       {};
   late List<w.BaseFunction> Function(w.ModuleBuilder module)
-      _instantiationTrampolinesGenerator;
+  _instantiationTrampolinesGenerator;
   List<w.BaseFunction> _instantiationTrampolinesForModule(
-          w.ModuleBuilder module) =>
-      _instantiationTrampolines.putIfAbsent(
-          module, () => _instantiationTrampolinesGenerator(module));
+    w.ModuleBuilder module,
+  ) => _instantiationTrampolines.putIfAbsent(
+    module,
+    () => _instantiationTrampolinesGenerator(module),
+  );
 
   /// The function that instantiates this generic closure.
   final Map<w.ModuleBuilder, w.BaseFunction> _instantiationFunctions = {};
   late w.BaseFunction Function(w.ModuleBuilder module)
-      _instantiationFunctionGenerator;
+  _instantiationFunctionGenerator;
   w.BaseFunction instantiationFunctionForModule(w.ModuleBuilder module) {
     return _instantiationFunctions.putIfAbsent(
-        module, () => _instantiationFunctionGenerator(module));
+      module,
+      () => _instantiationFunctionGenerator(module),
+    );
   }
 
   /// The function that takes instantiation context of this generic closure and
@@ -98,48 +111,43 @@ class ClosureRepresentation {
   /// #InstantiationClosureContextBase`) and compares types in the contexts.
   /// This function is used to implement function equality of instantiations.
   final Map<w.ModuleBuilder, w.BaseFunction>
-      _instantiationTypeComparisonFunctions = {};
+  _instantiationTypeComparisonFunctions = {};
   late w.BaseFunction Function(w.ModuleBuilder module)
-      _instantiationTypeComparisonFunctionGenerator;
+  _instantiationTypeComparisonFunctionGenerator;
   w.BaseFunction instantiationTypeComparisonFunctionForModule(
-      w.ModuleBuilder module) {
+    w.ModuleBuilder module,
+  ) {
     return _instantiationTypeComparisonFunctions.putIfAbsent(
-        module, () => _instantiationTypeComparisonFunctionGenerator(module));
+      module,
+      () => _instantiationTypeComparisonFunctionGenerator(module),
+    );
   }
 
   final Map<w.ModuleBuilder, w.BaseFunction> _instantiationTypeHashFunction =
       {};
   late w.BaseFunction Function(w.ModuleBuilder module)
-      _instantiationTypeHashFunctionGenerator;
+  _instantiationTypeHashFunctionGenerator;
   w.BaseFunction instantiationTypeHashFunctionForModule(
-          w.ModuleBuilder module) =>
-      _instantiationTypeHashFunction.putIfAbsent(
-          module, () => _instantiationTypeHashFunctionGenerator(module));
-
-  /// The signature of the function that instantiates this generic closure.
-  w.FunctionType get instantiationFunctionType {
-    assert(isGeneric);
-    return getVtableFieldType(FieldIndex.vtableInstantiationFunction);
-  }
-
-  /// The type of the vtable function at given index.
-  w.FunctionType getVtableFieldType(int index) =>
-      (vtableStruct.fields[index].type as w.RefType).heapType as w.FunctionType;
+    w.ModuleBuilder module,
+  ) => _instantiationTypeHashFunction.putIfAbsent(
+    module,
+    () => _instantiationTypeHashFunctionGenerator(module),
+  );
 
   ClosureRepresentation(
-      Translator translator,
-      this.typeCount,
-      this.vtableStruct,
-      this.closureStruct,
-      this._indexOfCombination,
-      this.instantiationContextStruct);
+    Translator translator,
+    this.vtableBaseIndex,
+    this.typeCount,
+    this.maxPositionalCount,
+    this.vtableStruct,
+    this.closureStruct,
+    this._indexOfCombination,
+    this.instantiationContextStruct,
+  );
 
   bool get isGeneric => typeCount > 0;
 
-  /// Where the vtable entries for function calls start in the vtable struct.
-  int get vtableBaseIndex => isGeneric
-      ? ClosureLayouter.vtableBaseIndexGeneric
-      : ClosureLayouter.vtableBaseIndexNonGeneric;
+  bool get hasNamed => _indexOfCombination != null;
 
   /// The field index in the vtable struct for the function entry to use when
   /// calling the closure with the given number of positional arguments and the
@@ -203,86 +211,174 @@ class ClosureLayouter extends RecursiveVisitor {
   final Map<TreeNode, ProcedureAttributesMetadata> procedureAttributeMetadata;
 
   late final List<List<ClosureRepresentationsForParameterCount>>
-      representations;
+  representations;
 
   // Dynamic submodules invoke closures dynamically so they use the base structs
-  // in all cases. Therefore, We only need one global copy of the
-  // ClosureRepresentation for generic and one for non-generic functions.
-  ClosureRepresentation? _dynamicSubmoduleRepresentation;
-  ClosureRepresentation? _dynamicSubmoduleGenericRepresentation;
+  // in all cases. Therefore, we only need one global copy of the
+  // ClosureRepresentation for each type parameter count.
+  final Map<int, ClosureRepresentation>
+  _dynamicSubmoduleGenericRepresentations = {};
 
   Set<Constant> visitedConstants = Set.identity();
 
   // The member currently being visited while collecting function signatures.
   Member? currentMember;
 
-  // For non-generic closures. The entries are:
-  // 0: Dynamic call entry
-  // 1-...: Entries for calling the closure
-  static const int vtableBaseIndexNonGeneric = 1;
+  /// Whether the kernel [Component] uses `Function.apply` and possibly passes
+  /// non-empty map for named arguments.
+  late bool usesFunctionApplyWithNamedArguments;
 
-  // For generic closures. The entries are:
-  // 0: Dynamic call entry
-  // 1: Instantiation type comparison function
-  // 2: Instantiation type hash function
-  // 3: Instantiation function
-  // 4-...: Entries for calling the closure
-  static const int vtableBaseIndexGeneric = 4;
+  // Uninitialized (no field types added yet) struct for base vtable to allow
+  // cyclic types, e.g.:
+  //
+  //   closureBaseStruct.vtable     = ref vtableBase
+  //   vtableBaseStruct.dynamicCall = Function(ref closureBaseStruct, ...)
+  //
+  late final w.StructType _vtableBaseStructUninitialized = _defineStruct(
+    "#VtableBase",
+  );
 
-  // Base struct for vtables without the dynamic call entry added. Referenced
-  // by [closureBaseStruct] instead of the fully initialized version
-  // ([vtableBaseStruct]) to break the type cycle.
-  late final w.StructType _vtableBaseStructBase = _defineStruct("#VtableBase");
+  /// Base struct for all closure vtables.
+  ///
+  /// The entries are:
+  ///
+  ///   0: Dynamic call entry (**)
+  ///
+  /// (**) Only if the application enables dynamic modules or uses
+  /// `Function.apply` with named arguments we'll include a dynamic call entry.
+  late final w.StructType vtableBaseStruct = (() {
+    final vtable = _vtableBaseStructUninitialized;
+    final index = vtable.fields.length;
+    if (translator.dynamicModuleSupportEnabled ||
+        usesFunctionApplyWithNamedArguments) {
+      vtable.fields.add(
+        w.FieldType(
+          w.RefType.def(
+            translator.dynamicCallVtableEntryFunctionType,
+            nullable: false,
+          ),
+          mutable: false,
+        ),
+      );
+      vtable.fieldNames[index] = 'dynamicClosureCallEntry';
+    }
+    return vtable;
+  })();
+
+  /// The vtable index of dynamic call entry (if we emit it)
+  late final int? vtableDynamicClosureCallEntryIndex =
+      vtableBaseStruct.fields.isEmpty
+      ? null
+      : vtableBaseStruct.fields.length - 1;
 
   /// Base struct for instantiation closure contexts. Type tests against this
   /// type is used in `_Closure._equals` to check if a closure is an
   /// instantiation.
-  late final w.StructType instantiationContextBaseStruct =
-      _defineStruct("#InstantiationClosureContextBase", fields: [
-    w.FieldType(w.RefType.def(closureBaseStruct, nullable: false),
-        mutable: false),
-  ]);
+  late final w.StructType instantiationContextBaseStruct = _defineStruct(
+    "#InstantiationClosureContextBase",
+    namedFields: {
+      'genericClosure': w.FieldType(
+        w.RefType.def(closureBaseStruct, nullable: false),
+        mutable: false,
+      ),
+    },
+  );
 
   /// Base struct for non-generic closure vtables.
-  late final w.StructType vtableBaseStruct = _vtableBaseStructBase
-    ..fields.add(w.FieldType(
-        w.RefType.def(translator.dynamicCallVtableEntryFunctionType,
-            nullable: false),
-        mutable: false));
+  ///
+  /// For non-generic closures the entries are:
+  ///
+  ///  vtableBase.length + i: Entries for calling the closure
+  ///
+  late final w.StructType nonGenericVtableBaseStruct = _defineStruct(
+    "#NonGenericVtableBase",
+    superType: vtableBaseStruct,
+  );
 
   /// Base struct for generic closure vtables.
+  ///
+  /// For generic closures the entries are:
+  ///
+  ///  vtableBase.length + 0: Entries for calling the closure
+  ///  vtableBase.length + 1: Instantiation type comparison function
+  ///  vtableBase.length + 2: Instantiation type hash function
+  ///  vtableBase.length + 3: Instantiation function
+  ///  vtableBase.length + 4 + i: Entries for calling the closure
+  ///
   late final w.StructType genericVtableBaseStruct = _defineStruct(
-      "#GenericVtableBase",
-      fields: vtableBaseStruct.fields.toList()
-        ..add(w.FieldType(
-            w.RefType.def(instantiationClosureTypeComparisonFunctionType,
-                nullable: false),
-            mutable: false))
-        ..add(w.FieldType(
-            w.RefType.def(instantiationClosureTypeHashFunctionType,
-                nullable: false),
-            mutable: false)),
-      superType: vtableBaseStruct);
+    "#GenericVtableBase",
+    namedFields: {
+      'closureEqualFun': w.FieldType(
+        w.RefType.def(
+          instantiationClosureTypeComparisonFunctionType,
+          nullable: false,
+        ),
+        mutable: false,
+      ),
+      'closureHashCodeFun': w.FieldType(
+        w.RefType.def(
+          instantiationClosureTypeHashFunctionType,
+          nullable: false,
+        ),
+        mutable: false,
+      ),
+      'instantiateGenericClosureFun': w.FieldType(
+        w.RefType.func(nullable: false),
+        mutable: false,
+      ),
+    },
+    superType: vtableBaseStruct,
+  );
+
+  late final int vtableInstantiationTypeComparisonFunctionIndex =
+      genericVtableBaseStruct.fields.length - 3;
+  late final int vtableInstantiationTypeHashFunctionIndex =
+      genericVtableBaseStruct.fields.length - 2;
+  late final int vtableInstantiationFunctionIndex =
+      genericVtableBaseStruct.fields.length - 1;
 
   /// Type of [ClosureRepresentation._instantiationTypeComparisonFunction].
   late final w.FunctionType instantiationClosureTypeComparisonFunctionType =
       translator.typesBuilder.defineFunction(
-    [
-      w.RefType.def(instantiationContextBaseStruct, nullable: false),
-      w.RefType.def(instantiationContextBaseStruct, nullable: false)
-    ],
-    [w.NumType.i32], // bool
-  );
+        [
+          w.RefType.def(instantiationContextBaseStruct, nullable: false),
+          w.RefType.def(instantiationContextBaseStruct, nullable: false),
+        ],
+        [w.NumType.i32], // bool
+      );
 
   late final w.FunctionType instantiationClosureTypeHashFunctionType =
       translator.typesBuilder.defineFunction(
-    [w.RefType.def(instantiationContextBaseStruct, nullable: false)],
-    [w.NumType.i64], // hash
-  );
+        [w.RefType.def(instantiationContextBaseStruct, nullable: false)],
+        [w.NumType.i64], // hash
+      );
 
-  // Base struct for closures.
-  late final w.StructType closureBaseStruct = _makeClosureStruct(
-      "#ClosureBase", _vtableBaseStructBase, translator.closureInfo.struct);
+  /// Base struct for closures.
+  ///
+  /// A closure contains the following fields:
+  ///
+  ///   Object
+  ///     field0: A class ID (always the `_Closure` class ID)
+  ///     field1: An identity hash
+  ///
+  ///   _Closure <: Object
+  ///     field2: A context reference (used for `this` in tear-offs)
+  ///
+  ///   #ClosureBase <: _Closure  (defined here)
+  ///     field3: vtable reference
+  ///     field4: function type
+  ///
+  late final w.StructType closureBaseStruct = _defineStruct(
+    "#ClosureBase",
+    namedFields: {
+      'vtable': w.FieldType(
+        w.RefType.def(_vtableBaseStructUninitialized, nullable: false),
+        mutable: false,
+      ),
+      'functionType': w.FieldType(functionTypeType, mutable: false),
+    },
+    superType: translator.closureInfo.struct,
+  );
 
   w.RefType get typeType => translator.types.nonNullableTypeType;
 
@@ -291,80 +387,95 @@ class ClosureLayouter extends RecursiveVisitor {
 
   final Map<int, w.StructType> _instantiationContextBaseStructs = {};
 
-  w.StructType _getInstantiationContextBaseStruct(int numTypes) =>
-      _instantiationContextBaseStructs.putIfAbsent(
-          numTypes,
-          () => _defineStruct("#InstantiationClosureContextBase-$numTypes",
-              fields: [
-                w.FieldType(w.RefType.def(closureBaseStruct, nullable: false),
-                    mutable: false),
-                ...List.filled(numTypes, w.FieldType(typeType, mutable: false))
-              ],
-              superType: instantiationContextBaseStruct));
+  w.StructType _getInstantiationContextBaseStruct(int numTypes) {
+    final typeField = w.FieldType(typeType, mutable: false);
+    return _instantiationContextBaseStructs.putIfAbsent(
+      numTypes,
+      () => _defineStruct(
+        "#InstantiationClosureContextBase-$numTypes",
+        namedFields: {
+          for (int i = 0; i < numTypes; ++i) 'typeArgument$i': typeField,
+        },
+        superType: instantiationContextBaseStruct,
+      ),
+    );
+  }
 
   final Map<int, Map<w.ModuleBuilder, w.BaseFunction>>
-      _instantiationTypeComparisonFunctions = {};
+  _instantiationTypeComparisonFunctions = {};
 
   w.BaseFunction _getInstantiationTypeComparisonFunction(
-          w.ModuleBuilder module, int numTypes) =>
-      _instantiationTypeComparisonFunctions
-          .putIfAbsent(numTypes, () => {})
-          .putIfAbsent(
-              module,
-              () =>
-                  _createInstantiationTypeComparisonFunction(module, numTypes));
+    w.ModuleBuilder module,
+    int numTypes,
+  ) => _instantiationTypeComparisonFunctions
+      .putIfAbsent(numTypes, () => {})
+      .putIfAbsent(
+        module,
+        () => _createInstantiationTypeComparisonFunction(module, numTypes),
+      );
 
   final Map<int, Map<w.ModuleBuilder, w.BaseFunction>>
-      _instantiationTypeHashFunctions = {};
+  _instantiationTypeHashFunctions = {};
 
   w.BaseFunction _getInstantiationTypeHashFunction(
-          w.ModuleBuilder module, int numTypes) =>
-      _instantiationTypeHashFunctions
-          .putIfAbsent(numTypes, () => {})
-          .putIfAbsent(module,
-              () => _createInstantiationTypeHashFunction(module, numTypes));
+    w.ModuleBuilder module,
+    int numTypes,
+  ) => _instantiationTypeHashFunctions
+      .putIfAbsent(numTypes, () => {})
+      .putIfAbsent(
+        module,
+        () => _createInstantiationTypeHashFunction(module, numTypes),
+      );
 
-  w.StructType _defineStruct(String name,
-      {Iterable<w.FieldType>? fields, w.StructType? superType}) {
-    final type = translator.typesBuilder
-        .defineStruct(name, fields: fields, superType: superType);
+  /// Add a new struct type to the module.
+  ///
+  /// If [superType] is provided, the new struct type will be pre-populated with
+  /// the fields and field names from the [superType].
+  ///
+  /// If [namedFields] is provided, adds the fields in iteration order to the
+  /// struct type.
+  /// NOTE: Call sites can rely on Dart's [Map] guarantees of preserving
+  /// iteration order (so e.g. `{'a': typeA, 'b': typeB}` is guaranteed to add
+  /// fields in that order).
+  ///
+  /// Additional fields can be added later, by adding to the [fields] list.
+  /// This enables struct types to be recursive.
+  w.StructType _defineStruct(
+    String name, {
+    Map<String, w.FieldType>? namedFields,
+    w.StructType? superType,
+  }) {
+    final type = translator.typesBuilder.defineStruct(
+      name,
+      superType: superType,
+    );
     if (translator.dynamicModuleSupportEnabled) {
       // Pessimistically assume there will be subtypes in a submodule. This
       // ensures the struct is not final in all modules so the types are equal.
       type.hasAnySubtypes = true;
     }
+    if (superType != null) {
+      type.fields.addAll(superType.fields);
+      type.fieldNames.addAll(superType.fieldNames);
+    }
+    namedFields?.forEach((String name, w.FieldType value) {
+      final int index = type.fields.length;
+      type.fields.add(value);
+      type.fieldNames[index] = name;
+    });
     return type;
-  }
-
-  w.StructType _makeClosureStruct(
-      String name, w.StructType vtableStruct, w.StructType superType) {
-    // A closure contains:
-    //  - A class ID (always the `_Closure` class ID)
-    //  - An identity hash
-    //  - A context reference (used for `this` in tear-offs)
-    //  - A vtable reference
-    //  - A `_FunctionType`
-    return _defineStruct(name,
-        fields: [
-          w.FieldType(w.NumType.i32, mutable: false),
-          w.FieldType(w.NumType.i32),
-          w.FieldType(closureContextFieldType, mutable: false),
-          w.FieldType(w.RefType.def(vtableStruct, nullable: false),
-              mutable: false),
-          w.FieldType(functionTypeType, mutable: false)
-        ],
-        superType: superType);
   }
 
   w.ValueType get topType => translator.topType;
 
   ClosureLayouter(this.translator)
-      : procedureAttributeMetadata =
-            (translator.component.metadata["vm.procedure-attributes.metadata"]
-                    as ProcedureAttributesMetadataRepository)
-                .mapping;
-
+    : procedureAttributeMetadata =
+          (translator.component.metadata["vm.procedure-attributes.metadata"]
+                  as ProcedureAttributesMetadataRepository)
+              .mapping;
   void collect() {
+    usesFunctionApplyWithNamedArguments = false;
+
     // Dynamic module enabled builds use dynamic call entry points for all
     // closure invocations so we don't need to generate any representation
     // info.
@@ -378,9 +489,11 @@ class ClosureLayouter extends RecursiveVisitor {
   void computeClusters() {
     for (int typeCount = 0; typeCount < representations.length; typeCount++) {
       final representationsForTypeCount = representations[typeCount];
-      for (int positionalCount = 0;
-          positionalCount < representationsForTypeCount.length;
-          positionalCount++) {
+      for (
+        int positionalCount = 0;
+        positionalCount < representationsForTypeCount.length;
+        positionalCount++
+      ) {
         final representationsForCounts =
             representationsForTypeCount[positionalCount];
         if (typeCount > 0) {
@@ -391,11 +504,26 @@ class ClosureLayouter extends RecursiveVisitor {
           // corresponding closure with zero type parameters.
           final instantiatedRepresentations =
               representations[0][positionalCount];
-          representationsForCounts
-              .inheritCombinationsFrom(instantiatedRepresentations);
+          representationsForCounts.inheritCombinationsFrom(
+            instantiatedRepresentations,
+          );
         }
         representationsForCounts.computeClusters();
       }
+    }
+  }
+
+  int maxTypeArgumentCount() => representations.length;
+
+  int maxPositionalCountFor(int typeCount) => representations[typeCount].length;
+
+  void forEachPositionalArgumentCount(int typeCount, void Function(int) fun) {
+    for (
+      int positionalCount = 0;
+      positionalCount < representations[positionalCount].length;
+      ++positionalCount
+    ) {
+      fun(positionalCount);
     }
   }
 
@@ -405,117 +533,165 @@ class ClosureLayouter extends RecursiveVisitor {
   ///
   /// `names` should be sorted.
   ClosureRepresentation? getClosureRepresentation(
-      int typeCount, int positionalCount, List<String> names) {
+    int typeCount,
+    int positionalCount,
+    List<String> names,
+  ) {
     if (translator.dynamicModuleSupportEnabled) {
-      if (typeCount == 0) {
-        return _dynamicSubmoduleRepresentation ??=
-            _createRepresentation(typeCount, 0, const [], null, null, const []);
-      }
-      return _dynamicSubmoduleGenericRepresentation ??=
+      return _dynamicSubmoduleGenericRepresentations[typeCount] ??=
           _createRepresentation(typeCount, 0, const [], null, null, const []);
     }
-    final representations =
-        _representationsForCounts(typeCount, positionalCount);
+    final representations = _representationsForCounts(
+      typeCount,
+      positionalCount,
+    );
     if (representations.withoutNamed == null) {
       ClosureRepresentation? parent = positionalCount == 0
           ? null
           : getClosureRepresentation(typeCount, positionalCount - 1, const [])!;
-      representations.withoutNamed = _createRepresentation(typeCount,
-          positionalCount, const [], parent, null, [positionalCount]);
+      representations.withoutNamed = _createRepresentation(
+        typeCount,
+        positionalCount,
+        const [],
+        parent,
+        null,
+        [positionalCount],
+      );
     }
 
     if (names.isEmpty) return representations.withoutNamed!;
 
-    ClosureRepresentationCluster? cluster =
-        representations.clusterForNames(names);
+    ClosureRepresentationCluster? cluster = representations.clusterForNames(
+      names,
+    );
     if (cluster == null) return null;
     return cluster.representation ??= _createRepresentation(
-        typeCount,
-        positionalCount,
-        names,
-        representations.withoutNamed!,
-        cluster.indexOfCombination,
-        cluster.indexOfCombination.keys
-            .map((c) => positionalCount + c.names.length));
+      typeCount,
+      positionalCount,
+      names,
+      representations.withoutNamed!,
+      cluster.indexOfCombination,
+      cluster.indexOfCombination.keys.map(
+        (c) => positionalCount + c.names.length,
+      ),
+    );
   }
 
   ClosureRepresentation _createRepresentation(
-      int typeCount,
-      int positionalCount,
-      List<String> names,
-      ClosureRepresentation? parent,
-      Map<NameCombination, int>? indexOfCombination,
-      Iterable<int> paramCounts) {
-    List<String> nameTags = ["$typeCount", "$positionalCount", ...names];
+    int typeCount,
+    int maxPositionalCount,
+    List<String> names,
+    ClosureRepresentation? parent,
+    Map<NameCombination, int>? indexOfCombination,
+    Iterable<int> paramCounts,
+  ) {
+    List<String> nameTags = ["$typeCount", "$maxPositionalCount", ...names];
     String vtableName = ["#Vtable", ...nameTags].join("-");
     String closureName = ["#Closure", ...nameTags].join("-");
-    w.StructType parentVtableStruct = parent?.vtableStruct ??
-        (typeCount == 0 ? vtableBaseStruct : genericVtableBaseStruct);
-    w.StructType vtableStruct = _defineStruct(vtableName,
-        fields: parentVtableStruct.fields, superType: parentVtableStruct);
-    w.StructType closureStruct = _makeClosureStruct(
-        closureName, vtableStruct, parent?.closureStruct ?? closureBaseStruct);
+    w.StructType parentVtableStruct =
+        parent?.vtableStruct ??
+        (typeCount == 0 ? nonGenericVtableBaseStruct : genericVtableBaseStruct);
+    w.StructType vtableStruct = _defineStruct(
+      vtableName,
+      superType: parentVtableStruct,
+    );
+
+    // Define a new struct type for the closure, extending [closureBaseStruct]
+    // directly or indirectly, and install a new vtable struct (which is a
+    // subtype of the vtable struct of the [closureBaseStruct]).
+    final closureStructSuper = parent?.closureStruct ?? closureBaseStruct;
+    assert(closureStructSuper.isSubtypeOf(closureBaseStruct));
+    final closureStruct = _defineStruct(
+      closureName,
+      superType: closureStructSuper,
+    );
+    assert(closureStruct.fieldNames[3] == 'vtable');
+    closureStruct.fields[3] = w.FieldType(
+      w.RefType.def(vtableStruct, nullable: false),
+      mutable: false,
+    );
 
     ClosureRepresentation? instantiatedRepresentation;
     w.StructType? instantiationContextStruct;
     if (typeCount > 0) {
       // Add or set vtable field for the instantiation function.
-      instantiatedRepresentation =
-          getClosureRepresentation(0, positionalCount, names)!;
+      instantiatedRepresentation = getClosureRepresentation(
+        0,
+        maxPositionalCount,
+        names,
+      )!;
       w.RefType inputType = w.RefType.def(closureBaseStruct, nullable: false);
       w.RefType outputType = w.RefType.def(
-          instantiatedRepresentation.closureStruct,
-          nullable: false);
+        instantiatedRepresentation.closureStruct,
+        nullable: false,
+      );
+
+      final instantiationTypeOfParent = parent?.vtableStruct.getVtableEntryAt(
+        translator.closureLayouter.vtableInstantiationFunctionIndex,
+      );
       w.FunctionType instantiationFunctionType = translator.typesBuilder
           .defineFunction(
-              [inputType, ...List.filled(typeCount, typeType)], [outputType],
-              superType: parent?.instantiationFunctionType);
+            [inputType, ...List.filled(typeCount, typeType)],
+            [outputType],
+            superType: instantiationTypeOfParent,
+          );
       w.FieldType functionFieldType = w.FieldType(
-          w.RefType.def(instantiationFunctionType, nullable: false),
-          mutable: false);
-      if (parent == null) {
-        assert(vtableStruct.fields.length ==
-            FieldIndex.vtableInstantiationFunction);
-        vtableStruct.fields.add(functionFieldType);
-      } else {
-        vtableStruct.fields[FieldIndex.vtableInstantiationFunction] =
-            functionFieldType;
-      }
+        w.RefType.def(instantiationFunctionType, nullable: false),
+        mutable: false,
+      );
+      vtableStruct.fields[vtableInstantiationFunctionIndex] = functionFieldType;
 
       // Build layout for the context of instantiated closures, containing the
       // original closure plus the type arguments.
-      String instantiationContextName =
-          ["#InstantiationContext", ...nameTags].join("-");
-      instantiationContextStruct =
-          translator.typesBuilder.defineStruct(instantiationContextName,
-              fields: [
-                w.FieldType(w.RefType.def(closureStruct, nullable: false),
-                    mutable: false),
-                ...List.filled(typeCount, w.FieldType(typeType, mutable: false))
-              ],
-              superType: _getInstantiationContextBaseStruct(typeCount));
+      String instantiationContextName = [
+        "#InstantiationContext",
+        ...nameTags,
+      ].join("-");
+      instantiationContextStruct = translator.typesBuilder.defineStruct(
+        instantiationContextName,
+        fields: [
+          w.FieldType(
+            w.RefType.def(closureStruct, nullable: false),
+            mutable: false,
+          ),
+          ...List.filled(typeCount, w.FieldType(typeType, mutable: false)),
+        ],
+        superType: _getInstantiationContextBaseStruct(typeCount),
+      );
     }
 
     // Add vtable fields for additional entry points relative to the parent.
     for (int paramCount in paramCounts) {
-      w.FunctionType entry = translator.typesBuilder.defineFunction([
-        closureContextFieldType,
-        ...List.filled(typeCount, typeType),
-        ...List.filled(paramCount, topType)
-      ], [
-        topType
-      ]);
+      w.FunctionType entry = translator.typesBuilder.defineFunction(
+        [
+          closureContextFieldType,
+          ...List.filled(typeCount, typeType),
+          ...List.filled(paramCount, topType),
+        ],
+        [topType],
+      );
+      final index = vtableStruct.fields.length;
       vtableStruct.fields.add(
-          w.FieldType(w.RefType.def(entry, nullable: false), mutable: false));
+        w.FieldType(w.RefType.def(entry, nullable: false), mutable: false),
+      );
+      vtableStruct.fieldNames[index] =
+          'closureCallEntry-$typeCount-$paramCount';
     }
 
+    final vTableBaseIndex = typeCount > 0
+        ? genericVtableBaseStruct.fields.length
+        : nonGenericVtableBaseStruct.fields.length;
+
     ClosureRepresentation representation = ClosureRepresentation(
-        translator,
-        typeCount,
-        vtableStruct,
-        closureStruct,
-        indexOfCombination,
-        instantiationContextStruct);
+      translator,
+      vTableBaseIndex,
+      typeCount,
+      maxPositionalCount,
+      vtableStruct,
+      closureStruct,
+      indexOfCombination,
+      instantiationContextStruct,
+    );
 
     if (typeCount > 0) {
       // The instantiation trampolines and the instantiation function can't be
@@ -530,22 +706,25 @@ class ClosureLayouter extends RecursiveVisitor {
         // entry point.
         if (translator.dynamicModuleSupportEnabled) return const [];
         List<w.BaseFunction> instantiationTrampolines = [
-          ...?parent?._instantiationTrampolinesForModule(module)
+          ...?parent?._instantiationTrampolinesForModule(module),
         ];
         String instantiationTrampolineFunctionName =
             "${["#Instantiation", ...nameTags].join("-")} trampoline";
         if (names.isEmpty) {
           // Add trampoline to the corresponding entry in the generic closure.
           w.BaseFunction trampoline = _createInstantiationTrampoline(
-              module,
-              instantiationTrampolineFunctionName,
-              typeCount,
-              closureStruct,
-              _getInstantiationContextBaseStruct(typeCount),
-              instantiatedRepresentation!.vtableStruct,
-              vtableBaseIndexNonGeneric + instantiationTrampolines.length,
-              vtableStruct,
-              vtableBaseIndexGeneric + instantiationTrampolines.length);
+            module,
+            instantiationTrampolineFunctionName,
+            typeCount,
+            closureStruct,
+            _getInstantiationContextBaseStruct(typeCount),
+            instantiatedRepresentation!.vtableStruct,
+            nonGenericVtableBaseStruct.fields.length +
+                instantiationTrampolines.length,
+            vtableStruct,
+            genericVtableBaseStruct.fields.length +
+                instantiationTrampolines.length,
+          );
           instantiationTrampolines.add(trampoline);
         } else {
           // For each name combination in the instantiated closure, add a
@@ -563,19 +742,25 @@ class ClosureLayouter extends RecursiveVisitor {
                     closureStruct,
                     _getInstantiationContextBaseStruct(typeCount),
                     instantiatedRepresentation.vtableStruct,
-                    vtableBaseIndexNonGeneric + instantiationTrampolines.length,
+                    nonGenericVtableBaseStruct.fields.length +
+                        instantiationTrampolines.length,
                     vtableStruct,
-                    vtableBaseIndexGeneric +
-                        (positionalCount + 1) +
-                        genericIndex)
+                    genericVtableBaseStruct.fields.length +
+                        (maxPositionalCount + 1) +
+                        genericIndex,
+                  )
                 : translator
-                    .getDummyValuesCollectorForModule(module)
-                    .getDummyFunction((instantiatedRepresentation
-                            .vtableStruct
-                            .fields[vtableBaseIndexNonGeneric +
-                                instantiationTrampolines.length]
-                            .type as w.RefType)
-                        .heapType as w.FunctionType);
+                      .getDummyValuesCollectorForModule(module)
+                      .getDummyFunction(
+                        (instantiatedRepresentation
+                                        .vtableStruct
+                                        .fields[vtableBaseStruct.fields.length +
+                                            instantiationTrampolines.length]
+                                        .type
+                                    as w.RefType)
+                                .heapType
+                            as w.FunctionType,
+                      );
             instantiationTrampolines.add(trampoline);
           }
         }
@@ -583,55 +768,66 @@ class ClosureLayouter extends RecursiveVisitor {
       };
 
       representation._instantiationFunctionGenerator = (module) {
-        String instantiationFunctionName =
-            ["#Instantiation", ...nameTags].join("-");
+        final instantiationFunctionType = representation.vtableStruct
+            .getVtableEntryAt(
+              translator.closureLayouter.vtableInstantiationFunctionIndex,
+            );
+        String instantiationFunctionName = [
+          "#Instantiation",
+          ...nameTags,
+        ].join("-");
         return _createInstantiationFunction(
-            module,
-            typeCount,
-            instantiatedRepresentation!,
-            representation._instantiationTrampolinesForModule(module),
-            representation.instantiationFunctionType,
-            instantiationContextStruct!,
-            closureStruct,
-            instantiationFunctionName);
+          module,
+          typeCount,
+          instantiatedRepresentation!,
+          representation._instantiationTrampolinesForModule(module),
+          instantiationFunctionType,
+          instantiationContextStruct!,
+          closureStruct,
+          instantiationFunctionName,
+        );
       };
 
       representation._instantiationTypeComparisonFunctionGenerator = (module) =>
           _getInstantiationTypeComparisonFunction(module, typeCount);
 
-      representation._instantiationTypeHashFunctionGenerator =
-          (module) => _getInstantiationTypeHashFunction(module, typeCount);
+      representation._instantiationTypeHashFunctionGenerator = (module) =>
+          _getInstantiationTypeHashFunction(module, typeCount);
     }
 
     return representation;
   }
 
   w.BaseFunction _createInstantiationTrampoline(
-      w.ModuleBuilder module,
-      String name,
-      int typeCount,
-      w.StructType genericClosureStruct,
-      w.StructType instantiationContextBaseStruct,
-      w.StructType instantiatedVtableStruct,
-      int instantiatedVtableFieldIndex,
-      w.StructType genericVtableStruct,
-      int genericVtableFieldIndex) {
+    w.ModuleBuilder module,
+    String name,
+    int typeCount,
+    w.StructType genericClosureStruct,
+    w.StructType instantiationContextBaseStruct,
+    w.StructType instantiatedVtableStruct,
+    int instantiatedVtableFieldIndex,
+    w.StructType genericVtableStruct,
+    int genericVtableFieldIndex,
+  ) {
     assert(instantiationContextBaseStruct.fields.length == 1 + typeCount);
-    w.FunctionType instantiatedFunctionType = (instantiatedVtableStruct
-            .fields[instantiatedVtableFieldIndex].type as w.RefType)
-        .heapType as w.FunctionType;
-    w.FunctionType genericFunctionType =
-        (genericVtableStruct.fields[genericVtableFieldIndex].type as w.RefType)
-            .heapType as w.FunctionType;
-    assert(genericFunctionType.inputs.length ==
-        instantiatedFunctionType.inputs.length + typeCount);
+    w.FunctionType instantiatedFunctionType = instantiatedVtableStruct
+        .getVtableEntryAt(instantiatedVtableFieldIndex);
+    w.FunctionType genericFunctionType = genericVtableStruct.getVtableEntryAt(
+      genericVtableFieldIndex,
+    );
+    assert(
+      genericFunctionType.inputs.length ==
+          instantiatedFunctionType.inputs.length + typeCount,
+    );
 
     final trampoline = module.functions.define(instantiatedFunctionType, name);
     final b = trampoline.body;
 
     // Cast context reference to actual context type.
-    w.RefType contextType =
-        w.RefType.def(instantiationContextBaseStruct, nullable: false);
+    w.RefType contextType = w.RefType.def(
+      instantiationContextBaseStruct,
+      nullable: false,
+    );
     w.Local contextLocal = b.addLocal(contextType);
     b.local_get(trampoline.locals[0]);
     b.ref_cast(contextType);
@@ -639,14 +835,18 @@ class ClosureLayouter extends RecursiveVisitor {
 
     // Push inner context
     b.struct_get(
-        instantiationContextBaseStruct, FieldIndex.instantiationContextInner);
+      instantiationContextBaseStruct,
+      FieldIndex.instantiationContextInner,
+    );
     b.struct_get(closureBaseStruct, FieldIndex.closureContext);
 
     // Push type arguments
     for (int t = 0; t < typeCount; t++) {
       b.local_get(contextLocal);
-      b.struct_get(instantiationContextBaseStruct,
-          FieldIndex.instantiationContextTypeArgumentsBase + t);
+      b.struct_get(
+        instantiationContextBaseStruct,
+        FieldIndex.instantiationContextTypeArgumentsBase + t,
+      );
     }
 
     // Push arguments
@@ -657,7 +857,9 @@ class ClosureLayouter extends RecursiveVisitor {
     // Call inner
     b.local_get(contextLocal);
     b.struct_get(
-        instantiationContextBaseStruct, FieldIndex.instantiationContextInner);
+      instantiationContextBaseStruct,
+      FieldIndex.instantiationContextInner,
+    );
     // #ClosureBase to closure struct with the right arguments
     b.ref_cast(w.RefType(genericClosureStruct, nullable: false));
     b.struct_get(genericClosureStruct, FieldIndex.closureVtable);
@@ -668,11 +870,15 @@ class ClosureLayouter extends RecursiveVisitor {
     return trampoline;
   }
 
-  w.BaseFunction _createInstantiationDynamicCallEntry(w.ModuleBuilder module,
-      int typeCount, w.StructType instantiationContextStruct) {
+  w.BaseFunction _createInstantiationDynamicCallEntry(
+    w.ModuleBuilder module,
+    int typeCount,
+    w.StructType instantiationContextStruct,
+  ) {
     final function = module.functions.define(
-        translator.dynamicCallVtableEntryFunctionType,
-        "instantiation dynamic call entry");
+      translator.dynamicCallVtableEntryFunctionType,
+      "instantiation dynamic call entry",
+    );
     final b = function.body;
 
     final instantiatedClosureLocal = function.locals[0];
@@ -683,10 +889,13 @@ class ClosureLayouter extends RecursiveVisitor {
 
     // Get instantiation context, which has the original closure and type
     // arguments
-    final w.RefType instantiationContextType =
-        w.RefType.def(instantiationContextStruct, nullable: false);
-    final w.Local instantiationContextLocal =
-        b.addLocal(instantiationContextType);
+    final w.RefType instantiationContextType = w.RefType.def(
+      instantiationContextStruct,
+      nullable: false,
+    );
+    final w.Local instantiationContextLocal = b.addLocal(
+      instantiationContextType,
+    );
     b.local_get(instantiatedClosureLocal);
     b.struct_get(closureBaseStruct, FieldIndex.closureContext);
     b.ref_cast(instantiationContextType);
@@ -694,14 +903,20 @@ class ClosureLayouter extends RecursiveVisitor {
 
     // Push original closure
     b.struct_get(
-        instantiationContextStruct, FieldIndex.instantiationContextInner);
+      instantiationContextStruct,
+      FieldIndex.instantiationContextInner,
+    );
 
     // Push types
-    translator.makeArray(b, translator.typeArrayType, typeCount,
-        (elementType, elementIdx) {
+    translator.makeArray(b, translator.typeArrayType, typeCount, (
+      elementType,
+      elementIdx,
+    ) {
       b.local_get(instantiationContextLocal);
-      b.struct_get(instantiationContextStruct,
-          FieldIndex.instantiationContextTypeArgumentsBase + elementIdx);
+      b.struct_get(
+        instantiationContextStruct,
+        FieldIndex.instantiationContextTypeArgumentsBase + elementIdx,
+      );
     });
 
     b.local_get(posArgsListLocal);
@@ -710,9 +925,11 @@ class ClosureLayouter extends RecursiveVisitor {
     // Call inner
     b.local_get(instantiationContextLocal);
     b.struct_get(
-        instantiationContextStruct, FieldIndex.instantiationContextInner);
+      instantiationContextStruct,
+      FieldIndex.instantiationContextInner,
+    );
     b.struct_get(closureBaseStruct, FieldIndex.closureVtable);
-    b.struct_get(vtableBaseStruct, FieldIndex.vtableDynamicCallEntry);
+    b.struct_get(vtableBaseStruct, vtableDynamicClosureCallEntryIndex!);
     b.call_ref(translator.dynamicCallVtableEntryFunctionType);
     b.end();
 
@@ -720,29 +937,40 @@ class ClosureLayouter extends RecursiveVisitor {
   }
 
   w.BaseFunction _createInstantiationFunction(
-      w.ModuleBuilder module,
-      int typeCount,
-      ClosureRepresentation instantiatedRepresentation,
-      List<w.BaseFunction> instantiationTrampolines,
-      w.FunctionType functionType,
-      w.StructType contextStruct,
-      w.StructType genericClosureStruct,
-      String name) {
+    w.ModuleBuilder module,
+    int typeCount,
+    ClosureRepresentation instantiatedRepresentation,
+    List<w.BaseFunction> instantiationTrampolines,
+    w.FunctionType functionType,
+    w.StructType contextStruct,
+    w.StructType genericClosureStruct,
+    String name,
+  ) {
     assert(typeCount > 0);
-    w.RefType genericClosureType =
-        w.RefType.def(genericClosureStruct, nullable: false);
+    w.RefType genericClosureType = w.RefType.def(
+      genericClosureStruct,
+      nullable: false,
+    );
     w.RefType instantiatedClosureType = w.RefType.def(
-        instantiatedRepresentation.closureStruct,
-        nullable: false);
+      instantiatedRepresentation.closureStruct,
+      nullable: false,
+    );
     assert(functionType.outputs.single == instantiatedClosureType);
 
     // Create vtable for the instantiated closure, containing the trampolines.
-    final vtable = module.globals.define(w.GlobalType(
+    final vtable = module.globals.define(
+      w.GlobalType(
         w.RefType.def(instantiatedRepresentation.vtableStruct, nullable: false),
-        mutable: false));
+        mutable: false,
+      ),
+    );
     final ib = vtable.initializer;
-    ib.ref_func(
-        _createInstantiationDynamicCallEntry(module, typeCount, contextStruct));
+    if (translator.dynamicModuleSupportEnabled ||
+        translator.closureLayouter.usesFunctionApplyWithNamedArguments) {
+      ib.ref_func(
+        _createInstantiationDynamicCallEntry(module, typeCount, contextStruct),
+      );
+    }
     for (w.BaseFunction trampoline in instantiationTrampolines) {
       ib.ref_func(trampoline);
     }
@@ -788,7 +1016,9 @@ class ClosureLayouter extends RecursiveVisitor {
 
     // Call [_TypeUniverse.substituteFunctionTypeArgument].
     translator.callReference(
-        translator.substituteFunctionTypeArgument.reference, b);
+      translator.substituteFunctionTypeArgument.reference,
+      b,
+    );
 
     // Finally, allocate closure struct.
     b.struct_new(instantiatedRepresentation.closureStruct);
@@ -799,10 +1029,13 @@ class ClosureLayouter extends RecursiveVisitor {
   }
 
   w.BaseFunction _createInstantiationTypeComparisonFunction(
-      w.ModuleBuilder module, int numTypes) {
+    w.ModuleBuilder module,
+    int numTypes,
+  ) {
     final function = module.functions.define(
-        instantiationClosureTypeComparisonFunctionType,
-        "#InstantiationTypeComparison-$numTypes");
+      instantiationClosureTypeComparisonFunctionType,
+      "#InstantiationTypeComparison-$numTypes",
+    );
 
     final b = function.body;
 
@@ -849,10 +1082,13 @@ class ClosureLayouter extends RecursiveVisitor {
   }
 
   w.BaseFunction _createInstantiationTypeHashFunction(
-      w.ModuleBuilder module, int numTypes) {
+    w.ModuleBuilder module,
+    int numTypes,
+  ) {
     final function = module.functions.define(
-        instantiationClosureTypeHashFunctionType,
-        "#InstantiationTypeHash-$numTypes");
+      instantiationClosureTypeHashFunctionType,
+      "#InstantiationTypeHash-$numTypes",
+    );
 
     final b = function.body;
 
@@ -884,7 +1120,9 @@ class ClosureLayouter extends RecursiveVisitor {
   }
 
   ClosureRepresentationsForParameterCount _representationsForCounts(
-      int typeCount, int positionalCount) {
+    int typeCount,
+    int positionalCount,
+  ) {
     while (representations.length <= typeCount) {
       representations.add([]);
     }
@@ -898,22 +1136,27 @@ class ClosureLayouter extends RecursiveVisitor {
 
   void _visitFunctionNode(FunctionNode functionNode) {
     final representations = _representationsForCounts(
-        functionNode.typeParameters.length,
-        functionNode.positionalParameters.length);
+      functionNode.typeParameters.length,
+      functionNode.positionalParameters.length,
+    );
     representations.registerFunction(functionNode);
     if (functionNode.typeParameters.isNotEmpty) {
       // Due to generic function instantiations, any generic function present
       // in the program also counts as a presence of the corresponding
       // non-generic function.
       final instantiatedRepresentations = _representationsForCounts(
-          0, functionNode.positionalParameters.length);
+        0,
+        functionNode.positionalParameters.length,
+      );
       instantiatedRepresentations.registerFunction(functionNode);
     }
   }
 
   void _visitFunctionInvocation(Arguments arguments) {
     final representations = _representationsForCounts(
-        arguments.types.length, arguments.positional.length);
+      arguments.types.length,
+      arguments.positional.length,
+    );
     representations.registerCall(arguments);
   }
 
@@ -957,7 +1200,26 @@ class ClosureLayouter extends RecursiveVisitor {
   }
 
   @override
+  void visitStaticInvocation(StaticInvocation node) {
+    super.visitStaticInvocation(node);
+    if (node.target == translator.functionApply) {
+      // Function.apply(function, positionalArguments, [namedArguments])
+      if (node.arguments.positional.length > 2) {
+        usesFunctionApplyWithNamedArguments = true;
+      }
+    }
+  }
+
+  @override
+  void visitStaticTearOff(StaticTearOff node) {
+    visitStaticTearOffConstantReference(StaticTearOffConstant(node.target));
+  }
+
+  @override
   void visitStaticTearOffConstantReference(StaticTearOffConstant constant) {
+    if (constant.target == translator.functionApply) {
+      usesFunctionApplyWithNamedArguments = true;
+    }
     _visitFunctionNode(constant.function);
   }
 
@@ -976,9 +1238,23 @@ class ClosureLayouter extends RecursiveVisitor {
 
   @override
   void visitDynamicInvocation(DynamicInvocation node) {
-    if (node.name.text == "call") {
-      _visitFunctionInvocation(node.arguments);
-    }
+    // NOTE: One may have two different kinds of calls here:
+    // ```
+    //   dynamic x;
+    //   x(namedArg: 1);
+    //   x.foo(namedArg: 1);
+    // ```
+    // It may appear as we only have to handle the first case, namely
+    // `node.name.text == "call"`, but the second case can also be a
+    // dynamic closure callsite via call-through-field:
+    // ```
+    //   class Foo {
+    //     void Function({int? namedArg}) get foo => ...;
+    //   }
+    // ```
+    // then a `x.foo(namedArg: 1)` will be executed at runtime via
+    // `var tmp = x.foo; tmp(namedArg: 1)`.
+    _visitFunctionInvocation(node.arguments);
     super.visitDynamicInvocation(node);
   }
 }
@@ -1004,8 +1280,9 @@ class ClosureRepresentationsForParameterCount {
 
   void registerCall(Arguments arguments) {
     if (arguments.named.isNotEmpty) {
-      NameCombination combination =
-          NameCombination(arguments.named.map((a) => a.name).toList()..sort());
+      NameCombination combination = NameCombination(
+        arguments.named.map((a) => a.name).toList()..sort(),
+      );
       callCombinations.add(combination);
     }
   }
@@ -1066,7 +1343,11 @@ class Lambda {
   final int index;
 
   Lambda._(
-      this.functionNode, this.function, this.functionNodeSource, this.index);
+    this.functionNode,
+    this.function,
+    this.functionNodeSource,
+    this.index,
+  );
 }
 
 /// The context for one or more closures, containing their captured variables.
@@ -1206,9 +1487,9 @@ class Closures {
   /// When `findCaptures` is `true`, the created [Lambda]s are also added to the
   /// compilation queue.
   Closures(this.translator, this._member, {required bool findCaptures})
-      : _nullableThisType = _member is Constructor || _member.isInstanceMember
-            ? translator.preciseThisFor(_member, nullable: true) as w.RefType
-            : null {
+    : _nullableThisType = _member is Constructor || _member.isInstanceMember
+          ? translator.preciseThisFor(_member, nullable: true) as w.RefType
+          : null {
     if (findCaptures) {
       _findCaptures();
       _collectContexts();
@@ -1245,15 +1526,18 @@ class Closures {
 
       final owner = context.owner;
       if (owner is Constructor) {
-        context.struct = translator.typesBuilder
-            .defineStruct("<$owner-constructor-context>");
+        context.struct = translator.typesBuilder.defineStruct(
+          "<$owner-constructor-context>",
+        );
       } else if (owner.parent is Constructor) {
         Constructor constructor = owner.parent as Constructor;
-        context.struct = translator.typesBuilder
-            .defineStruct("<$constructor-constructor-body-context>");
+        context.struct = translator.typesBuilder.defineStruct(
+          "<$constructor-constructor-body-context>",
+        );
       } else {
-        context.struct =
-            translator.typesBuilder.defineStruct("<context ${owner.location}>");
+        context.struct = translator.typesBuilder.defineStruct(
+          "<context ${owner.location}>",
+        );
       }
     }
 
@@ -1265,8 +1549,9 @@ class Closures {
       final parent = context.parent;
       if (parent != null) {
         assert(!parent.isEmpty);
-        struct.fields
-            .add(w.FieldType(w.RefType.def(parent.struct, nullable: true)));
+        struct.fields.add(
+          w.FieldType(w.RefType.def(parent.struct, nullable: true)),
+        );
       }
       if (context.containsThis) {
         assert(_member.enclosingClass != null);
@@ -1274,9 +1559,13 @@ class Closures {
       }
       for (VariableDeclaration variable in context.variables) {
         int index = struct.fields.length;
-        struct.fields.add(w.FieldType(translator
-            .translateTypeOfLocalVariable(variable)
-            .withNullability(true)));
+        struct.fields.add(
+          w.FieldType(
+            translator
+                .translateTypeOfLocalVariable(variable)
+                .withNullability(true),
+          ),
+        );
         captures[variable]!.fieldIndex = index;
       }
       for (TypeParameter parameter in context.typeParameters) {
@@ -1300,8 +1589,7 @@ class _CaptureFinder extends RecursiveVisitor {
   int get depth => functionIsSyncStarOrAsync.length - 1;
 
   _CaptureFinder(this.closures, this.member)
-      : _currentSource =
-            member.enclosingComponent!.uriToSource[member.fileUri]!;
+    : _currentSource = member.enclosingComponent!.uriToSource[member.fileUri]!;
 
   Translator get translator => closures.translator;
 
@@ -1316,7 +1604,8 @@ class _CaptureFinder extends RecursiveVisitor {
   @override
   void visitFunctionNode(FunctionNode node) {
     assert(depth == 0); // Nested function nodes are skipped by [_visitLambda].
-    functionIsSyncStarOrAsync[0] = node.asyncMarker == AsyncMarker.SyncStar ||
+    functionIsSyncStarOrAsync[0] =
+        node.asyncMarker == AsyncMarker.SyncStar ||
         node.asyncMarker == AsyncMarker.Async;
     node.visitChildren(this);
     functionIsSyncStarOrAsync[0] = false;
@@ -1436,11 +1725,13 @@ class _CaptureFinder extends RecursiveVisitor {
       for (VariableDeclaration param in node.positionalParameters)
         translator.translateType(param.type),
       for (VariableDeclaration param in node.namedParameters)
-        translator.translateType(param.type)
+        translator.translateType(param.type),
     ];
     List<w.ValueType> outputs = [translator.translateType(node.returnType)];
-    w.FunctionType type =
-        translator.typesBuilder.defineFunction(inputs, outputs);
+    w.FunctionType type = translator.typesBuilder.defineFunction(
+      inputs,
+      outputs,
+    );
     final String? functionNodeName = variable?.name;
     final String functionName;
     if (functionNodeName == null) {
@@ -1449,13 +1740,19 @@ class _CaptureFinder extends RecursiveVisitor {
       functionName = "$member closure $functionNodeName at ${node.location}";
     }
     final function = module.functions.define(type, functionName);
-    final lambda =
-        Lambda._(node, function, _currentSource, closures.lambdas.length);
+    final lambda = Lambda._(
+      node,
+      function,
+      _currentSource,
+      closures.lambdas.length,
+    );
     closures.lambdas[node] = lambda;
     translator.functions.getLambdaFunction(lambda, member, closures);
 
-    functionIsSyncStarOrAsync.add(node.asyncMarker == AsyncMarker.SyncStar ||
-        node.asyncMarker == AsyncMarker.Async);
+    functionIsSyncStarOrAsync.add(
+      node.asyncMarker == AsyncMarker.SyncStar ||
+          node.asyncMarker == AsyncMarker.Async,
+    );
     node.visitChildren(this);
     functionIsSyncStarOrAsync.removeLast();
   }
@@ -1553,8 +1850,11 @@ class _ContextCollector extends RecursiveVisitor {
         // constructor body to store the captured `this`, as initializer lists
         // cannot have access to `this`.
         assert(!constructorAllocatorContext.containsThis);
-        final constructorBodyContext =
-            Context(node.function, constructorAllocatorContext, true);
+        final constructorBodyContext = Context(
+          node.function,
+          constructorAllocatorContext,
+          true,
+        );
 
         closures.contexts[node.function] = constructorBodyContext;
         closures.contexts[node] = constructorAllocatorContext;
@@ -1574,8 +1874,11 @@ class _ContextCollector extends RecursiveVisitor {
       // `this`. We must create a new context with the correct owner
       // (node.function) for debugging purposes, and drop the
       // constructor allocator context as it is not used.
-      final Context constructorBodyContext =
-          Context(node.function, null, closures._isThisCaptured);
+      final Context constructorBodyContext = Context(
+        node.function,
+        null,
+        closures._isThisCaptured,
+      );
       currentContext = constructorBodyContext;
 
       node.function.body?.accept(this);
@@ -1633,5 +1936,11 @@ class _ContextCollector extends RecursiveVisitor {
   void visitVariableSet(VariableSet node) {
     closures.captures[node.variable]?.written = true;
     super.visitVariableSet(node);
+  }
+}
+
+extension StructVtableExtension on w.StructType {
+  w.FunctionType getVtableEntryAt(int index) {
+    return (fields[index].type as w.RefType).heapType as w.FunctionType;
   }
 }

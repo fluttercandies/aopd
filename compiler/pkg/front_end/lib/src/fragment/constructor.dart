@@ -25,7 +25,7 @@ class ConstructorFragment implements Fragment, FunctionFragment {
   final LookupScope typeParameterScope;
   final List<FormalParameterBuilder>? formals;
   final String? nativeMethodName;
-  final bool forAbstractClassOrMixin;
+  final bool forAbstractClassOrEnumOrMixin;
   Token? _beginInitializers;
 
   final DeclarationFragment enclosingDeclaration;
@@ -37,7 +37,10 @@ class ConstructorFragment implements Fragment, FunctionFragment {
 
   @override
   late final UriOffsetLength uriOffset = new UriOffsetLength(
-      fileUri, constructorName.fullNameOffset, constructorName.fullNameLength);
+    fileUri,
+    constructorName.fullNameOffset,
+    constructorName.fullNameLength,
+  );
 
   ConstructorFragment({
     required this.constructorName,
@@ -54,7 +57,7 @@ class ConstructorFragment implements Fragment, FunctionFragment {
     required this.typeParameterScope,
     required this.formals,
     required this.nativeMethodName,
-    required this.forAbstractClassOrMixin,
+    required this.forAbstractClassOrEnumOrMixin,
     required Token? beginInitializers,
     required this.enclosingDeclaration,
     required this.enclosingCompilationUnit,
@@ -80,13 +83,17 @@ class ConstructorFragment implements Fragment, FunctionFragment {
 
   ConstructorFragmentDeclaration get declaration {
     assert(
-        _declaration != null, "Declaration has not been computed for $this.");
+      _declaration != null,
+      "Declaration has not been computed for $this.",
+    );
     return _declaration!;
   }
 
   void set declaration(ConstructorFragmentDeclaration value) {
-    assert(_declaration == null,
-        "Declaration has already been computed for $this.");
+    assert(
+      _declaration == null,
+      "Declaration has already been computed for $this.",
+    );
     _declaration = value;
   }
 
@@ -96,7 +103,15 @@ class ConstructorFragment implements Fragment, FunctionFragment {
   String get name => constructorName.name;
 
   @override
-  FunctionBodyBuildingContext createFunctionBodyBuildingContext() {
+  FunctionBodyBuildingContext? createFunctionBodyBuildingContext() {
+    if (builder.isExtensionTypeMember && modifiers.isConst) {
+      // TODO(johnniwinther): Ensure building of const extension type
+      //  constructor body. An error is reported by the parser but we skip
+      //  the body here to avoid overwriting the already lowering const
+      //  constructor.
+      return null;
+    }
+
     return new _ConstructorBodyBuildingContext(this);
   }
 
@@ -123,12 +138,8 @@ class _ConstructorBodyBuildingContext implements FunctionBodyBuildingContext {
   MemberKind get memberKind => MemberKind.NonStaticMethod;
 
   @override
-  bool get shouldBuild =>
-      // TODO(johnniwinther): Ensure building of const extension type
-      //  constructor body. An error is reported by the parser but we skip
-      //  the body here to avoid overwriting the already lowering const
-      //  constructor.
-      !(_fragment.builder.isExtensionTypeMember && _fragment.modifiers.isConst);
+  // Coverage-ignore(suite): Not run.
+  bool get shouldFinishFunction => true;
 
   @override
   List<TypeParameter>? get thisTypeParameters =>
@@ -138,14 +149,20 @@ class _ConstructorBodyBuildingContext implements FunctionBodyBuildingContext {
   VariableDeclaration? get thisVariable => _fragment.declaration.thisVariable;
 
   @override
+  ExtensionScope get extensionScope {
+    return _fragment.enclosingCompilationUnit.extensionScope;
+  }
+
+  @override
   LookupScope get typeParameterScope {
     return _fragment.typeParameterScope;
   }
 
   @override
-  LocalScope computeFormalParameterScope(LookupScope typeParameterScope) {
-    return _fragment.declaration
-        .computeFormalParameterScope(typeParameterScope);
+  LocalScope get formalParameterScope {
+    return _fragment.declaration.computeFormalParameterScope(
+      typeParameterScope,
+    );
   }
 
   @override

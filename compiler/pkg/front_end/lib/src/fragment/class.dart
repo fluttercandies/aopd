@@ -17,13 +17,15 @@ class ClassFragment extends DeclarationFragmentImpl implements Fragment {
   late final TypeBuilder? supertype;
   late final List<TypeBuilder>? mixins;
   late final List<TypeBuilder>? interfaces;
-  late final List<ConstructorReferenceBuilder> constructorReferences;
   late final int startOffset;
   late final int endOffset;
 
   @override
-  late final UriOffsetLength uriOffset =
-      new UriOffsetLength(fileUri, nameOffset, name.length);
+  late final UriOffsetLength uriOffset = new UriOffsetLength(
+    fileUri,
+    nameOffset,
+    name.length,
+  );
 
   ClassFragment({
     required this.name,
@@ -52,7 +54,6 @@ class ClassFragment extends DeclarationFragmentImpl implements Fragment {
   bool get isPatch => enclosingCompilationUnit.isPatch && modifiers.isAugment;
 
   @override
-  // Coverage-ignore(suite): Not run.
   DeclarationFragmentKind get kind => DeclarationFragmentKind.classDeclaration;
 
   @override

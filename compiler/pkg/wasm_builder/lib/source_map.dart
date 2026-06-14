@@ -23,6 +23,11 @@ class SourceMapping {
 
   SourceMapping.unmapped(this.instructionOffset) : sourceInfo = null;
 
+  SourceMapping shiftBy(int shift) {
+    if (shift == 0) return this;
+    return SourceMapping._(shift + instructionOffset, sourceInfo);
+  }
+
   @override
   String toString() => '$instructionOffset -> $sourceInfo';
 }
@@ -83,10 +88,10 @@ class SourceMapSerializer {
     }
   }
 
-  String serialize() => _serializeSourceMap(mappings);
+  Map<String, Object?> serializeAsJson() => _sourceMapToJson(mappings);
 }
 
-String _serializeSourceMap(List<SourceMapping> mappings) {
+Map<String, Object?> _sourceMapToJson(List<SourceMapping> mappings) {
   final Set<Uri> sourcesSet = {};
   for (final mapping in mappings) {
     if (mapping.sourceInfo?.fileUri != null) {
@@ -165,12 +170,12 @@ String _serializeSourceMap(List<SourceMapping> mappings) {
     }
   }
 
-  return """{
-      "version": 3,
-      "sources": [${sourcesList.map((source) => '"$source"').join(",")}],
-      "names": [${namesList.map((name) => '"$name"').join(",")}],
-      "mappings": "$mappingsStr"
-  }""";
+  return <String, Object?>{
+    "version": 3,
+    "sources": sourcesList.map((uri) => uri.toString()).toList(),
+    "names": namesList,
+    "mappings": mappingsStr.toString(),
+  };
 }
 
 /// Writes the VLQ of delta between [value] and [offset] into [output] and

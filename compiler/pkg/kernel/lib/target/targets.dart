@@ -15,16 +15,39 @@ class TargetFlags {
   final bool trackWidgetCreation;
   final bool supportMirrors;
 
-  const TargetFlags(
-      {this.trackWidgetCreation = false,
-      this.supportMirrors = true});
+  /// Whether the backend expects closure contexts to be present in the AST.
+  ///
+  /// This flag is currently experimental. Generally, the backends rely on their
+  /// own analysis of captured variables to create closure contexts.
+  // TODO(cstefantsova): Update the comment when the feature is no longer
+  // experimental.
+  final bool isClosureContextLoweringEnabled;
+
+  /// Indicator for the const backend setting "keep locals".
+  /// Targets can overwrite based on other things.
+  final bool? constKeepLocalsIndicator;
+
+  /// Whether the backends should include stubs for core libraries not supported
+  /// by their target platform.
+  final bool includeUnsupportedPlatformLibraryStubs;
+
+  const TargetFlags({
+    this.trackWidgetCreation = false,
+    this.supportMirrors = true,
+    this.isClosureContextLoweringEnabled = false,
+    this.constKeepLocalsIndicator,
+    this.includeUnsupportedPlatformLibraryStubs = false,
+  });
 
   @override
   bool operator ==(other) {
     if (identical(this, other)) return true;
     return other is TargetFlags &&
         trackWidgetCreation == other.trackWidgetCreation &&
-        supportMirrors == other.supportMirrors;
+        supportMirrors == other.supportMirrors &&
+        includeUnsupportedPlatformLibraryStubs ==
+            other.includeUnsupportedPlatformLibraryStubs &&
+        constKeepLocalsIndicator == other.constKeepLocalsIndicator;
   }
 
   @override
@@ -32,6 +55,11 @@ class TargetFlags {
     int hash = 485786;
     hash = 0x3fffffff & (hash * 31 + (hash ^ trackWidgetCreation.hashCode));
     hash = 0x3fffffff & (hash * 31 + (hash ^ supportMirrors.hashCode));
+    hash =
+        0x3fffffff &
+        (hash * 31 + (hash ^ includeUnsupportedPlatformLibraryStubs.hashCode));
+    hash =
+        0x3fffffff & (hash * 31 + (hash ^ constKeepLocalsIndicator.hashCode));
     return hash;
   }
 }
@@ -53,8 +81,13 @@ Target? getTarget(String name, TargetFlags flags) {
 }
 
 abstract class DiagnosticReporter<M, C> {
-  void report(M message, int charOffset, int length, Uri? fileUri,
-      {List<C> context});
+  void report(
+    M message,
+    int charOffset,
+    int length,
+    Uri? fileUri, {
+    List<C> context,
+  });
 }
 
 /// The different kinds of number semantics supported by the constant evaluator.
@@ -68,7 +101,7 @@ enum NumberSemantics {
 
 // Backend specific constant evaluation behavior
 class ConstantsBackend {
-  const ConstantsBackend();
+  const ConstantsBackend({this.keepLocals = true});
 
   /// Lowering of a list constant to a backend-specific representation.
   Constant lowerListConstant(ListConstant constant) => constant;
@@ -81,7 +114,9 @@ class ConstantsBackend {
   ///
   /// This assumes that `isLoweredListConstant(constant)` is true.
   void forEachLoweredListConstantElement(
-      Constant constant, void Function(Constant element) f) {}
+    Constant constant,
+    void Function(Constant element) f,
+  ) {}
 
   /// Lowering of a set constant to a backend-specific representation.
   Constant lowerSetConstant(SetConstant constant) => constant;
@@ -94,7 +129,9 @@ class ConstantsBackend {
   ///
   /// This assumes that `isLoweredSetConstant(constant)` is true.
   void forEachLoweredSetConstantElement(
-      Constant constant, void Function(Constant element) f) {}
+    Constant constant,
+    void Function(Constant element) f,
+  ) {}
 
   /// Lowering of a map constant to a backend-specific representation.
   Constant lowerMapConstant(MapConstant constant) => constant;
@@ -107,7 +144,9 @@ class ConstantsBackend {
   ///
   /// This assumes that `lowerMapConstant(constant)` is true.
   void forEachLoweredMapConstantEntry(
-      Constant constant, void Function(Constant key, Constant value) f) {}
+    Constant constant,
+    void Function(Constant key, Constant value) f,
+  ) {}
 
   /// Number semantics to use for this backend.
   NumberSemantics get numberSemantics => NumberSemantics.vm;
@@ -127,7 +166,8 @@ class ConstantsBackend {
   /// This is only called if [alwaysInlineConstants] is `true`.
   bool shouldInlineConstant(ConstantExpression initializer) =>
       throw new UnsupportedError(
-          'Per-value constant inlining is not supported');
+        'Per-value constant inlining is not supported',
+      );
 
   /// Whether this target supports unevaluated constants.
   ///
@@ -148,7 +188,7 @@ class ConstantsBackend {
   /// even when use-sites are inlined.
   ///
   /// All use-sites will be rewritten based on [shouldInlineConstant].
-  bool get keepLocals => false;
+  final bool keepLocals;
 }
 
 /// Interface used for determining whether a `dart:*` is considered supported
@@ -163,8 +203,10 @@ abstract class DartLibrarySupport {
   /// despite it being supported in the platform dill, and for dart2js and DDC
   /// to consider `dart:_dart2js_only` and `dart:_ddc_only`, respectively, to be
   /// supported despite them being internal libraries.
-  bool computeDartLibrarySupport(String libraryName,
-      {required bool isSupportedBySpec});
+  bool computeDartLibrarySupport(
+    String libraryName, {
+    required bool isSupportedBySpec,
+  });
 
   static const String dartLibraryPrefix = "dart.library.";
 
@@ -183,11 +225,13 @@ abstract class DartLibrarySupport {
   /// constant values for "dart.library.[libraryName]" values.
   /// If the value is `false`, no environment entry exists for the library name,
   /// otherwise an entry with value `"true"` is created.
-  static bool isDartLibrarySupported(String libraryName,
-      {required bool libraryExists,
-      required bool isSynthetic,
-      required bool isUnsupported,
-      required DartLibrarySupport dartLibrarySupport}) {
+  static bool isDartLibrarySupported(
+    String libraryName, {
+    required bool libraryExists,
+    required bool isSynthetic,
+    required bool conditionalImportSupported,
+    required DartLibrarySupport dartLibrarySupport,
+  }) {
     // A `dart:` library can be unsupported for several reasons:
     // * If the library doesn't exist from source or from dill, it is not
     //   supported.
@@ -202,9 +246,12 @@ abstract class DartLibrarySupport {
     //   `dart:mirrors` as unsupported in AOT. The platform dill is shared with
     //   JIT, so the library exists and is marked as supported, but for AOT
     //   compilation it is still unsupported.
-    bool isSupported = libraryExists && !isSynthetic && !isUnsupported;
-    isSupported = dartLibrarySupport.computeDartLibrarySupport(libraryName,
-        isSupportedBySpec: isSupported);
+    bool isSupported =
+        libraryExists && !isSynthetic && conditionalImportSupported;
+    isSupported = dartLibrarySupport.computeDartLibrarySupport(
+      libraryName,
+      isSupportedBySpec: isSupported,
+    );
     return isSupported;
   }
 }
@@ -215,9 +262,10 @@ class DefaultDartLibrarySupport implements DartLibrarySupport {
   const DefaultDartLibrarySupport();
 
   @override
-  bool computeDartLibrarySupport(String libraryName,
-          {required bool isSupportedBySpec}) =>
-      isSupportedBySpec;
+  bool computeDartLibrarySupport(
+    String libraryName, {
+    required bool isSupportedBySpec,
+  }) => isSupportedBySpec;
 }
 
 /// [DartLibrarySupport] that supports overriding `dart:*` library support
@@ -226,12 +274,16 @@ class CustomizedDartLibrarySupport implements DartLibrarySupport {
   final Set<String> supported;
   final Set<String> unsupported;
 
-  const CustomizedDartLibrarySupport(
-      {this.supported = const {}, this.unsupported = const {}});
+  const CustomizedDartLibrarySupport({
+    this.supported = const {},
+    this.unsupported = const {},
+  });
 
   @override
-  bool computeDartLibrarySupport(String libraryName,
-      {required bool isSupportedBySpec}) {
+  bool computeDartLibrarySupport(
+    String libraryName, {
+    required bool isSupportedBySpec,
+  }) {
     if (supported.contains(libraryName)) {
       return true;
     } else if (unsupported.contains(libraryName)) {
@@ -292,26 +344,28 @@ abstract class Target {
   /// Perform target-specific transformations on the given libraries that must
   /// run before constant evaluation.
   void performPreConstantEvaluationTransformations(
-      Component component,
-      CoreTypes coreTypes,
-      List<Library> libraries,
-      DiagnosticReporter diagnosticReporter,
-      {void Function(String msg)? logger,
-      ChangedStructureNotifier? changedStructureNotifier}) {}
+    Component component,
+    CoreTypes coreTypes,
+    List<Library> libraries,
+    DiagnosticReporter diagnosticReporter, {
+    void Function(String msg)? logger,
+    ChangedStructureNotifier? changedStructureNotifier,
+  }) {}
 
   /// Perform target-specific modular transformations on the given libraries.
   void performModularTransformationsOnLibraries(
-      Component component,
-      CoreTypes coreTypes,
-      ClassHierarchy hierarchy,
-      List<Library> libraries,
-      // TODO(askesc): Consider how to generally pass compiler options to
-      // transformations.
-      Map<String, String>? environmentDefines,
-      DiagnosticReporter diagnosticReporter,
-      ReferenceFromIndex? referenceFromIndex,
-      {void Function(String msg)? logger,
-      ChangedStructureNotifier? changedStructureNotifier});
+    Component component,
+    CoreTypes coreTypes,
+    ClassHierarchy hierarchy,
+    List<Library> libraries,
+    // TODO(askesc): Consider how to generally pass compiler options to
+    // transformations.
+    Map<String, String>? environmentDefines,
+    DiagnosticReporter diagnosticReporter,
+    ReferenceFromIndex? referenceFromIndex, {
+    void Function(String msg)? logger,
+    ChangedStructureNotifier? changedStructureNotifier,
+  });
 
   /// Perform target-specific modular transformations on the given program.
   ///
@@ -319,13 +373,15 @@ abstract class Target {
   /// purposes. It is illegal to modify any of the enclosing nodes of the
   /// procedure.
   void performTransformationsOnProcedure(
-      CoreTypes coreTypes,
-      ClassHierarchy hierarchy,
-      Procedure procedure,
-      // TODO(askesc): Consider how to generally pass compiler options to
-      // transformations.
-      Map<String, String>? environmentDefines,
-      {void Function(String msg)? logger}) {}
+    CoreTypes coreTypes,
+    ClassHierarchy hierarchy,
+    Procedure procedure,
+    // TODO(askesc): Consider how to generally pass compiler options to
+    // transformations.
+    Map<String, String>? environmentDefines, {
+    void Function(String msg)? logger,
+    required DiagnosticReporter diagnosticReporter,
+  }) {}
 
   /// Whether a platform library may define a restricted type, such as `bool`,
   /// `int`, `double`, `num`, and `String`.
@@ -366,6 +422,16 @@ abstract class Target {
   /// literals (for const set literals).
   bool get supportsSetLiterals => true;
 
+  /// Whether [FileUriExpression] nodes are supported by this target after
+  /// constant evaluation.
+  ///
+  /// [FileUriExpression] are used internally in the CFE to handle annotations
+  /// on patches, and are replaced with [FileUriConstantExpression] nodes during
+  /// constant evaluation.
+  ///
+  /// Targets can opt in to using this node for general inlining.
+  bool get supportsFileUriExpression => false;
+
   /// Bit mask of [LateLowering] values for the late lowerings that should
   /// be performed by the CFE.
   ///
@@ -378,12 +444,16 @@ abstract class Target {
   /// [hasInitializer], [isFinal], and [isStatic].
   ///
   /// This is determined by the [enabledLateLowerings] mask.
-  bool isLateFieldLoweringEnabled(
-      {required bool hasInitializer,
-      required bool isFinal,
-      required bool isStatic}) {
+  bool isLateFieldLoweringEnabled({
+    required bool hasInitializer,
+    required bool isFinal,
+    required bool isStatic,
+  }) {
     int mask = LateLowering.getFieldLowering(
-        hasInitializer: hasInitializer, isFinal: isFinal, isStatic: isStatic);
+      hasInitializer: hasInitializer,
+      isFinal: isFinal,
+      isStatic: isStatic,
+    );
     return enabledLateLowerings & mask != 0;
   }
 
@@ -431,14 +501,16 @@ abstract class Target {
   /// [hasInitializer], [isFinal], and its type [isPotentiallyNullable].
   ///
   /// This is determined by the [enabledLateLowerings] mask.
-  bool isLateLocalLoweringEnabled(
-      {required bool hasInitializer,
-      required bool isFinal,
-      required bool isPotentiallyNullable}) {
+  bool isLateLocalLoweringEnabled({
+    required bool hasInitializer,
+    required bool isFinal,
+    required bool isPotentiallyNullable,
+  }) {
     int mask = LateLowering.getLocalLowering(
-        hasInitializer: hasInitializer,
-        isFinal: isFinal,
-        isPotentiallyNullable: isPotentiallyNullable);
+      hasInitializer: hasInitializer,
+      isFinal: isFinal,
+      isPotentiallyNullable: isPotentiallyNullable,
+    );
     return enabledLateLowerings & mask != 0;
   }
 
@@ -446,7 +518,9 @@ abstract class Target {
   /// for uninitialized late fields and variables through the `createSentinel`
   /// and `isSentinel` methods in `dart:_internal`.
   ///
-  /// If `true` this is used when [supportsLateFields] is `false`.
+  /// If `true` this is used when late fields and locals are lowered,
+  /// as determined by [isLateLocalLoweringEnabled] and
+  /// [isLateFieldLoweringEnabled].
   bool get supportsLateLoweringSentinel;
 
   /// Whether static fields with initializers in nnbd libraries should be
@@ -462,21 +536,14 @@ abstract class Target {
 
   /// Builds an expression that instantiates an [Invocation] that can be passed
   /// to [noSuchMethod].
-  Expression instantiateInvocation(CoreTypes coreTypes, Expression receiver,
-      String name, Arguments arguments, int offset, bool isSuper);
-
-  Expression instantiateNoSuchMethodError(CoreTypes coreTypes,
-      Expression receiver, String name, Arguments arguments, int offset,
-      {bool isMethod = false,
-      bool isGetter = false,
-      bool isSetter = false,
-      bool isField = false,
-      bool isLocalVariable = false,
-      bool isDynamic = false,
-      bool isSuper = false,
-      bool isStatic = false,
-      bool isConstructor = false,
-      bool isTopLevel = false});
+  Expression instantiateInvocation(
+    CoreTypes coreTypes,
+    Expression receiver,
+    String name,
+    Arguments arguments,
+    int offset,
+    bool isSuper,
+  );
 
   /// Configure the given [Component] in a target specific way.
   /// Returns the configured component.
@@ -496,9 +563,11 @@ abstract class Target {
   Class? concreteSetLiteralClass(CoreTypes coreTypes) => null;
   Class? concreteConstSetLiteralClass(CoreTypes coreTypes) => null;
   Class? concreteClosureClass(CoreTypes coreTypes) => null;
-  Class getRecordImplementationClass(CoreTypes coreTypes,
-          int numPositionalFields, List<String> namedFields) =>
-      throw UnsupportedError('Target.getRecordImplementationClass');
+  Class getRecordImplementationClass(
+    CoreTypes coreTypes,
+    int numPositionalFields,
+    List<String> namedFields,
+  ) => throw UnsupportedError('Target.getRecordImplementationClass');
 
   Class? concreteIntLiteralClass(CoreTypes coreTypes, int value) => null;
   Class? concreteDoubleLiteralClass(CoreTypes coreTypes, double value) => null;
@@ -528,13 +597,24 @@ abstract class Target {
 
   /// Should this target-specific pragma be recognized by annotation parsers?
   bool isSupportedPragma(String pragmaName) => false;
+
+  /// When `true` the incremental compiler will always include libraries that
+  /// apply invalidated mixins in the output of a recompile.
+  ///
+  /// They will be included even when only the mixin was edited, and even if the
+  /// invalidation was only within the body of the mixin member.
+  bool get incrementalCompilerIncludeMixinApplicationInvalidatedLibraries =>
+      false;
 }
 
 class NoneConstantsBackend extends ConstantsBackend {
   @override
   final bool supportsUnevaluatedConstants;
 
-  const NoneConstantsBackend({required this.supportsUnevaluatedConstants});
+  const NoneConstantsBackend({
+    required this.supportsUnevaluatedConstants,
+    super.keepLocals,
+  });
 }
 
 class NoneTarget extends Target {
@@ -566,36 +646,29 @@ class NoneTarget extends Target {
 
   @override
   void performModularTransformationsOnLibraries(
-      Component component,
-      CoreTypes coreTypes,
-      ClassHierarchy hierarchy,
-      List<Library> libraries,
-      Map<String, String>? environmentDefines,
-      DiagnosticReporter diagnosticReporter,
-      ReferenceFromIndex? referenceFromIndex,
-      {void Function(String msg)? logger,
-      ChangedStructureNotifier? changedStructureNotifier}) {}
+    Component component,
+    CoreTypes coreTypes,
+    ClassHierarchy hierarchy,
+    List<Library> libraries,
+    Map<String, String>? environmentDefines,
+    DiagnosticReporter diagnosticReporter,
+    ReferenceFromIndex? referenceFromIndex, {
+    void Function(String msg)? logger,
+    ChangedStructureNotifier? changedStructureNotifier,
+  }) {}
 
   @override
-  Expression instantiateInvocation(CoreTypes coreTypes, Expression receiver,
-      String name, Arguments arguments, int offset, bool isSuper) {
-    return new InvalidExpression(null);
-  }
-
-  @override
-  Expression instantiateNoSuchMethodError(CoreTypes coreTypes,
-      Expression receiver, String name, Arguments arguments, int offset,
-      {bool isMethod = false,
-      bool isGetter = false,
-      bool isSetter = false,
-      bool isField = false,
-      bool isLocalVariable = false,
-      bool isDynamic = false,
-      bool isSuper = false,
-      bool isStatic = false,
-      bool isConstructor = false,
-      bool isTopLevel = false}) {
-    return new InvalidExpression(null);
+  Expression instantiateInvocation(
+    CoreTypes coreTypes,
+    Expression receiver,
+    String name,
+    Arguments arguments,
+    int offset,
+    bool isSuper,
+  ) {
+    return new InvalidExpression(
+      'Unsupported: NoneTarget.instantiateInvocation',
+    );
   }
 
   @override
@@ -625,10 +698,11 @@ class LateLowering {
   static const int none = 0;
   static const int all = (1 << 16) - 1;
 
-  static int getLocalLowering(
-      {required bool hasInitializer,
-      required bool isFinal,
-      required bool isPotentiallyNullable}) {
+  static int getLocalLowering({
+    required bool hasInitializer,
+    required bool isFinal,
+    required bool isPotentiallyNullable,
+  }) {
     if (hasInitializer) {
       if (isFinal) {
         if (isPotentiallyNullable) {
@@ -660,10 +734,11 @@ class LateLowering {
     }
   }
 
-  static int getFieldLowering(
-      {required bool hasInitializer,
-      required bool isFinal,
-      required bool isStatic}) {
+  static int getFieldLowering({
+    required bool hasInitializer,
+    required bool isFinal,
+    required bool isStatic,
+  }) {
     if (hasInitializer) {
       if (isFinal) {
         if (isStatic) {
@@ -723,17 +798,20 @@ class TestTargetFlags extends TargetFlags {
   final Set<String> supportedDartLibraries;
   final Set<String> unsupportedDartLibraries;
 
-  const TestTargetFlags(
-      {bool trackWidgetCreation = false,
-      this.forceLateLoweringsForTesting,
-      this.forceLateLoweringSentinelForTesting,
-      this.forceStaticFieldLoweringForTesting,
-      this.forceNoExplicitGetterCallsForTesting,
-      this.forceConstructorTearOffLoweringForTesting,
-      this.supportedDartLibraries = const {},
-      this.unsupportedDartLibraries = const {}})
-      : super(
-            trackWidgetCreation: trackWidgetCreation);
+  const TestTargetFlags({
+    bool trackWidgetCreation = false,
+    this.forceLateLoweringsForTesting,
+    this.forceLateLoweringSentinelForTesting,
+    this.forceStaticFieldLoweringForTesting,
+    this.forceNoExplicitGetterCallsForTesting,
+    this.forceConstructorTearOffLoweringForTesting,
+    this.supportedDartLibraries = const {},
+    this.unsupportedDartLibraries = const {},
+    bool isClosureContextLoweringEnabled = false,
+  }) : super(
+         trackWidgetCreation: trackWidgetCreation,
+         isClosureContextLoweringEnabled: isClosureContextLoweringEnabled,
+       );
 }
 
 mixin TestTargetMixin on Target {
@@ -756,8 +834,8 @@ mixin TestTargetMixin on Target {
   @override
   bool get supportsExplicitGetterCalls =>
       flags.forceNoExplicitGetterCallsForTesting != null
-          ? !flags.forceNoExplicitGetterCallsForTesting!
-          : super.supportsExplicitGetterCalls;
+      ? !flags.forceNoExplicitGetterCallsForTesting!
+      : super.supportsExplicitGetterCalls;
 
   @override
   int get enabledConstructorTearOffLowerings =>
@@ -765,8 +843,10 @@ mixin TestTargetMixin on Target {
       super.enabledConstructorTearOffLowerings;
 
   @override
-  late final DartLibrarySupport dartLibrarySupport =
-      new TestDartLibrarySupport(super.dartLibrarySupport, flags);
+  late final DartLibrarySupport dartLibrarySupport = new TestDartLibrarySupport(
+    super.dartLibrarySupport,
+    flags,
+  );
 }
 
 class TestDartLibrarySupport implements DartLibrarySupport {
@@ -776,15 +856,19 @@ class TestDartLibrarySupport implements DartLibrarySupport {
   TestDartLibrarySupport(this.delegate, this.flags);
 
   @override
-  bool computeDartLibrarySupport(String libraryName,
-      {required bool isSupportedBySpec}) {
+  bool computeDartLibrarySupport(
+    String libraryName, {
+    required bool isSupportedBySpec,
+  }) {
     if (flags.supportedDartLibraries.contains(libraryName)) {
       return true;
     } else if (flags.unsupportedDartLibraries.contains(libraryName)) {
       return false;
     }
-    return delegate.computeDartLibrarySupport(libraryName,
-        isSupportedBySpec: isSupportedBySpec);
+    return delegate.computeDartLibrarySupport(
+      libraryName,
+      isSupportedBySpec: isSupportedBySpec,
+    );
   }
 }
 
@@ -882,37 +966,22 @@ class TargetWrapper extends Target {
       _target.extraRequiredLibrariesPlatform;
 
   @override
-  Expression instantiateInvocation(CoreTypes coreTypes, Expression receiver,
-      String name, Arguments arguments, int offset, bool isSuper) {
+  Expression instantiateInvocation(
+    CoreTypes coreTypes,
+    Expression receiver,
+    String name,
+    Arguments arguments,
+    int offset,
+    bool isSuper,
+  ) {
     return _target.instantiateInvocation(
-        coreTypes, receiver, name, arguments, offset, isSuper);
-  }
-
-  @override
-  Expression instantiateNoSuchMethodError(CoreTypes coreTypes,
-      Expression receiver, String name, Arguments arguments, int offset,
-      {bool isMethod = false,
-      bool isGetter = false,
-      bool isSetter = false,
-      bool isField = false,
-      bool isLocalVariable = false,
-      bool isDynamic = false,
-      bool isSuper = false,
-      bool isStatic = false,
-      bool isConstructor = false,
-      bool isTopLevel = false}) {
-    return _target.instantiateNoSuchMethodError(
-        coreTypes, receiver, name, arguments, offset,
-        isMethod: isMethod,
-        isGetter: isGetter,
-        isSetter: isSetter,
-        isField: isField,
-        isLocalVariable: isLocalVariable,
-        isDynamic: isDynamic,
-        isSuper: isSuper,
-        isStatic: isStatic,
-        isConstructor: isConstructor,
-        isTopLevel: isTopLevel);
+      coreTypes,
+      receiver,
+      name,
+      arguments,
+      offset,
+      isSuper,
+    );
   }
 
   @override
@@ -925,25 +994,27 @@ class TargetWrapper extends Target {
 
   @override
   void performModularTransformationsOnLibraries(
-      Component component,
-      CoreTypes coreTypes,
-      ClassHierarchy hierarchy,
-      List<Library> libraries,
-      Map<String, String>? environmentDefines,
-      DiagnosticReporter diagnosticReporter,
-      ReferenceFromIndex? referenceFromIndex,
-      {void Function(String msg)? logger,
-      ChangedStructureNotifier? changedStructureNotifier}) {
+    Component component,
+    CoreTypes coreTypes,
+    ClassHierarchy hierarchy,
+    List<Library> libraries,
+    Map<String, String>? environmentDefines,
+    DiagnosticReporter diagnosticReporter,
+    ReferenceFromIndex? referenceFromIndex, {
+    void Function(String msg)? logger,
+    ChangedStructureNotifier? changedStructureNotifier,
+  }) {
     _target.performModularTransformationsOnLibraries(
-        component,
-        coreTypes,
-        hierarchy,
-        libraries,
-        environmentDefines,
-        diagnosticReporter,
-        referenceFromIndex,
-        logger: logger,
-        changedStructureNotifier: changedStructureNotifier);
+      component,
+      coreTypes,
+      hierarchy,
+      libraries,
+      environmentDefines,
+      diagnosticReporter,
+      referenceFromIndex,
+      logger: logger,
+      changedStructureNotifier: changedStructureNotifier,
+    );
   }
 
   @override
@@ -953,27 +1024,40 @@ class TargetWrapper extends Target {
 
   @override
   void performPreConstantEvaluationTransformations(
-      Component component,
-      CoreTypes coreTypes,
-      List<Library> libraries,
-      DiagnosticReporter diagnosticReporter,
-      {void Function(String msg)? logger,
-      ChangedStructureNotifier? changedStructureNotifier}) {
+    Component component,
+    CoreTypes coreTypes,
+    List<Library> libraries,
+    DiagnosticReporter diagnosticReporter, {
+    void Function(String msg)? logger,
+    ChangedStructureNotifier? changedStructureNotifier,
+  }) {
     _target.performPreConstantEvaluationTransformations(
-        component, coreTypes, libraries, diagnosticReporter,
-        logger: logger, changedStructureNotifier: changedStructureNotifier);
+      component,
+      coreTypes,
+      libraries,
+      diagnosticReporter,
+      logger: logger,
+      changedStructureNotifier: changedStructureNotifier,
+    );
   }
 
   @override
   void performTransformationsOnProcedure(
-      CoreTypes coreTypes,
-      ClassHierarchy hierarchy,
-      Procedure procedure,
-      Map<String, String>? environmentDefines,
-      {void Function(String msg)? logger}) {
+    CoreTypes coreTypes,
+    ClassHierarchy hierarchy,
+    Procedure procedure,
+    Map<String, String>? environmentDefines, {
+    void Function(String msg)? logger,
+    required DiagnosticReporter diagnosticReporter,
+  }) {
     _target.performTransformationsOnProcedure(
-        coreTypes, hierarchy, procedure, environmentDefines,
-        logger: logger);
+      coreTypes,
+      hierarchy,
+      procedure,
+      environmentDefines,
+      logger: logger,
+      diagnosticReporter: diagnosticReporter,
+    );
   }
 
   @override

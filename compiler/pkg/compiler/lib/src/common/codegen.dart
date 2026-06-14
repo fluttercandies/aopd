@@ -7,7 +7,6 @@ library;
 // ignore: implementation_imports
 import 'package:js_ast/src/precedence.dart' as js show Precedence;
 
-import '../common/elements.dart';
 import '../constants/values.dart';
 import '../elements/entities.dart';
 import '../elements/types.dart' show DartType, InterfaceType;
@@ -15,10 +14,10 @@ import '../io/source_information.dart';
 import '../js/js.dart' as js;
 import '../js_backend/backend.dart';
 import '../js_backend/codegen_inputs.dart';
-import '../js_backend/namer.dart'
-    show AsyncName, Namer, operatorNameToIdentifier, StringBackedName;
 import '../js_backend/deferred_holder_expression.dart'
     show DeferredHolderExpression;
+import '../js_backend/namer.dart'
+    show AsyncName, Namer, operatorNameToIdentifier, StringBackedName;
 import '../js_backend/string_reference.dart' show StringReference;
 import '../js_backend/type_reference.dart' show TypeReference;
 import '../js_emitter/js_emitter.dart' show Emitter;
@@ -26,12 +25,13 @@ import '../js_model/elements.dart';
 import '../native/behavior.dart';
 import '../serialization/serialization.dart';
 import '../universe/feature.dart';
-import '../universe/resource_identifier.dart' show ResourceIdentifier;
+import '../universe/recorded_use.dart' show RecordedUse;
 import '../universe/selector.dart';
 import '../universe/use.dart' show ConstantUse, DynamicUse, StaticUse, TypeUse;
 import '../universe/world_impact.dart' show WorldImpact, WorldImpactBuilderImpl;
 import '../util/enumset.dart';
 import '../util/util.dart';
+import 'elements.dart';
 
 class CodegenImpact extends WorldImpact {
   const CodegenImpact();
@@ -799,7 +799,7 @@ class JsNodeTags {
   static const String deferredHolderExpression = 'js-deferredHolderExpression';
 }
 
-enum JsAnnotationKind { string, resourceIdentifier }
+enum JsAnnotationKind { string, recordUse }
 
 /// Visitor that serializes a [js.Node] into a [DataSinkWriter].
 ///
@@ -864,8 +864,8 @@ class JsNodeSerializer implements js.NodeVisitor<void> {
     if (annotation is String) {
       sink.writeEnum(JsAnnotationKind.string);
       sink.writeString(annotation);
-    } else if (annotation is ResourceIdentifier) {
-      sink.writeEnum(JsAnnotationKind.resourceIdentifier);
+    } else if (annotation is RecordedUse) {
+      sink.writeEnum(JsAnnotationKind.recordUse);
       annotation.writeToDataSink(sink);
     } else {
       throw UnsupportedError(
@@ -1996,13 +1996,10 @@ class JsNodeDeserializer {
   }
 
   Object _readAnnotation() {
-    final kind = source.readEnum(JsAnnotationKind.values);
-    switch (kind) {
-      case JsAnnotationKind.string:
-        return source.readString();
-      case JsAnnotationKind.resourceIdentifier:
-        return ResourceIdentifier.readFromDataSource(source);
-    }
+    return switch (source.readEnum(JsAnnotationKind.values)) {
+      JsAnnotationKind.string => source.readString(),
+      JsAnnotationKind.recordUse => RecordedUse.readFromDataSource(source),
+    };
   }
 }
 

@@ -16,7 +16,8 @@ class CoverageVisitor implements Visitor<void> {
   @override
   void visitAuxiliaryConstant(AuxiliaryConstant node) {
     throw new UnsupportedError(
-        "Unsupported auxiliary node $node (${node.runtimeType}).");
+      "Unsupported auxiliary node $node (${node.runtimeType}).",
+    );
   }
 
   @override
@@ -105,7 +106,8 @@ class CoverageVisitor implements Visitor<void> {
 
   @override
   void visitRedirectingFactoryTearOffConstant(
-      RedirectingFactoryTearOffConstant node) {
+    RedirectingFactoryTearOffConstant node,
+  ) {
     visited.add(ConstantKind.RedirectingFactoryTearOffConstant);
     node.visitChildren(this);
   }
@@ -185,7 +187,8 @@ class CoverageVisitor implements Visitor<void> {
   @override
   void visitAuxiliaryExpression(AuxiliaryExpression node) {
     throw new UnsupportedError(
-        "Unsupported auxiliary node $node (${node.runtimeType}).");
+      "Unsupported auxiliary node $node (${node.runtimeType}).",
+    );
   }
 
   @override
@@ -359,6 +362,12 @@ class CoverageVisitor implements Visitor<void> {
   @override
   void visitEqualsCall(EqualsCall node) {
     visited.add(ExpressionKind.EqualsCall);
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitRedirectingFactoryInvocation(RedirectingFactoryInvocation node) {
+    visited.add(ExpressionKind.RedirectingFactoryInvocation);
     node.visitChildren(this);
   }
 
@@ -623,7 +632,8 @@ class CoverageVisitor implements Visitor<void> {
   @override
   void visitAuxiliaryInitializer(AuxiliaryInitializer node) {
     throw new UnsupportedError(
-        "Unsupported auxiliary node $node (${node.runtimeType}).");
+      "Unsupported auxiliary node $node (${node.runtimeType}).",
+    );
   }
 
   @override
@@ -839,7 +849,8 @@ class CoverageVisitor implements Visitor<void> {
   @override
   void visitAuxiliaryStatement(AuxiliaryStatement node) {
     throw new UnsupportedError(
-        "Unsupported auxiliary node $node (${node.runtimeType}).");
+      "Unsupported auxiliary node $node (${node.runtimeType}).",
+    );
   }
 
   @override
@@ -945,14 +956,20 @@ class CoverageVisitor implements Visitor<void> {
   }
 
   @override
-  void visitVariableDeclaration(VariableDeclaration node) {
-    visited.add(StatementKind.VariableDeclaration);
+  void visitVariableStatement(VariableStatement node) {
+    visited.add(StatementKind.VariableStatement);
     node.visitChildren(this);
   }
 
   @override
   void visitFunctionDeclaration(FunctionDeclaration node) {
     visited.add(StatementKind.FunctionDeclaration);
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitVariableInitialization(VariableInitialization node) {
+    visited.add(StatementKind.VariableInitialization);
     node.visitChildren(this);
   }
 
@@ -969,8 +986,62 @@ class CoverageVisitor implements Visitor<void> {
   }
 
   @override
-  void visitTypeParameter(TypeParameter node) {
-    visited.add(NodeKind.TypeParameter);
+  void visitLocalVariable(LocalVariable node) {
+    visited.add(VariableDeclarationKind.LocalVariable);
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitCatchVariable(CatchVariable node) {
+    visited.add(VariableDeclarationKind.CatchVariable);
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitPositionalParameter(PositionalParameter node) {
+    visited.add(VariableDeclarationKind.PositionalParameter);
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitNamedParameter(NamedParameter node) {
+    visited.add(VariableDeclarationKind.NamedParameter);
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitThisVariable(ThisVariable node) {
+    visited.add(VariableDeclarationKind.ThisVariable);
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitSyntheticVariable(SyntheticVariable node) {
+    visited.add(VariableDeclarationKind.SyntheticVariable);
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitTypeVariable(TypeVariable node) {
+    visited.add(NodeKind.TypeVariable);
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitNominalParameter(NominalParameter node) {
+    visited.add(NodeKind.NominalParameter);
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitVariableContext(VariableContext node) {
+    visited.add(NodeKind.VariableContext);
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitScope(Scope node) {
+    visited.add(NodeKind.Scope);
     node.visitChildren(this);
   }
 
@@ -1007,7 +1078,20 @@ class CoverageVisitor implements Visitor<void> {
   @override
   void visitAuxiliaryType(AuxiliaryType node) {
     throw new UnsupportedError(
-        "Unsupported auxiliary node $node (${node.runtimeType}).");
+      "Unsupported auxiliary node $node (${node.runtimeType}).",
+    );
+  }
+
+  @override
+  void visitFunctionTypeParameterType(FunctionTypeParameterType node) {
+    visited.add(DartTypeKind.FunctionTypeParameterType);
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitClassTypeParameterType(ClassTypeParameterType node) {
+    visited.add(DartTypeKind.ClassTypeParameterType);
+    node.visitChildren(this);
   }
 
   @override
@@ -1105,7 +1189,8 @@ class CoverageVisitor implements Visitor<void> {
   @override
   void visitAuxiliaryConstantReference(AuxiliaryConstant node) {
     throw new UnsupportedError(
-        "Unsupported auxiliary node $node (${node.runtimeType}).");
+      "Unsupported auxiliary node $node (${node.runtimeType}).",
+    );
   }
 
   @override
@@ -1188,14 +1273,16 @@ class CoverageVisitor implements Visitor<void> {
 
   @override
   void visitConstructorTearOffConstantReference(
-      ConstructorTearOffConstant node) {
+    ConstructorTearOffConstant node,
+  ) {
     visited.add(ConstantKind.ConstructorTearOffConstant);
     node.visitChildren(this);
   }
 
   @override
   void visitRedirectingFactoryTearOffConstantReference(
-      RedirectingFactoryTearOffConstant node) {
+    RedirectingFactoryTearOffConstant node,
+  ) {
     visited.add(ConstantKind.RedirectingFactoryTearOffConstant);
     node.visitChildren(this);
   }
@@ -1258,21 +1345,20 @@ enum NodeKind {
   Name,
   NamedExpression,
   NamedType,
+  NominalParameter,
   PatternGuard,
   PatternSwitchCase,
+  Scope,
   StructuralParameter,
   Supertype,
   SwitchCase,
   SwitchExpressionCase,
-  TypeParameter,
+  TypeVariable,
   Typedef,
+  VariableContext,
 }
 
-enum MemberKind {
-  Constructor,
-  Field,
-  Procedure,
-}
+enum MemberKind { Constructor, Field, Procedure }
 
 enum ExpressionKind {
   AbstractSuperMethodInvocation,
@@ -1322,6 +1408,7 @@ enum ExpressionKind {
   RecordIndexGet,
   RecordLiteral,
   RecordNameGet,
+  RedirectingFactoryInvocation,
   RedirectingFactoryTearOff,
   Rethrow,
   SetConcatenation,
@@ -1395,15 +1482,27 @@ enum StatementKind {
   SwitchStatement,
   TryCatch,
   TryFinally,
-  VariableDeclaration,
+  VariableInitialization,
+  VariableStatement,
   WhileStatement,
   YieldStatement,
 }
 
+enum VariableDeclarationKind {
+  CatchVariable,
+  LocalVariable,
+  NamedParameter,
+  PositionalParameter,
+  SyntheticVariable,
+  ThisVariable,
+}
+
 enum DartTypeKind {
+  ClassTypeParameterType,
   DynamicType,
   ExtensionType,
   FunctionType,
+  FunctionTypeParameterType,
   FutureOrType,
   InterfaceType,
   IntersectionType,
@@ -1427,56 +1526,69 @@ Set<Object> missingNodes(CoverageVisitor visitor) {
     ...InitializerKind.values,
     ...PatternKind.values,
     ...StatementKind.values,
+    ...VariableDeclarationKind.values,
     ...DartTypeKind.values,
   };
   all.removeAll(visitor.visited);
   return all;
 }
 
-/// Returns the set of [ConstantKind]s that were not visited by [visitor].
+/// Returns the set of [ConstantKind]s not visited by [visitor].
 Set<ConstantKind> missingConstants(CoverageVisitor visitor) {
   Set<ConstantKind> all = new Set<ConstantKind>.of(ConstantKind.values);
   all.removeAll(visitor.visited);
   return all;
 }
 
-/// Returns the set of [MemberKind]s that were not visited by [visitor].
+/// Returns the set of [MemberKind]s not visited by [visitor].
 Set<MemberKind> missingMembers(CoverageVisitor visitor) {
   Set<MemberKind> all = new Set<MemberKind>.of(MemberKind.values);
   all.removeAll(visitor.visited);
   return all;
 }
 
-/// Returns the set of [ExpressionKind]s that were not visited by [visitor].
+/// Returns the set of [ExpressionKind]s not visited by [visitor].
 Set<ExpressionKind> missingExpressions(CoverageVisitor visitor) {
   Set<ExpressionKind> all = new Set<ExpressionKind>.of(ExpressionKind.values);
   all.removeAll(visitor.visited);
   return all;
 }
 
-/// Returns the set of [InitializerKind]s that were not visited by [visitor].
+/// Returns the set of [InitializerKind]s not visited by [visitor].
 Set<InitializerKind> missingInitializers(CoverageVisitor visitor) {
-  Set<InitializerKind> all =
-      new Set<InitializerKind>.of(InitializerKind.values);
+  Set<InitializerKind> all = new Set<InitializerKind>.of(
+    InitializerKind.values,
+  );
   all.removeAll(visitor.visited);
   return all;
 }
 
-/// Returns the set of [PatternKind]s that were not visited by [visitor].
+/// Returns the set of [PatternKind]s not visited by [visitor].
 Set<PatternKind> missingPatterns(CoverageVisitor visitor) {
   Set<PatternKind> all = new Set<PatternKind>.of(PatternKind.values);
   all.removeAll(visitor.visited);
   return all;
 }
 
-/// Returns the set of [StatementKind]s that were not visited by [visitor].
+/// Returns the set of [StatementKind]s not visited by [visitor].
 Set<StatementKind> missingStatements(CoverageVisitor visitor) {
   Set<StatementKind> all = new Set<StatementKind>.of(StatementKind.values);
   all.removeAll(visitor.visited);
   return all;
 }
 
-/// Returns the set of [DartTypeKind]s that were not visited by [visitor].
+/// Returns the set of [VariableDeclarationKind]s not visited by [visitor].
+Set<VariableDeclarationKind> missingVariableDeclarations(
+  CoverageVisitor visitor,
+) {
+  Set<VariableDeclarationKind> all = new Set<VariableDeclarationKind>.of(
+    VariableDeclarationKind.values,
+  );
+  all.removeAll(visitor.visited);
+  return all;
+}
+
+/// Returns the set of [DartTypeKind]s not visited by [visitor].
 Set<DartTypeKind> missingDartTypes(CoverageVisitor visitor) {
   Set<DartTypeKind> all = new Set<DartTypeKind>.of(DartTypeKind.values);
   all.removeAll(visitor.visited);

@@ -23,7 +23,9 @@ const int _covariantMask = _constMask << 1;
 
 const int _externalMask = _covariantMask << 1;
 
-const int _finalMask = _externalMask << 1;
+const int _varMask = _externalMask << 1;
+
+const int _finalMask = _varMask << 1;
 
 const int _staticMask = _finalMask << 1;
 
@@ -56,6 +58,10 @@ const int _declaresConstConstructorMask = _initializingFormalMask << 1;
 /// Not a modifier, used by formal parameters to track if they are
 /// super-parameter initializers.
 const int _superInitializingFormalMask = _declaresConstConstructorMask << 1;
+
+/// Not a modifier, used by formal parameters to track if they are declaring
+/// parameters.
+const int _declaringParameterMask = _superInitializingFormalMask << 1;
 
 /// Extension type that encodes a set of modifiers as a bit mask.
 extension type const Modifiers(int _mask) implements Object {
@@ -142,7 +148,7 @@ extension type const Modifiers(int _mask) implements Object {
   ///
   /// DartDocTest(Modifiers.from(
   ///     varFinalOrConst: new SimpleToken(Keyword.VAR, -1)),
-  ///     Modifiers.empty)
+  ///     Modifiers.Var)
   /// DartDocTest(Modifiers.from(
   ///     varFinalOrConst: new SimpleToken(Keyword.FINAL, -1)),
   ///     Modifiers.Final)
@@ -157,41 +163,43 @@ extension type const Modifiers(int _mask) implements Object {
   ///     staticToken: new SimpleToken(Keyword.STATIC, -1)),
   ///     Modifiers.Final | Modifiers.Static)
   /// ```
-  static Modifiers from(
-      {Token? abstractToken,
-      Token? augmentToken,
-      Token? baseToken,
-      Token? covariantToken,
-      Token? constToken,
-      Token? externalToken,
-      Token? finalToken,
-      Token? interfaceToken,
-      Token? lateToken,
-      Token? macroToken,
-      Token? mixinToken,
-      Token? requiredToken,
-      Token? sealedToken,
-      Token? staticToken,
-      Token? varFinalOrConst}) {
+  static Modifiers from({
+    Token? abstractToken,
+    Token? augmentToken,
+    Token? baseToken,
+    Token? covariantToken,
+    Token? constToken,
+    Token? externalToken,
+    Token? finalToken,
+    Token? interfaceToken,
+    Token? lateToken,
+    Token? macroToken,
+    Token? mixinToken,
+    Token? requiredToken,
+    Token? sealedToken,
+    Token? staticToken,
+    Token? varFinalOrConst,
+  }) {
     assert(abstractToken == null || abstractToken.type == Keyword.ABSTRACT);
-    assert(augmentToken == null ||
-        // Coverage-ignore(suite): Not run.
-        augmentToken.type == Keyword.AUGMENT);
+    assert(augmentToken == null || augmentToken.type == Keyword.AUGMENT);
     assert(baseToken == null || baseToken.type == Keyword.BASE);
     assert(covariantToken == null || covariantToken.type == Keyword.COVARIANT);
     assert(constToken == null || constToken.type == Keyword.CONST);
     assert(finalToken == null || finalToken.type == Keyword.FINAL);
     assert(interfaceToken == null || interfaceToken.type == Keyword.INTERFACE);
     assert(lateToken == null || lateToken.type == Keyword.LATE);
-    assert(macroToken == null ||
-        // Coverage-ignore(suite): Not run.
-        macroToken.lexeme == 'macro');
+    assert(
+      macroToken == null ||
+          // Coverage-ignore(suite): Not run.
+          macroToken.lexeme == 'macro',
+    );
     assert(mixinToken == null || mixinToken.type == Keyword.MIXIN);
     assert(requiredToken == null || requiredToken.type == Keyword.REQUIRED);
     assert(sealedToken == null || sealedToken.type == Keyword.SEALED);
     assert(staticToken == null || staticToken.type == Keyword.STATIC);
 
-    int mask = (abstractToken != null ? _abstractMask : 0) |
+    int mask =
+        (abstractToken != null ? _abstractMask : 0) |
         (augmentToken != null ? _augmentMask : 0) |
         (baseToken != null ? _baseMask : 0) |
         (covariantToken != null ? _covariantMask : 0) |
@@ -209,10 +217,11 @@ extension type const Modifiers(int _mask) implements Object {
       mask |= switch (varFinalOrConst.type) {
         Keyword.CONST => _constMask,
         Keyword.FINAL => _finalMask,
-        Keyword.VAR => 0,
+        Keyword.VAR => _varMask,
         _ => // Coverage-ignore(suite): Not run.
-          throw new UnsupportedError(
-              "Unexpected varFinalOrConst token $varFinalOrConst."),
+        throw new UnsupportedError(
+          "Unexpected varFinalOrConst token $varFinalOrConst.",
+        ),
       };
     }
     return new Modifiers(mask);
@@ -277,6 +286,19 @@ extension type const Modifiers(int _mask) implements Object {
 
   /// Returns `true` if the set of modifiers contains `external'.
   bool get isExternal => (_mask & _externalMask) != 0;
+
+  /// The set of modifiers containing only `var`.
+  ///
+  /// ```
+  /// DartDocTest(Modifiers.Var.isVar, true)
+  /// DartDocTest(Modifiers.Var.isEmpty, false)
+  /// DartDocTest(Modifiers.Var.isStatic, false)
+  /// ```
+  static const Modifiers Var = const Modifiers(_varMask);
+
+  // Coverage-ignore(suite): Not run.
+  /// Returns `true` if the set of modifiers contains `var'.
+  bool get isVar => (_mask & _varMask) != 0;
 
   /// The set of modifiers containing only `final`.
   ///
@@ -395,8 +417,9 @@ extension type const Modifiers(int _mask) implements Object {
   /// DartDocTest(Modifiers.NamedMixinApplication.isEmpty, false)
   /// DartDocTest(Modifiers.NamedMixinApplication.hasInitializer, false)
   /// ```
-  static const Modifiers NamedMixinApplication =
-      const Modifiers(_namedMixinApplicationMask);
+  static const Modifiers NamedMixinApplication = const Modifiers(
+    _namedMixinApplicationMask,
+  );
 
   /// Returns `true` if the set of modifiers contains the synthetic modifier
   /// used to denote that a class is a named mixin application.
@@ -424,8 +447,9 @@ extension type const Modifiers(int _mask) implements Object {
   /// DartDocTest(Modifiers.InitializingFormal.isEmpty, false)
   /// DartDocTest(Modifiers.InitializingFormal.declaresConstConstructor, false)
   /// ```
-  static const Modifiers InitializingFormal =
-      const Modifiers(_initializingFormalMask);
+  static const Modifiers InitializingFormal = const Modifiers(
+    _initializingFormalMask,
+  );
 
   /// Returns `true` if the set of modifiers contains the synthetic modifier
   /// used to denote that a parameter is an initializing formal.
@@ -441,8 +465,9 @@ extension type const Modifiers(int _mask) implements Object {
   /// DartDocTest(
   ///     Modifiers.DeclaresConstConstructor.isSuperInitializingFormal, false)
   /// ```
-  static const Modifiers DeclaresConstConstructor =
-      const Modifiers(_declaresConstConstructorMask);
+  static const Modifiers DeclaresConstConstructor = const Modifiers(
+    _declaresConstConstructorMask,
+  );
 
   /// Returns `true` if the set of modifiers contains the synthetic modifier
   /// used to denote that a declaration declares a const constructor.
@@ -458,13 +483,31 @@ extension type const Modifiers(int _mask) implements Object {
   /// DartDocTest(Modifiers.SuperInitializingFormal.isEmpty, false)
   /// DartDocTest(Modifiers.SuperInitializingFormal.isAbstract, false)
   /// ```
-  static const Modifiers SuperInitializingFormal =
-      const Modifiers(_superInitializingFormalMask);
+  static const Modifiers SuperInitializingFormal = const Modifiers(
+    _superInitializingFormalMask,
+  );
 
   /// Returns `true` if the set of modifiers contains the synthetic modifier
   /// used to denote that a parameter is a super initializing formal.
   bool get isSuperInitializingFormal =>
       (_mask & _superInitializingFormalMask) != 0;
+
+  /// The set of modifiers containing only the synthetic modifier used to denote
+  /// that a parameter is a declaring parameter.
+  ///
+  /// ```
+  /// DartDocTest(
+  ///     Modifiers.DeclaringParameter.isDeclaringParameter, true)
+  /// DartDocTest(Modifiers.DeclaringParameter.isEmpty, false)
+  /// DartDocTest(Modifiers.DeclaringParameter.isAbstract, false)
+  /// ```
+  static const Modifiers DeclaringParameter = const Modifiers(
+    _declaringParameterMask,
+  );
+
+  /// Returns `true` if the set of modifiers contains the synthetic modifier
+  /// used to denote that a parameter is a declaring parameter.
+  bool get isDeclaringParameter => (_mask & _declaringParameterMask) != 0;
 
   /// Returns `true` if this set of modifiers contains any syntactic modifiers.
   ///
@@ -487,15 +530,25 @@ extension type const Modifiers(int _mask) implements Object {
   ///     Modifiers.Covariant.containsSyntacticModifiers(ignoreCovariant: true),
   ///     false)
   ///
+  /// DartDocTest(Modifiers.Final.containsSyntacticModifiers(), true)
+  /// DartDocTest(
+  ///     Modifiers.Final.containsSyntacticModifiers(ignoreFinal: true), false)
+  ///
+  /// DartDocTest(Modifiers.Const.containsSyntacticModifiers(), true)
+  /// DartDocTest(
+  ///     Modifiers.Const.containsSyntacticModifiers(ignoreConst: true), false)
+  ///
+  /// DartDocTest(Modifiers.Var.containsSyntacticModifiers(), true)
+  /// DartDocTest(
+  ///     Modifiers.Var.containsSyntacticModifiers(ignoreVar: true), false)
+  ///
   /// DartDocTest(Modifiers.Abstract.containsSyntacticModifiers(), true)
   /// DartDocTest(Modifiers.Augment.containsSyntacticModifiers(), true)
   /// DartDocTest(Modifiers.Base.containsSyntacticModifiers(), true)
-  /// DartDocTest(Modifiers.Const.containsSyntacticModifiers(), true)
   /// DartDocTest(
   ///     Modifiers.DeclaresConstConstructor.containsSyntacticModifiers(),
   ///     false)
   /// DartDocTest(Modifiers.External.containsSyntacticModifiers(), true)
-  /// DartDocTest(Modifiers.Final.containsSyntacticModifiers(), true)
   /// DartDocTest(Modifiers.HasInitializer.containsSyntacticModifiers(), false)
   /// DartDocTest(
   ///     Modifiers.InitializingFormal.containsSyntacticModifiers(), false)
@@ -510,19 +563,35 @@ extension type const Modifiers(int _mask) implements Object {
   /// DartDocTest(
   ///     Modifiers.SuperInitializingFormal.containsSyntacticModifiers(), false)
   /// ```
-  bool containsSyntacticModifiers(
-      {bool ignoreRequired = false, bool ignoreCovariant = false}) {
-    int mask = _mask &
+  bool containsSyntacticModifiers({
+    bool ignoreRequired = false,
+    bool ignoreCovariant = false,
+    bool ignoreVar = false,
+    bool ignoreFinal = false,
+    bool ignoreConst = false,
+  }) {
+    int mask =
+        _mask &
         ~(_hasInitializerMask |
             _initializingFormalMask |
             _declaresConstConstructorMask |
             _namedMixinApplicationMask |
-            _superInitializingFormalMask);
+            _superInitializingFormalMask |
+            _declaringParameterMask);
     if (ignoreRequired) {
       mask &= ~_requiredMask;
     }
     if (ignoreCovariant) {
       mask &= ~_covariantMask;
+    }
+    if (ignoreVar) {
+      mask &= ~_varMask;
+    }
+    if (ignoreFinal) {
+      mask &= ~_finalMask;
+    }
+    if (ignoreConst) {
+      mask &= ~_constMask;
     }
     return mask != 0;
   }

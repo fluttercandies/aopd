@@ -1,6 +1,8 @@
 # AOPD
 
-[English](README.md) | [简体中文](README-CN.md)
+[![pub package](https://img.shields.io/pub/v/aopd.svg)](https://pub.dartlang.org/packages/aopd) [![GitHub stars](https://img.shields.io/github/stars/fluttercandies/aopd)](https://github.com/fluttercandies/aopd/stargazers) [![GitHub forks](https://img.shields.io/github/forks/fluttercandies/aopd)](https://github.com/fluttercandies/aopd/network) [![GitHub license](https://img.shields.io/github/license/fluttercandies/aopd)](https://github.com/fluttercandies/aopd/blob/master/LICENSE) [![GitHub issues](https://img.shields.io/github/issues/fluttercandies/aopd)](https://github.com/fluttercandies/aopd/issues) <a href="https://qm.qq.com/q/ZyJbSVjfSU">![FlutterCandies QQ 群](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffluttercandies%2F.github%2Frefs%2Fheads%2Fmain%2Fdata.yml&query=%24.qq_group_number&label=QQ%E7%BE%A4&logo=qq&color=1DACE8)
+
+English | [简体中文](README-CN.md)
 
 AOPD is a Flutter/Dart AOP and compiler-extension framework evolved from
 [AspectD](https://github.com/XianyuTech/aspectd),
@@ -12,9 +14,9 @@ packages can stay close to upstream sources.
 > **Before you start:** AOPD is not a drop-in `flutter pub add`. Like all
 > AspectD-style frameworks it weaves at compile time, so it requires a one-time
 > **patch to your Flutter SDK checkout** (`git apply flutter_tools.patch`, see
-> [Quick Start](#quick-start)) and pins an **exact SDK version**
-> (Flutter 3.35.7 / Dart 3.9.x). Adding the dependency alone does nothing until
-> the patch is applied.
+> [Quick Start](#quick-start)) for the supported SDK line declared in
+> `pubspec.yaml`. Adding the dependency alone does nothing until the patch is
+> applied.
 
 ## What It Provides
 
@@ -44,14 +46,18 @@ AOP-specific logic is no longer stored as patches inside `compiler/pkg/*`.
 
 ## Requirements
 
-AOPD `0.1.x` targets **Flutter 3.35.7 / Dart 3.9.2**. The package uses strict
-Dart SDK constraints (`>=3.9.2 <3.10.0`) so unsupported SDK versions fail during
-dependency resolution instead of failing later during compilation.
+AOPD targets the Flutter/Dart SDK line declared in `pubspec.yaml`. The package
+uses strict Dart SDK constraints so unsupported SDK versions fail during
+dependency resolution instead of failing later during compilation. Release
+support changes are recorded in `CHANGELOG.md`.
 
 The first AOPD-enabled build may take longer because the Flutter tool prepares
 an app-local compiler workspace, resolves dependencies, and compiles a local
 frontend-server snapshot. Later builds reuse the snapshot while the cache key is
 unchanged.
+
+Keep your project in a short ASCII-only path. Chinese characters or very long
+paths may cause frontend-server snapshot compilation to fail.
 
 ## Quick Start
 
@@ -68,7 +74,7 @@ Add AOPD to your Flutter app:
 
 ```yaml
 dependencies:
-  aopd: ^0.1.0
+  aopd: any
 ```
 
 Enable AOPD in the app `pubspec.yaml`:

@@ -8,14 +8,12 @@ class RouteAnalyticsRuntime {
 
   final RouteTracker routeTracker = RouteTracker();
 
-  NavigatorObserver get routeObserver => AppRouteObserver(
-        routeTracker: routeTracker,
-      );
+  NavigatorObserver get routeObserver =>
+      AppRouteObserver(routeTracker: routeTracker);
 }
 
 class AppRouteObserver extends NavigatorObserver {
-  AppRouteObserver({required RouteTracker routeTracker})
-      : _routeTracker = routeTracker;
+  AppRouteObserver({required this._routeTracker});
 
   final RouteTracker _routeTracker;
 
@@ -60,8 +58,7 @@ class RouteTracker {
     }
   }
 
-  Route<dynamic>? get currentRoute =>
-      _routes.isEmpty ? null : _routes.last;
+  Route<dynamic>? get currentRoute => _routes.isEmpty ? null : _routes.last;
 
   PageRoute<dynamic>? get topPage {
     for (final Route<dynamic> route in _routes.reversed) {

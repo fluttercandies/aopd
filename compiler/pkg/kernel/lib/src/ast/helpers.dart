@@ -119,7 +119,9 @@ class _ChildReplacer extends Transformer {
 ///
 /// Returns `null` if the member is `null`.
 Reference? getMemberReferenceBasedOnProcedureKind(
-    Member? member, ProcedureKind kind) {
+  Member? member,
+  ProcedureKind kind,
+) {
   if (member == null) return null;
   if (member is Field) {
     if (kind == ProcedureKind.Setter) return member.setterReference!;
@@ -204,7 +206,8 @@ class _Hash {
     return combine2Finish(object2.hashCode, object2.hashCode, 0);
   }
 
-  static int combineListHash(List<Object> list, [int hash = 1]) {
+  static int combineListHash(List<Object> list) {
+    int hash = 1;
     for (Object item in list) {
       hash = _Hash.combine(item.hashCode, hash);
     }
@@ -221,9 +224,10 @@ class _Hash {
   static int combineMapHashUnordered(Map? map, [int hash = 2]) {
     if (map == null || map.isEmpty) return hash;
     List<int> entryHashes = List.filled(
-        map.length,
-        // `-1` is used as a dummy default value.
-        -1);
+      map.length,
+      // `-1` is used as a dummy default value.
+      -1,
+    );
     int i = 0;
     for (MapEntry entry in map.entries) {
       entryHashes[i++] = combine(entry.key.hashCode, entry.value.hashCode);
@@ -265,30 +269,21 @@ bool mapEquals(Map a, Map b) {
 /// static analysis and runtime behavior of the library are unaffected.
 const Null informative = null;
 
-Location? _getLocationInComponent(Component? component, Uri fileUri, int offset,
-    {required String viaForErrorMessage}) {
+Location? _getLocationInComponent(
+  Component? component,
+  Uri fileUri,
+  int offset, {
+  required String viaForErrorMessage,
+}) {
   if (component != null) {
-    return component.getLocation(fileUri, offset,
-        viaForErrorMessage: viaForErrorMessage);
+    return component.getLocation(
+      fileUri,
+      offset,
+      viaForErrorMessage: viaForErrorMessage,
+    );
   } else {
     return new Location(fileUri, TreeNode.noOffset, TreeNode.noOffset);
   }
-}
-
-/// Convert the synthetic name of an implicit mixin application class
-/// into a name suitable for user-faced strings.
-///
-/// For example, when compiling "class A extends S with M1, M2", the
-/// two synthetic classes will be named "_A&S&M1" and "_A&S&M1&M2".
-/// This function will return "S with M1" and "S with M1, M2", respectively.
-String demangleMixinApplicationName(String name) {
-  List<String> nameParts = name.split('&');
-  if (nameParts.length < 2 || name == "&") return name;
-  String demangledName = nameParts[1];
-  for (int i = 2; i < nameParts.length; i++) {
-    demangledName += (i == 2 ? " with " : ", ") + nameParts[i];
-  }
-  return demangledName;
 }
 
 /// Extract from the synthetic name of an implicit mixin application class
@@ -306,11 +301,18 @@ String demangleMixinApplicationSubclassName(String name) {
 
 /// Computes a list of [typeParameters] taken as types.
 List<DartType> getAsTypeArguments(
-    List<TypeParameter> typeParameters, Library library) {
+  List<TypeParameter> typeParameters,
+  Library library,
+) {
   if (typeParameters.isEmpty) return const <DartType>[];
   return new List<DartType>.generate(
-      typeParameters.length,
-      (int i) => new TypeParameterType.withDefaultNullability(
-          typeParameters[i]),
-      growable: false);
+    typeParameters.length,
+    (int i) => new TypeParameterType.withDefaultNullability(typeParameters[i]),
+    growable: false,
+  );
+}
+
+bool isThisExpression(Expression expression) {
+  return expression is ThisExpression ||
+      expression is VariableGet && expression.variable is ThisVariable;
 }

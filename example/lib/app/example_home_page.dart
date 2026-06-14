@@ -366,8 +366,8 @@ class _CatalogItem {
     required this.icon,
     required this.color,
     required this.routeName,
-    required int order,
-  }) : _order = order;
+    required this._order,
+  });
 
   final String title;
   final String subtitle;

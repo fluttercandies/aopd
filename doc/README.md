@@ -22,7 +22,8 @@ future work is tracked in [Optimization Backlog](optimization-backlog.md).
 
 ## Current Support Snapshot
 
-- AOPD `0.1.x` targets Flutter 3.35.7 / Dart 3.9.2.
+- The supported Flutter/Dart SDK line is declared in the root `pubspec.yaml`.
+- Release-to-release support changes are recorded in `CHANGELOG.md`.
 - Full builds and first `flutter run` compilation are the supported path.
 - Hot reload / resident incremental compilation remains experimental.
 - `compiler/pkg/*` is an upstream SDK mirror, not AOP patch storage.
@@ -54,7 +55,8 @@ future work is tracked in [Optimization Backlog](optimization-backlog.md).
 
 ## 当前支持快照
 
-- AOPD `0.1.x` 面向 Flutter 3.35.7 / Dart 3.9.2。
+- 当前支持的 Flutter/Dart SDK 范围以根目录 `pubspec.yaml` 为准。
+- 每个发布版本的支持变化记录在 `CHANGELOG.md` 中。
 - 正式支持全量 build 和首次 `flutter run` 编译。
 - Hot reload / resident 增量编译仍是实验能力。
 - `compiler/pkg/*` 是上游 SDK 镜像，不存放 AOP patch。

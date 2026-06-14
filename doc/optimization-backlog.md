@@ -91,7 +91,7 @@ Current state:
 
 Recommended work:
 
-- When moving beyond Flutter 3.35.x / Dart 3.9.x, turn the manual SDK mirror
+- When moving to the next Flutter/Dart SDK line, turn the manual SDK mirror
   update steps into a repeatable checklist with exact source revision capture.
 - Add a smoke test that confirms the patched Flutter tool starts the expected
   app-local snapshot after the upgrade.
@@ -180,8 +180,8 @@ Risk: medium. Value: high for future releases.
 
 建议工作：
 
-- 当升级到 Flutter 3.35.x / Dart 3.9.x 之后的版本时，把手动 SDK 镜像更新步骤整理成
-  可重复 checklist，并记录精确源码 revision。
+- 当迁移到下一条 Flutter/Dart SDK 支持线时，把手动 SDK 镜像更新步骤整理成可重复
+  checklist，并记录精确源码 revision。
 - 增加 smoke test，确认 patch 后的 Flutter tool 会启动预期的 app 本地 snapshot。
 
 风险：中。价值：对后续版本发布高。

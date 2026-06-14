@@ -23,25 +23,45 @@ class FieldFragmentBodyBuilderContext extends BodyBuilderContext {
 
   final bool _isConst;
 
-  FieldFragmentBodyBuilderContext(this._builder, this._declaration,
-      {required this.isLateField,
-      required this.isAbstractField,
-      required this.isExternalField,
-      required int nameOffset,
-      required int nameLength,
-      required bool isConst})
-      : this._nameOffset = nameOffset,
-        this._nameLength = nameLength,
-        this._isConst = isConst,
-        super(_builder.libraryBuilder, _builder.declarationBuilder,
-            isDeclarationInstanceMember: _builder.isDeclarationInstanceMember);
+  FieldFragmentBodyBuilderContext(
+    this._builder,
+    this._declaration, {
+    required this.isLateField,
+    required this.isAbstractField,
+    required this.isExternalField,
+    required int nameOffset,
+    required int nameLength,
+    required bool isConst,
+  }) : this._nameOffset = nameOffset,
+       this._nameLength = nameLength,
+       this._isConst = isConst,
+       super(
+         _builder.libraryBuilder,
+         _builder.declarationBuilder,
+         isDeclarationInstanceMember: _builder.isDeclarationInstanceMember,
+       );
 
   @override
-  // Coverage-ignore(suite): Not run.
-  LocalScope computeFormalParameterInitializerScope(LocalScope parent) {
-    /// Initializer formals or super parameters cannot occur in getters so
-    /// we don't need to create a new scope.
-    return parent;
+  bool get inPrimaryConstructorFieldInitializer {
+    DeclarationBuilder? declarationBuilder = _builder.declarationBuilder;
+    if (declarationBuilder is SourceClassBuilder &&
+        !_declaration.isStatic &&
+        !isLateField) {
+      return declarationBuilder.hasPrimaryConstructor;
+    }
+    return false;
+  }
+
+  @override
+  List<FormalParameterBuilder>?
+  get primaryConstructorInitializerScopeParameters {
+    DeclarationBuilder? declarationBuilder = _builder.declarationBuilder;
+    if (declarationBuilder is SourceClassBuilder &&
+        !_declaration.isStatic &&
+        !isLateField) {
+      return declarationBuilder.primaryConstructorInitializerScopeParameters;
+    }
+    return null;
   }
 
   @override
@@ -70,8 +90,12 @@ class FieldFragmentBodyBuilderContext extends BodyBuilderContext {
   ConstantContext get constantContext {
     return _isConst
         ? ConstantContext.inferred
+        // TODO(johnniwinther): We should report something better when a
+        // final field in a class with a const constructor isn't initialized
+        // to a constant. Currently we just report 'Not a constant expression'
+        // on the initializer, as if the field was declared const itself.
         : !_declaration.isStatic && declarationDeclaresConstConstructor
-            ? ConstantContext.required
-            : ConstantContext.none;
+        ? ConstantContext.required
+        : ConstantContext.none;
   }
 }

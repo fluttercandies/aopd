@@ -8,7 +8,7 @@ import '../constants/constant_system.dart' as constant_system;
 import '../constants/values.dart';
 import '../elements/entities.dart';
 import '../elements/types.dart';
-import '../ir/element_map.dart';
+import 'element_map.dart';
 import 'util.dart' show recordShapeOfRecordType;
 
 /// Visitor that converts string literals and concatenations of string literals
@@ -43,7 +43,8 @@ class Stringifier extends ir.ExpressionVisitor<String?>
 }
 
 /// Visitor that converts kernel dart types into [DartType].
-class DartTypeConverter extends ir.DartTypeVisitor<DartType> {
+class DartTypeConverter extends ir.DartTypeVisitor<DartType>
+    with ir.DartTypeVisitorExperimentExclusionMixin<DartType> {
   final IrToElementMap elementMap;
   final Map<ir.StructuralParameter, DartType> currentFunctionTypeParameters =
       <ir.StructuralParameter, DartType>{};
@@ -358,7 +359,17 @@ class ConstantValuefier extends ir.ComputeOnceConstantVisitor<ConstantValue> {
 
   @override
   ConstantValue visitSymbolConstant(ir.SymbolConstant node) {
-    return constant_system.createSymbol(elementMap.commonElements, node.name);
+    final value = constant_system.createSymbol(
+      elementMap.commonElements,
+      node.name,
+    );
+    if (node.libraryReference != null) {
+      elementMap.registerSymbolLibrary(
+        value,
+        node.libraryReference!.asLibrary.importUri,
+      );
+    }
+    return value;
   }
 
   @override

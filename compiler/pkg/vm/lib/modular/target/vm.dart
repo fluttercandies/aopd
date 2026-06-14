@@ -29,7 +29,7 @@ import '../transformations/ffi/native.dart'
     show transformLibraries;
 import '../transformations/ffi/use_sites.dart'
     as transformFfiUseSites
-    show transformLibraries;
+    show transformLibraries, transformProcedure;
 
 class VmTarget extends Target {
   final TargetFlags flags;
@@ -55,6 +55,9 @@ class VmTarget extends Target {
 
   @override
   bool get supportsSetLiterals => false;
+
+  @override
+  bool get supportsFileUriExpression => true;
 
   @override
   int get enabledLateLowerings => LateLowering.none;
@@ -95,6 +98,7 @@ class VmTarget extends Target {
     'dart:mirrors',
 
     'dart:typed_data',
+    'dart:_vm',
     'dart:vmservice_io',
     'dart:_vmservice',
     'dart:_builtin',
@@ -173,14 +177,6 @@ class VmTarget extends Target {
     void Function(String msg)? logger,
     ChangedStructureNotifier? changedStructureNotifier,
   }) {
-    deeply_immutable.validateLibraries(
-      component,
-      libraries,
-      coreTypes,
-      diagnosticReporter,
-    );
-    logger?.call("Validated deeply immutable");
-
     transformMixins.transformLibraries(
       this,
       coreTypes,
@@ -225,15 +221,25 @@ class VmTarget extends Target {
       // VM pragma attached to valid targets in the native transformer. Hence,
       // it can only run after `@Native` targets have been transformed.
       transformFfiUseSites.transformLibraries(
+        this,
         component,
         coreTypes,
         hierarchy,
         transitiveImportingDartFfi,
         diagnosticReporter,
         referenceFromIndex,
+        environmentDefines,
       );
       logger?.call("Transformed ffi use sites");
     }
+
+    deeply_immutable.validateLibraries(
+      component,
+      libraries,
+      coreTypes,
+      diagnosticReporter,
+    );
+    logger?.call("Validated deeply immutable");
 
     bool productMode = environmentDefines!["dart.vm.product"] == "true";
     lowering.transformLibraries(
@@ -241,6 +247,7 @@ class VmTarget extends Target {
       coreTypes,
       hierarchy,
       productMode: productMode,
+      isClosureContextLoweringEnabled: flags.isClosureContextLoweringEnabled,
     );
     logger?.call("Lowering transformations performed");
 
@@ -260,13 +267,36 @@ class VmTarget extends Target {
     Procedure procedure,
     Map<String, String>? environmentDefines, {
     void Function(String msg)? logger,
+    required DiagnosticReporter diagnosticReporter,
   }) {
+    final TreeNode? component = procedure.enclosingLibrary.parent;
+    if (component is Component) {
+      final List<Library>? transitiveImportingDartFfi = ffiHelper
+          .calculateTransitiveImportsOfDartFfiIfUsed(component, [
+            procedure.enclosingLibrary,
+          ]);
+      if (transitiveImportingDartFfi != null) {
+        transformFfiUseSites.transformProcedure(
+          this,
+          component,
+          coreTypes,
+          hierarchy,
+          procedure,
+          diagnosticReporter,
+          null,
+          environmentDefines,
+        );
+        logger?.call("Transformed ffi use sites");
+      }
+    }
+
     bool productMode = environmentDefines!["dart.vm.product"] == "true";
     lowering.transformProcedure(
       procedure,
       coreTypes,
       hierarchy,
       productMode: productMode,
+      isClosureContextLoweringEnabled: flags.isClosureContextLoweringEnabled,
     );
     logger?.call("Lowering transformations performed");
   }
@@ -359,91 +389,25 @@ class VmTarget extends Target {
     );
   }
 
-  @override
-  Expression instantiateNoSuchMethodError(
-    CoreTypes coreTypes,
-    Expression receiver,
-    String name,
-    Arguments arguments,
-    int offset, {
-    bool isMethod = false,
-    bool isGetter = false,
-    bool isSetter = false,
-    bool isField = false,
-    bool isLocalVariable = false,
-    bool isDynamic = false,
-    bool isSuper = false,
-    bool isStatic = false,
-    bool isConstructor = false,
-    bool isTopLevel = false,
-  }) {
-    int type = _invocationType(
-      isMethod: isMethod,
-      isGetter: isGetter,
-      isSetter: isSetter,
-      isField: isField,
-      isLocalVariable: isLocalVariable,
-      isDynamic: isDynamic,
-      isSuper: isSuper,
-      isStatic: isStatic,
-      isConstructor: isConstructor,
-      isTopLevel: isTopLevel,
-    );
-    return new StaticInvocation(
-      coreTypes.noSuchMethodErrorDefaultConstructor,
-      new Arguments(<Expression>[
-        receiver,
-        _instantiateInvocationMirrorWithType(
-          coreTypes,
-          receiver,
-          name,
-          arguments,
-          offset,
-          type,
-        ),
-      ]),
-    );
-  }
-
   int _invocationType({
     bool isMethod = false,
     bool isGetter = false,
     bool isSetter = false,
-    bool isField = false,
-    bool isLocalVariable = false,
-    bool isDynamic = false,
     bool isSuper = false,
-    bool isStatic = false,
-    bool isConstructor = false,
-    bool isTopLevel = false,
   }) {
     // This is copied from [_InvocationMirror](
     // ../../../../../../runtime/lib/invocation_mirror_patch.dart).
 
     // Constants describing the invocation type.
-    // _FIELD cannot be generated by regular invocation mirrors.
     const int _METHOD = 0;
     const int _GETTER = 1;
     const int _SETTER = 2;
-    const int _FIELD = 3;
-    const int _LOCAL_VAR = 4;
-    // ignore: UNUSED_LOCAL_VARIABLE
-    const int _KIND_SHIFT = 0;
     const int _KIND_BITS = 3;
-    // ignore: UNUSED_LOCAL_VARIABLE
-    const int _KIND_MASK = (1 << _KIND_BITS) - 1;
 
-    // These values, except _DYNAMIC and _SUPER, are only used when throwing
+    // These values, except _SUPER, are only used when throwing
     // NoSuchMethodError for compile-time resolution failures.
-    const int _DYNAMIC = 0;
     const int _SUPER = 1;
-    const int _STATIC = 2;
-    const int _CONSTRUCTOR = 3;
-    const int _TOP_LEVEL = 4;
     const int _LEVEL_SHIFT = _KIND_BITS;
-    const int _LEVEL_BITS = 3;
-    // ignore: UNUSED_LOCAL_VARIABLE
-    const int _LEVEL_MASK = (1 << _LEVEL_BITS) - 1;
 
     int type = -1;
     // For convenience, [isGetter] and [isSetter] takes precedence over
@@ -454,22 +418,10 @@ class VmTarget extends Target {
       type = _SETTER;
     } else if (isMethod) {
       type = _METHOD;
-    } else if (isField) {
-      type = _FIELD;
-    } else if (isLocalVariable) {
-      type = _LOCAL_VAR;
     }
 
-    if (isDynamic) {
-      type |= (_DYNAMIC << _LEVEL_SHIFT);
-    } else if (isSuper) {
+    if (isSuper) {
       type |= (_SUPER << _LEVEL_SHIFT);
-    } else if (isStatic) {
-      type |= (_STATIC << _LEVEL_SHIFT);
-    } else if (isConstructor) {
-      type |= (_CONSTRUCTOR << _LEVEL_SHIFT);
-    } else if (isTopLevel) {
-      type |= (_TOP_LEVEL << _LEVEL_SHIFT);
     }
 
     return type;
@@ -512,7 +464,9 @@ class VmTarget extends Target {
       importer.path.contains('runtime/tests/vm/dart') ||
       importer.path.contains('tests/standalone/io') ||
       importer.path.contains('test-lib') ||
-      importer.path.contains('tests/ffi');
+      importer.path.contains('tests/ffi') ||
+      (importer.path == 'dart_runtime_service_vm/src/native_bindings.dart' &&
+          imported.path == '_vmservice');
 
   @override
   Component configureComponent(Component component) {
@@ -625,7 +579,12 @@ class VmTarget extends Target {
   }
 
   @override
-  ConstantsBackend get constantsBackend => const ConstantsBackend();
+  ConstantsBackend get constantsBackend =>
+      switch (flags.constKeepLocalsIndicator) {
+        null => const ConstantsBackend(/* keeps defaults */),
+        true => const ConstantsBackend(keepLocals: true),
+        false => const ConstantsBackend(keepLocals: false),
+      };
 
   @override
   Map<String, String> updateEnvironmentDefines(Map<String, String> map) {
@@ -636,10 +595,9 @@ class VmTarget extends Target {
   }
 
   @override
-  DartLibrarySupport get dartLibrarySupport =>
-      flags.supportMirrors
-          ? const DefaultDartLibrarySupport()
-          : const CustomizedDartLibrarySupport(unsupported: {'mirrors'});
+  DartLibrarySupport get dartLibrarySupport => flags.supportMirrors
+      ? const DefaultDartLibrarySupport()
+      : const CustomizedDartLibrarySupport(unsupported: {'mirrors'});
 
   @override
   bool isSupportedPragma(String pragmaName) =>

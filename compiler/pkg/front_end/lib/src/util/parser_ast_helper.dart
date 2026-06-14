@@ -62,8 +62,10 @@ abstract class ParserAstNode {
       }
     }
     if (tokenWithSmallestOffset != null) {
-      sb.write(" (${tokenWithSmallestOffset.lexeme} @ "
-          "${tokenWithSmallestOffset.charOffset})");
+      sb.write(
+        " (${tokenWithSmallestOffset.lexeme} @ "
+        "${tokenWithSmallestOffset.charOffset})",
+      );
     }
     sb.writeln();
     List<ParserAstNode>? children = this.children;
@@ -96,39 +98,52 @@ abstract class AbstractParserAstListener implements Listener {
 
   @override
   void endArguments(int count, Token beginToken, Token endToken) {
-    ArgumentsEnd data = new ArgumentsEnd(ParserAstType.END,
-        count: count, beginToken: beginToken, endToken: endToken);
+    ArgumentsEnd data = new ArgumentsEnd(
+      ParserAstType.END,
+      count: count,
+      beginToken: beginToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void handleObjectPatternFields(int count, Token beginToken, Token endToken) {
     ObjectPatternFieldsHandle data = new ObjectPatternFieldsHandle(
-        ParserAstType.HANDLE,
-        count: count,
-        beginToken: beginToken,
-        endToken: endToken);
+      ParserAstType.HANDLE,
+      count: count,
+      beginToken: beginToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void handleAsyncModifier(Token? asyncToken, Token? starToken) {
-    AsyncModifierHandle data = new AsyncModifierHandle(ParserAstType.HANDLE,
-        asyncToken: asyncToken, starToken: starToken);
+    AsyncModifierHandle data = new AsyncModifierHandle(
+      ParserAstType.HANDLE,
+      asyncToken: asyncToken,
+      starToken: starToken,
+    );
     seen(data);
   }
 
   @override
   void beginAwaitExpression(Token token) {
-    AwaitExpressionBegin data =
-        new AwaitExpressionBegin(ParserAstType.BEGIN, token: token);
+    AwaitExpressionBegin data = new AwaitExpressionBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endAwaitExpression(Token beginToken, Token endToken) {
-    AwaitExpressionEnd data = new AwaitExpressionEnd(ParserAstType.END,
-        beginToken: beginToken, endToken: endToken);
+    AwaitExpressionEnd data = new AwaitExpressionEnd(
+      ParserAstType.END,
+      beginToken: beginToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
@@ -139,17 +154,21 @@ abstract class AbstractParserAstListener implements Listener {
     MessageCode errorCode,
   ) {
     InvalidAwaitExpressionEnd data = new InvalidAwaitExpressionEnd(
-        ParserAstType.END,
-        beginToken: beginToken,
-        endToken: endToken,
-        errorCode: errorCode);
+      ParserAstType.END,
+      beginToken: beginToken,
+      endToken: endToken,
+      errorCode: errorCode,
+    );
     seen(data);
   }
 
   @override
   void beginBlock(Token token, BlockKind blockKind) {
-    BlockBegin data =
-        new BlockBegin(ParserAstType.BEGIN, token: token, blockKind: blockKind);
+    BlockBegin data = new BlockBegin(
+      ParserAstType.BEGIN,
+      token: token,
+      blockKind: blockKind,
+    );
     seen(data);
   }
 
@@ -160,18 +179,22 @@ abstract class AbstractParserAstListener implements Listener {
     Token endToken,
     BlockKind blockKind,
   ) {
-    BlockEnd data = new BlockEnd(ParserAstType.END,
-        count: count,
-        beginToken: beginToken,
-        endToken: endToken,
-        blockKind: blockKind);
+    BlockEnd data = new BlockEnd(
+      ParserAstType.END,
+      count: count,
+      beginToken: beginToken,
+      endToken: endToken,
+      blockKind: blockKind,
+    );
     seen(data);
   }
 
   @override
   void handleInvalidTopLevelBlock(Token token) {
-    InvalidTopLevelBlockHandle data =
-        new InvalidTopLevelBlockHandle(ParserAstType.HANDLE, token: token);
+    InvalidTopLevelBlockHandle data = new InvalidTopLevelBlockHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
@@ -189,23 +212,32 @@ abstract class AbstractParserAstListener implements Listener {
 
   @override
   void beginCaseExpression(Token caseKeyword) {
-    CaseExpressionBegin data =
-        new CaseExpressionBegin(ParserAstType.BEGIN, caseKeyword: caseKeyword);
+    CaseExpressionBegin data = new CaseExpressionBegin(
+      ParserAstType.BEGIN,
+      caseKeyword: caseKeyword,
+    );
     seen(data);
   }
 
   @override
   void endCaseExpression(Token caseKeyword, Token? when, Token colon) {
-    CaseExpressionEnd data = new CaseExpressionEnd(ParserAstType.END,
-        caseKeyword: caseKeyword, when: when, colon: colon);
+    CaseExpressionEnd data = new CaseExpressionEnd(
+      ParserAstType.END,
+      caseKeyword: caseKeyword,
+      when: when,
+      colon: colon,
+    );
     seen(data);
   }
 
   @override
   void beginClassOrMixinOrExtensionBody(DeclarationKind kind, Token token) {
     ClassOrMixinOrExtensionBodyBegin data =
-        new ClassOrMixinOrExtensionBodyBegin(ParserAstType.BEGIN,
-            kind: kind, token: token);
+        new ClassOrMixinOrExtensionBodyBegin(
+          ParserAstType.BEGIN,
+          kind: kind,
+          token: token,
+        );
     seen(data);
   }
 
@@ -217,19 +249,22 @@ abstract class AbstractParserAstListener implements Listener {
     Token endToken,
   ) {
     ClassOrMixinOrExtensionBodyEnd data = new ClassOrMixinOrExtensionBodyEnd(
-        ParserAstType.END,
-        kind: kind,
-        memberCount: memberCount,
-        beginToken: beginToken,
-        endToken: endToken);
+      ParserAstType.END,
+      kind: kind,
+      memberCount: memberCount,
+      beginToken: beginToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginClassOrMixinOrNamedMixinApplicationPrelude(Token token) {
     ClassOrMixinOrNamedMixinApplicationPreludeBegin data =
-        new ClassOrMixinOrNamedMixinApplicationPreludeBegin(ParserAstType.BEGIN,
-            token: token);
+        new ClassOrMixinOrNamedMixinApplicationPreludeBegin(
+          ParserAstType.BEGIN,
+          token: token,
+        );
     seen(data);
   }
 
@@ -246,52 +281,87 @@ abstract class AbstractParserAstListener implements Listener {
     Token? mixinToken,
     Token name,
   ) {
-    ClassDeclarationBegin data = new ClassDeclarationBegin(ParserAstType.BEGIN,
-        begin: begin,
-        abstractToken: abstractToken,
-        macroToken: macroToken,
-        sealedToken: sealedToken,
-        baseToken: baseToken,
-        interfaceToken: interfaceToken,
-        finalToken: finalToken,
-        augmentToken: augmentToken,
-        mixinToken: mixinToken,
-        name: name);
+    ClassDeclarationBegin data = new ClassDeclarationBegin(
+      ParserAstType.BEGIN,
+      begin: begin,
+      abstractToken: abstractToken,
+      macroToken: macroToken,
+      sealedToken: sealedToken,
+      baseToken: baseToken,
+      interfaceToken: interfaceToken,
+      finalToken: finalToken,
+      augmentToken: augmentToken,
+      mixinToken: mixinToken,
+      name: name,
+    );
     seen(data);
   }
 
   @override
   void handleClassExtends(Token? extendsKeyword, int typeCount) {
-    ClassExtendsHandle data = new ClassExtendsHandle(ParserAstType.HANDLE,
-        extendsKeyword: extendsKeyword, typeCount: typeCount);
+    ClassExtendsHandle data = new ClassExtendsHandle(
+      ParserAstType.HANDLE,
+      extendsKeyword: extendsKeyword,
+      typeCount: typeCount,
+    );
     seen(data);
   }
 
   @override
   void handleImplements(Token? implementsKeyword, int interfacesCount) {
-    ImplementsHandle data = new ImplementsHandle(ParserAstType.HANDLE,
-        implementsKeyword: implementsKeyword, interfacesCount: interfacesCount);
+    ImplementsHandle data = new ImplementsHandle(
+      ParserAstType.HANDLE,
+      implementsKeyword: implementsKeyword,
+      interfacesCount: interfacesCount,
+    );
     seen(data);
   }
 
   @override
   void handleClassHeader(Token begin, Token classKeyword, Token? nativeToken) {
-    ClassHeaderHandle data = new ClassHeaderHandle(ParserAstType.HANDLE,
-        begin: begin, classKeyword: classKeyword, nativeToken: nativeToken);
+    ClassHeaderHandle data = new ClassHeaderHandle(
+      ParserAstType.HANDLE,
+      begin: begin,
+      classKeyword: classKeyword,
+      nativeToken: nativeToken,
+    );
     seen(data);
   }
 
   @override
   void handleRecoverDeclarationHeader(DeclarationHeaderKind kind) {
-    RecoverDeclarationHeaderHandle data =
-        new RecoverDeclarationHeaderHandle(ParserAstType.HANDLE, kind: kind);
+    RecoverDeclarationHeaderHandle data = new RecoverDeclarationHeaderHandle(
+      ParserAstType.HANDLE,
+      kind: kind,
+    );
     seen(data);
   }
 
   @override
   void endClassDeclaration(Token beginToken, Token endToken) {
-    ClassDeclarationEnd data = new ClassDeclarationEnd(ParserAstType.END,
-        beginToken: beginToken, endToken: endToken);
+    ClassDeclarationEnd data = new ClassDeclarationEnd(
+      ParserAstType.END,
+      beginToken: beginToken,
+      endToken: endToken,
+    );
+    seen(data);
+  }
+
+  @override
+  void handleNoClassBody(Token semicolonToken) {
+    NoClassBodyHandle data = new NoClassBodyHandle(
+      ParserAstType.HANDLE,
+      semicolonToken: semicolonToken,
+    );
+    seen(data);
+  }
+
+  @override
+  void handleNoExtensionTypeBody(Token semicolonToken) {
+    NoExtensionTypeBodyHandle data = new NoExtensionTypeBodyHandle(
+      ParserAstType.HANDLE,
+      semicolonToken: semicolonToken,
+    );
     seen(data);
   }
 
@@ -303,56 +373,80 @@ abstract class AbstractParserAstListener implements Listener {
     Token mixinKeyword,
     Token name,
   ) {
-    MixinDeclarationBegin data = new MixinDeclarationBegin(ParserAstType.BEGIN,
-        beginToken: beginToken,
-        augmentToken: augmentToken,
-        baseToken: baseToken,
-        mixinKeyword: mixinKeyword,
-        name: name);
+    MixinDeclarationBegin data = new MixinDeclarationBegin(
+      ParserAstType.BEGIN,
+      beginToken: beginToken,
+      augmentToken: augmentToken,
+      baseToken: baseToken,
+      mixinKeyword: mixinKeyword,
+      name: name,
+    );
     seen(data);
   }
 
   @override
   void handleMixinOn(Token? onKeyword, int typeCount) {
-    MixinOnHandle data = new MixinOnHandle(ParserAstType.HANDLE,
-        onKeyword: onKeyword, typeCount: typeCount);
+    MixinOnHandle data = new MixinOnHandle(
+      ParserAstType.HANDLE,
+      onKeyword: onKeyword,
+      typeCount: typeCount,
+    );
     seen(data);
   }
 
   @override
   void handleMixinHeader(Token mixinKeyword) {
-    MixinHeaderHandle data =
-        new MixinHeaderHandle(ParserAstType.HANDLE, mixinKeyword: mixinKeyword);
+    MixinHeaderHandle data = new MixinHeaderHandle(
+      ParserAstType.HANDLE,
+      mixinKeyword: mixinKeyword,
+    );
     seen(data);
   }
 
   @override
   void handleRecoverMixinHeader() {
-    RecoverMixinHeaderHandle data =
-        new RecoverMixinHeaderHandle(ParserAstType.HANDLE);
+    RecoverMixinHeaderHandle data = new RecoverMixinHeaderHandle(
+      ParserAstType.HANDLE,
+    );
+    seen(data);
+  }
+
+  @override
+  void handleNoMixinBody(Token semicolonToken) {
+    NoMixinBodyHandle data = new NoMixinBodyHandle(
+      ParserAstType.HANDLE,
+      semicolonToken: semicolonToken,
+    );
     seen(data);
   }
 
   @override
   void endMixinDeclaration(Token beginToken, Token endToken) {
-    MixinDeclarationEnd data = new MixinDeclarationEnd(ParserAstType.END,
-        beginToken: beginToken, endToken: endToken);
+    MixinDeclarationEnd data = new MixinDeclarationEnd(
+      ParserAstType.END,
+      beginToken: beginToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginUncategorizedTopLevelDeclaration(Token token) {
     UncategorizedTopLevelDeclarationBegin data =
-        new UncategorizedTopLevelDeclarationBegin(ParserAstType.BEGIN,
-            token: token);
+        new UncategorizedTopLevelDeclarationBegin(
+          ParserAstType.BEGIN,
+          token: token,
+        );
     seen(data);
   }
 
   @override
   void beginExtensionDeclarationPrelude(Token extensionKeyword) {
     ExtensionDeclarationPreludeBegin data =
-        new ExtensionDeclarationPreludeBegin(ParserAstType.BEGIN,
-            extensionKeyword: extensionKeyword);
+        new ExtensionDeclarationPreludeBegin(
+          ParserAstType.BEGIN,
+          extensionKeyword: extensionKeyword,
+        );
     seen(data);
   }
 
@@ -363,10 +457,11 @@ abstract class AbstractParserAstListener implements Listener {
     Token? name,
   ) {
     ExtensionDeclarationBegin data = new ExtensionDeclarationBegin(
-        ParserAstType.BEGIN,
-        augmentToken: augmentToken,
-        extensionKeyword: extensionKeyword,
-        name: name);
+      ParserAstType.BEGIN,
+      augmentToken: augmentToken,
+      extensionKeyword: extensionKeyword,
+      name: name,
+    );
     seen(data);
   }
 
@@ -378,11 +473,21 @@ abstract class AbstractParserAstListener implements Listener {
     Token endToken,
   ) {
     ExtensionDeclarationEnd data = new ExtensionDeclarationEnd(
-        ParserAstType.END,
-        beginToken: beginToken,
-        extensionKeyword: extensionKeyword,
-        onKeyword: onKeyword,
-        endToken: endToken);
+      ParserAstType.END,
+      beginToken: beginToken,
+      extensionKeyword: extensionKeyword,
+      onKeyword: onKeyword,
+      endToken: endToken,
+    );
+    seen(data);
+  }
+
+  @override
+  void handleNoExtensionBody(Token semicolonToken) {
+    NoExtensionBodyHandle data = new NoExtensionBodyHandle(
+      ParserAstType.HANDLE,
+      semicolonToken: semicolonToken,
+    );
     seen(data);
   }
 
@@ -393,10 +498,11 @@ abstract class AbstractParserAstListener implements Listener {
     Token name,
   ) {
     ExtensionTypeDeclarationBegin data = new ExtensionTypeDeclarationBegin(
-        ParserAstType.BEGIN,
-        augmentKeyword: augmentKeyword,
-        extensionKeyword: extensionKeyword,
-        name: name);
+      ParserAstType.BEGIN,
+      augmentKeyword: augmentKeyword,
+      extensionKeyword: extensionKeyword,
+      name: name,
+    );
     seen(data);
   }
 
@@ -409,49 +515,87 @@ abstract class AbstractParserAstListener implements Listener {
     Token endToken,
   ) {
     ExtensionTypeDeclarationEnd data = new ExtensionTypeDeclarationEnd(
-        ParserAstType.END,
-        beginToken: beginToken,
-        augmentToken: augmentToken,
-        extensionKeyword: extensionKeyword,
-        typeKeyword: typeKeyword,
-        endToken: endToken);
+      ParserAstType.END,
+      beginToken: beginToken,
+      augmentToken: augmentToken,
+      extensionKeyword: extensionKeyword,
+      typeKeyword: typeKeyword,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginPrimaryConstructor(Token beginToken) {
     PrimaryConstructorBegin data = new PrimaryConstructorBegin(
-        ParserAstType.BEGIN,
-        beginToken: beginToken);
+      ParserAstType.BEGIN,
+      beginToken: beginToken,
+    );
     seen(data);
   }
 
   @override
   void endPrimaryConstructor(
+    DeclarationKind kind,
     Token beginToken,
     Token? constKeyword,
     bool hasConstructorName,
   ) {
-    PrimaryConstructorEnd data = new PrimaryConstructorEnd(ParserAstType.END,
-        beginToken: beginToken,
-        constKeyword: constKeyword,
-        hasConstructorName: hasConstructorName);
+    PrimaryConstructorEnd data = new PrimaryConstructorEnd(
+      ParserAstType.END,
+      kind: kind,
+      beginToken: beginToken,
+      constKeyword: constKeyword,
+      hasConstructorName: hasConstructorName,
+    );
     seen(data);
   }
 
   @override
-  void handleNoPrimaryConstructor(Token token, Token? constKeyword) {
+  void handleNoPrimaryConstructor(
+    DeclarationKind kind,
+    Token token,
+    Token? constKeyword,
+  ) {
     NoPrimaryConstructorHandle data = new NoPrimaryConstructorHandle(
-        ParserAstType.HANDLE,
-        token: token,
-        constKeyword: constKeyword);
+      ParserAstType.HANDLE,
+      kind: kind,
+      token: token,
+      constKeyword: constKeyword,
+    );
+    seen(data);
+  }
+
+  @override
+  void beginPrimaryConstructorBody(Token token) {
+    PrimaryConstructorBodyBegin data = new PrimaryConstructorBodyBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
+    seen(data);
+  }
+
+  @override
+  void endPrimaryConstructorBody(
+    Token beginToken,
+    Token? beginInitializers,
+    Token endToken,
+  ) {
+    PrimaryConstructorBodyEnd data = new PrimaryConstructorBodyEnd(
+      ParserAstType.END,
+      beginToken: beginToken,
+      beginInitializers: beginInitializers,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginCombinators(Token token) {
-    CombinatorsBegin data =
-        new CombinatorsBegin(ParserAstType.BEGIN, token: token);
+    CombinatorsBegin data = new CombinatorsBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
@@ -463,8 +607,10 @@ abstract class AbstractParserAstListener implements Listener {
 
   @override
   void beginCompilationUnit(Token token) {
-    CompilationUnitBegin data =
-        new CompilationUnitBegin(ParserAstType.BEGIN, token: token);
+    CompilationUnitBegin data = new CompilationUnitBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
@@ -476,29 +622,38 @@ abstract class AbstractParserAstListener implements Listener {
 
   @override
   void endCompilationUnit(int count, Token token) {
-    CompilationUnitEnd data =
-        new CompilationUnitEnd(ParserAstType.END, count: count, token: token);
+    CompilationUnitEnd data = new CompilationUnitEnd(
+      ParserAstType.END,
+      count: count,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void beginConstLiteral(Token token) {
-    ConstLiteralBegin data =
-        new ConstLiteralBegin(ParserAstType.BEGIN, token: token);
+    ConstLiteralBegin data = new ConstLiteralBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endConstLiteral(Token endToken) {
-    ConstLiteralEnd data =
-        new ConstLiteralEnd(ParserAstType.END, endToken: endToken);
+    ConstLiteralEnd data = new ConstLiteralEnd(
+      ParserAstType.END,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginConstructorReference(Token start) {
-    ConstructorReferenceBegin data =
-        new ConstructorReferenceBegin(ParserAstType.BEGIN, start: start);
+    ConstructorReferenceBegin data = new ConstructorReferenceBegin(
+      ParserAstType.BEGIN,
+      start: start,
+    );
     seen(data);
   }
 
@@ -510,18 +665,21 @@ abstract class AbstractParserAstListener implements Listener {
     ConstructorReferenceContext constructorReferenceContext,
   ) {
     ConstructorReferenceEnd data = new ConstructorReferenceEnd(
-        ParserAstType.END,
-        start: start,
-        periodBeforeName: periodBeforeName,
-        endToken: endToken,
-        constructorReferenceContext: constructorReferenceContext);
+      ParserAstType.END,
+      start: start,
+      periodBeforeName: periodBeforeName,
+      endToken: endToken,
+      constructorReferenceContext: constructorReferenceContext,
+    );
     seen(data);
   }
 
   @override
   void beginDoWhileStatement(Token token) {
-    DoWhileStatementBegin data =
-        new DoWhileStatementBegin(ParserAstType.BEGIN, token: token);
+    DoWhileStatementBegin data = new DoWhileStatementBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
@@ -531,84 +689,103 @@ abstract class AbstractParserAstListener implements Listener {
     Token whileKeyword,
     Token endToken,
   ) {
-    DoWhileStatementEnd data = new DoWhileStatementEnd(ParserAstType.END,
-        doKeyword: doKeyword, whileKeyword: whileKeyword, endToken: endToken);
+    DoWhileStatementEnd data = new DoWhileStatementEnd(
+      ParserAstType.END,
+      doKeyword: doKeyword,
+      whileKeyword: whileKeyword,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginDoWhileStatementBody(Token token) {
-    DoWhileStatementBodyBegin data =
-        new DoWhileStatementBodyBegin(ParserAstType.BEGIN, token: token);
+    DoWhileStatementBodyBegin data = new DoWhileStatementBodyBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endDoWhileStatementBody(Token token) {
-    DoWhileStatementBodyEnd data =
-        new DoWhileStatementBodyEnd(ParserAstType.END, token: token);
+    DoWhileStatementBodyEnd data = new DoWhileStatementBodyEnd(
+      ParserAstType.END,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void beginWhileStatementBody(Token token) {
-    WhileStatementBodyBegin data =
-        new WhileStatementBodyBegin(ParserAstType.BEGIN, token: token);
+    WhileStatementBodyBegin data = new WhileStatementBodyBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endWhileStatementBody(Token endToken) {
-    WhileStatementBodyEnd data =
-        new WhileStatementBodyEnd(ParserAstType.END, endToken: endToken);
+    WhileStatementBodyEnd data = new WhileStatementBodyEnd(
+      ParserAstType.END,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
-  void beginEnum(Token enumKeyword) {
-    EnumBegin data =
-        new EnumBegin(ParserAstType.BEGIN, enumKeyword: enumKeyword);
+  void beginEnumDeclarationPrelude(Token enumKeyword) {
+    EnumDeclarationPreludeBegin data = new EnumDeclarationPreludeBegin(
+      ParserAstType.BEGIN,
+      enumKeyword: enumKeyword,
+    );
     seen(data);
   }
 
   @override
-  void endEnum(
+  void beginEnumDeclaration(
+    Token beginToken,
+    Token? augmentToken,
+    Token enumKeyword,
+    Token name,
+  ) {
+    EnumDeclarationBegin data = new EnumDeclarationBegin(
+      ParserAstType.BEGIN,
+      beginToken: beginToken,
+      augmentToken: augmentToken,
+      enumKeyword: enumKeyword,
+      name: name,
+    );
+    seen(data);
+  }
+
+  @override
+  void endEnumDeclaration(
     Token beginToken,
     Token enumKeyword,
     Token leftBrace,
     int memberCount,
     Token endToken,
   ) {
-    EnumEnd data = new EnumEnd(ParserAstType.END,
-        beginToken: beginToken,
-        enumKeyword: enumKeyword,
-        leftBrace: leftBrace,
-        memberCount: memberCount,
-        endToken: endToken);
-    seen(data);
-  }
-
-  @override
-  void endEnumConstructor(
-    Token? getOrSet,
-    Token beginToken,
-    Token beginParam,
-    Token? beginInitializers,
-    Token endToken,
-  ) {
-    EnumConstructorEnd data = new EnumConstructorEnd(ParserAstType.END,
-        getOrSet: getOrSet,
-        beginToken: beginToken,
-        beginParam: beginParam,
-        beginInitializers: beginInitializers,
-        endToken: endToken);
+    EnumDeclarationEnd data = new EnumDeclarationEnd(
+      ParserAstType.END,
+      beginToken: beginToken,
+      enumKeyword: enumKeyword,
+      leftBrace: leftBrace,
+      memberCount: memberCount,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void handleEnumElements(Token elementsEndToken, int elementsCount) {
-    EnumElementsHandle data = new EnumElementsHandle(ParserAstType.HANDLE,
-        elementsEndToken: elementsEndToken, elementsCount: elementsCount);
+    EnumElementsHandle data = new EnumElementsHandle(
+      ParserAstType.HANDLE,
+      elementsEndToken: elementsEndToken,
+      elementsCount: elementsCount,
+    );
     seen(data);
   }
 
@@ -618,30 +795,47 @@ abstract class AbstractParserAstListener implements Listener {
     Token enumKeyword,
     Token leftBrace,
   ) {
-    EnumHeaderHandle data = new EnumHeaderHandle(ParserAstType.HANDLE,
-        augmentToken: augmentToken,
-        enumKeyword: enumKeyword,
-        leftBrace: leftBrace);
+    EnumHeaderHandle data = new EnumHeaderHandle(
+      ParserAstType.HANDLE,
+      augmentToken: augmentToken,
+      enumKeyword: enumKeyword,
+      leftBrace: leftBrace,
+    );
+    seen(data);
+  }
+
+  @override
+  void beginEnumBody(Token token) {
+    EnumBodyBegin data = new EnumBodyBegin(ParserAstType.BEGIN, token: token);
+    seen(data);
+  }
+
+  @override
+  void endEnumBody(Token beginToken, Token endToken) {
+    EnumBodyEnd data = new EnumBodyEnd(
+      ParserAstType.END,
+      beginToken: beginToken,
+      endToken: endToken,
+    );
+    seen(data);
+  }
+
+  @override
+  void handleNoEnumBody(Token semicolonToken) {
+    NoEnumBodyHandle data = new NoEnumBodyHandle(
+      ParserAstType.HANDLE,
+      semicolonToken: semicolonToken,
+    );
     seen(data);
   }
 
   @override
   void handleEnumElement(Token beginToken, Token? augmentToken) {
-    EnumElementHandle data = new EnumElementHandle(ParserAstType.HANDLE,
-        beginToken: beginToken, augmentToken: augmentToken);
-    seen(data);
-  }
-
-  @override
-  void endEnumFactoryMethod(
-    Token beginToken,
-    Token factoryKeyword,
-    Token endToken,
-  ) {
-    EnumFactoryMethodEnd data = new EnumFactoryMethodEnd(ParserAstType.END,
-        beginToken: beginToken,
-        factoryKeyword: factoryKeyword,
-        endToken: endToken);
+    EnumElementHandle data = new EnumElementHandle(
+      ParserAstType.HANDLE,
+      beginToken: beginToken,
+      augmentToken: augmentToken,
+    );
     seen(data);
   }
 
@@ -653,95 +847,65 @@ abstract class AbstractParserAstListener implements Listener {
 
   @override
   void endExport(Token exportKeyword, Token semicolon) {
-    ExportEnd data = new ExportEnd(ParserAstType.END,
-        exportKeyword: exportKeyword, semicolon: semicolon);
+    ExportEnd data = new ExportEnd(
+      ParserAstType.END,
+      exportKeyword: exportKeyword,
+      semicolon: semicolon,
+    );
     seen(data);
   }
 
   @override
   void handleExtraneousExpression(Token token, Message message) {
     ExtraneousExpressionHandle data = new ExtraneousExpressionHandle(
-        ParserAstType.HANDLE,
-        token: token,
-        message: message);
+      ParserAstType.HANDLE,
+      token: token,
+      message: message,
+    );
     seen(data);
   }
 
   @override
   void handleExpressionStatement(Token beginToken, Token endToken) {
     ExpressionStatementHandle data = new ExpressionStatementHandle(
-        ParserAstType.HANDLE,
-        beginToken: beginToken,
-        endToken: endToken);
+      ParserAstType.HANDLE,
+      beginToken: beginToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
-  void beginFactoryMethod(
+  void beginFactory(
     DeclarationKind declarationKind,
     Token lastConsumed,
     Token? externalToken,
     Token? constToken,
   ) {
-    FactoryMethodBegin data = new FactoryMethodBegin(ParserAstType.BEGIN,
-        declarationKind: declarationKind,
-        lastConsumed: lastConsumed,
-        externalToken: externalToken,
-        constToken: constToken);
+    FactoryBegin data = new FactoryBegin(
+      ParserAstType.BEGIN,
+      declarationKind: declarationKind,
+      lastConsumed: lastConsumed,
+      externalToken: externalToken,
+      constToken: constToken,
+    );
     seen(data);
   }
 
   @override
-  void endClassFactoryMethod(
+  void endFactory(
+    DeclarationKind kind,
     Token beginToken,
     Token factoryKeyword,
     Token endToken,
   ) {
-    ClassFactoryMethodEnd data = new ClassFactoryMethodEnd(ParserAstType.END,
-        beginToken: beginToken,
-        factoryKeyword: factoryKeyword,
-        endToken: endToken);
-    seen(data);
-  }
-
-  @override
-  void endMixinFactoryMethod(
-    Token beginToken,
-    Token factoryKeyword,
-    Token endToken,
-  ) {
-    MixinFactoryMethodEnd data = new MixinFactoryMethodEnd(ParserAstType.END,
-        beginToken: beginToken,
-        factoryKeyword: factoryKeyword,
-        endToken: endToken);
-    seen(data);
-  }
-
-  @override
-  void endExtensionFactoryMethod(
-    Token beginToken,
-    Token factoryKeyword,
-    Token endToken,
-  ) {
-    ExtensionFactoryMethodEnd data = new ExtensionFactoryMethodEnd(
-        ParserAstType.END,
-        beginToken: beginToken,
-        factoryKeyword: factoryKeyword,
-        endToken: endToken);
-    seen(data);
-  }
-
-  @override
-  void endExtensionTypeFactoryMethod(
-    Token beginToken,
-    Token factoryKeyword,
-    Token endToken,
-  ) {
-    ExtensionTypeFactoryMethodEnd data = new ExtensionTypeFactoryMethodEnd(
-        ParserAstType.END,
-        beginToken: beginToken,
-        factoryKeyword: factoryKeyword,
-        endToken: endToken);
+    FactoryEnd data = new FactoryEnd(
+      ParserAstType.END,
+      kind: kind,
+      beginToken: beginToken,
+      factoryKeyword: factoryKeyword,
+      endToken: endToken,
+    );
     seen(data);
   }
 
@@ -753,17 +917,20 @@ abstract class AbstractParserAstListener implements Listener {
     Token? covariantToken,
     Token? varFinalOrConst,
   ) {
-    FormalParameterBegin data = new FormalParameterBegin(ParserAstType.BEGIN,
-        token: token,
-        kind: kind,
-        requiredToken: requiredToken,
-        covariantToken: covariantToken,
-        varFinalOrConst: varFinalOrConst);
+    FormalParameterBegin data = new FormalParameterBegin(
+      ParserAstType.BEGIN,
+      token: token,
+      kind: kind,
+      requiredToken: requiredToken,
+      covariantToken: covariantToken,
+      varFinalOrConst: varFinalOrConst,
+    );
     seen(data);
   }
 
   @override
   void endFormalParameter(
+    Token? varOrFinal,
     Token? thisKeyword,
     Token? superKeyword,
     Token? periodAfterThisOrSuper,
@@ -773,31 +940,38 @@ abstract class AbstractParserAstListener implements Listener {
     FormalParameterKind kind,
     MemberKind memberKind,
   ) {
-    FormalParameterEnd data = new FormalParameterEnd(ParserAstType.END,
-        thisKeyword: thisKeyword,
-        superKeyword: superKeyword,
-        periodAfterThisOrSuper: periodAfterThisOrSuper,
-        nameToken: nameToken,
-        initializerStart: initializerStart,
-        initializerEnd: initializerEnd,
-        kind: kind,
-        memberKind: memberKind);
+    FormalParameterEnd data = new FormalParameterEnd(
+      ParserAstType.END,
+      varOrFinal: varOrFinal,
+      thisKeyword: thisKeyword,
+      superKeyword: superKeyword,
+      periodAfterThisOrSuper: periodAfterThisOrSuper,
+      nameToken: nameToken,
+      initializerStart: initializerStart,
+      initializerEnd: initializerEnd,
+      kind: kind,
+      memberKind: memberKind,
+    );
     seen(data);
   }
 
   @override
   void handleNoFormalParameters(Token token, MemberKind kind) {
     NoFormalParametersHandle data = new NoFormalParametersHandle(
-        ParserAstType.HANDLE,
-        token: token,
-        kind: kind);
+      ParserAstType.HANDLE,
+      token: token,
+      kind: kind,
+    );
     seen(data);
   }
 
   @override
   void beginFormalParameters(Token token, MemberKind kind) {
-    FormalParametersBegin data = new FormalParametersBegin(ParserAstType.BEGIN,
-        token: token, kind: kind);
+    FormalParametersBegin data = new FormalParametersBegin(
+      ParserAstType.BEGIN,
+      token: token,
+      kind: kind,
+    );
     seen(data);
   }
 
@@ -808,13 +982,19 @@ abstract class AbstractParserAstListener implements Listener {
     Token endToken,
     MemberKind kind,
   ) {
-    FormalParametersEnd data = new FormalParametersEnd(ParserAstType.END,
-        count: count, beginToken: beginToken, endToken: endToken, kind: kind);
+    FormalParametersEnd data = new FormalParametersEnd(
+      ParserAstType.END,
+      count: count,
+      beginToken: beginToken,
+      endToken: endToken,
+      kind: kind,
+    );
     seen(data);
   }
 
   @override
-  void endClassFields(
+  void endFields(
+    DeclarationKind kind,
     Token? abstractToken,
     Token? augmentToken,
     Token? externalToken,
@@ -826,166 +1006,52 @@ abstract class AbstractParserAstListener implements Listener {
     Token beginToken,
     Token endToken,
   ) {
-    ClassFieldsEnd data = new ClassFieldsEnd(ParserAstType.END,
-        abstractToken: abstractToken,
-        augmentToken: augmentToken,
-        externalToken: externalToken,
-        staticToken: staticToken,
-        covariantToken: covariantToken,
-        lateToken: lateToken,
-        varFinalOrConst: varFinalOrConst,
-        count: count,
-        beginToken: beginToken,
-        endToken: endToken);
-    seen(data);
-  }
-
-  @override
-  void endMixinFields(
-    Token? abstractToken,
-    Token? augmentToken,
-    Token? externalToken,
-    Token? staticToken,
-    Token? covariantToken,
-    Token? lateToken,
-    Token? varFinalOrConst,
-    int count,
-    Token beginToken,
-    Token endToken,
-  ) {
-    MixinFieldsEnd data = new MixinFieldsEnd(ParserAstType.END,
-        abstractToken: abstractToken,
-        augmentToken: augmentToken,
-        externalToken: externalToken,
-        staticToken: staticToken,
-        covariantToken: covariantToken,
-        lateToken: lateToken,
-        varFinalOrConst: varFinalOrConst,
-        count: count,
-        beginToken: beginToken,
-        endToken: endToken);
-    seen(data);
-  }
-
-  @override
-  void endExtensionFields(
-    Token? abstractToken,
-    Token? augmentToken,
-    Token? externalToken,
-    Token? staticToken,
-    Token? covariantToken,
-    Token? lateToken,
-    Token? varFinalOrConst,
-    int count,
-    Token beginToken,
-    Token endToken,
-  ) {
-    ExtensionFieldsEnd data = new ExtensionFieldsEnd(ParserAstType.END,
-        abstractToken: abstractToken,
-        augmentToken: augmentToken,
-        externalToken: externalToken,
-        staticToken: staticToken,
-        covariantToken: covariantToken,
-        lateToken: lateToken,
-        varFinalOrConst: varFinalOrConst,
-        count: count,
-        beginToken: beginToken,
-        endToken: endToken);
-    seen(data);
-  }
-
-  @override
-  void endExtensionTypeFields(
-    Token? abstractToken,
-    Token? augmentToken,
-    Token? externalToken,
-    Token? staticToken,
-    Token? covariantToken,
-    Token? lateToken,
-    Token? varFinalOrConst,
-    int count,
-    Token beginToken,
-    Token endToken,
-  ) {
-    ExtensionTypeFieldsEnd data = new ExtensionTypeFieldsEnd(ParserAstType.END,
-        abstractToken: abstractToken,
-        augmentToken: augmentToken,
-        externalToken: externalToken,
-        staticToken: staticToken,
-        covariantToken: covariantToken,
-        lateToken: lateToken,
-        varFinalOrConst: varFinalOrConst,
-        count: count,
-        beginToken: beginToken,
-        endToken: endToken);
-    seen(data);
-  }
-
-  @override
-  void endEnumFields(
-    Token? abstractToken,
-    Token? augmentToken,
-    Token? externalToken,
-    Token? staticToken,
-    Token? covariantToken,
-    Token? lateToken,
-    Token? varFinalOrConst,
-    int count,
-    Token beginToken,
-    Token endToken,
-  ) {
-    EnumFieldsEnd data = new EnumFieldsEnd(ParserAstType.END,
-        abstractToken: abstractToken,
-        augmentToken: augmentToken,
-        externalToken: externalToken,
-        staticToken: staticToken,
-        covariantToken: covariantToken,
-        lateToken: lateToken,
-        varFinalOrConst: varFinalOrConst,
-        count: count,
-        beginToken: beginToken,
-        endToken: endToken);
-    seen(data);
-  }
-
-  @override
-  void endEnumMethod(
-    Token? getOrSet,
-    Token beginToken,
-    Token beginParam,
-    Token? beginInitializers,
-    Token endToken,
-  ) {
-    EnumMethodEnd data = new EnumMethodEnd(ParserAstType.END,
-        getOrSet: getOrSet,
-        beginToken: beginToken,
-        beginParam: beginParam,
-        beginInitializers: beginInitializers,
-        endToken: endToken);
+    FieldsEnd data = new FieldsEnd(
+      ParserAstType.END,
+      kind: kind,
+      abstractToken: abstractToken,
+      augmentToken: augmentToken,
+      externalToken: externalToken,
+      staticToken: staticToken,
+      covariantToken: covariantToken,
+      lateToken: lateToken,
+      varFinalOrConst: varFinalOrConst,
+      count: count,
+      beginToken: beginToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void handleForInitializerEmptyStatement(Token token) {
     ForInitializerEmptyStatementHandle data =
-        new ForInitializerEmptyStatementHandle(ParserAstType.HANDLE,
-            token: token);
+        new ForInitializerEmptyStatementHandle(
+          ParserAstType.HANDLE,
+          token: token,
+        );
     seen(data);
   }
 
   @override
   void handleForInitializerExpressionStatement(Token token, bool forIn) {
     ForInitializerExpressionStatementHandle data =
-        new ForInitializerExpressionStatementHandle(ParserAstType.HANDLE,
-            token: token, forIn: forIn);
+        new ForInitializerExpressionStatementHandle(
+          ParserAstType.HANDLE,
+          token: token,
+          forIn: forIn,
+        );
     seen(data);
   }
 
   @override
   void handleForInitializerLocalVariableDeclaration(Token token, bool forIn) {
     ForInitializerLocalVariableDeclarationHandle data =
-        new ForInitializerLocalVariableDeclarationHandle(ParserAstType.HANDLE,
-            token: token, forIn: forIn);
+        new ForInitializerLocalVariableDeclarationHandle(
+          ParserAstType.HANDLE,
+          token: token,
+          forIn: forIn,
+        );
     seen(data);
   }
 
@@ -995,15 +1061,20 @@ abstract class AbstractParserAstListener implements Listener {
     Token equals,
   ) {
     ForInitializerPatternVariableAssignmentHandle data =
-        new ForInitializerPatternVariableAssignmentHandle(ParserAstType.HANDLE,
-            keyword: keyword, equals: equals);
+        new ForInitializerPatternVariableAssignmentHandle(
+          ParserAstType.HANDLE,
+          keyword: keyword,
+          equals: equals,
+        );
     seen(data);
   }
 
   @override
   void beginForStatement(Token token) {
-    ForStatementBegin data =
-        new ForStatementBegin(ParserAstType.BEGIN, token: token);
+    ForStatementBegin data = new ForStatementBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
@@ -1015,33 +1086,41 @@ abstract class AbstractParserAstListener implements Listener {
     Token rightSeparator,
     int updateExpressionCount,
   ) {
-    ForLoopPartsHandle data = new ForLoopPartsHandle(ParserAstType.HANDLE,
-        forKeyword: forKeyword,
-        leftParen: leftParen,
-        leftSeparator: leftSeparator,
-        rightSeparator: rightSeparator,
-        updateExpressionCount: updateExpressionCount);
+    ForLoopPartsHandle data = new ForLoopPartsHandle(
+      ParserAstType.HANDLE,
+      forKeyword: forKeyword,
+      leftParen: leftParen,
+      leftSeparator: leftSeparator,
+      rightSeparator: rightSeparator,
+      updateExpressionCount: updateExpressionCount,
+    );
     seen(data);
   }
 
   @override
   void endForStatement(Token endToken) {
-    ForStatementEnd data =
-        new ForStatementEnd(ParserAstType.END, endToken: endToken);
+    ForStatementEnd data = new ForStatementEnd(
+      ParserAstType.END,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginForStatementBody(Token token) {
-    ForStatementBodyBegin data =
-        new ForStatementBodyBegin(ParserAstType.BEGIN, token: token);
+    ForStatementBodyBegin data = new ForStatementBodyBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endForStatementBody(Token endToken) {
-    ForStatementBodyEnd data =
-        new ForStatementBodyEnd(ParserAstType.END, endToken: endToken);
+    ForStatementBodyEnd data = new ForStatementBodyEnd(
+      ParserAstType.END,
+      endToken: endToken,
+    );
     seen(data);
   }
 
@@ -1053,12 +1132,14 @@ abstract class AbstractParserAstListener implements Listener {
     Token? patternKeyword,
     Token inKeyword,
   ) {
-    ForInLoopPartsHandle data = new ForInLoopPartsHandle(ParserAstType.HANDLE,
-        awaitToken: awaitToken,
-        forToken: forToken,
-        leftParenthesis: leftParenthesis,
-        patternKeyword: patternKeyword,
-        inKeyword: inKeyword);
+    ForInLoopPartsHandle data = new ForInLoopPartsHandle(
+      ParserAstType.HANDLE,
+      awaitToken: awaitToken,
+      forToken: forToken,
+      leftParenthesis: leftParenthesis,
+      patternKeyword: patternKeyword,
+      inKeyword: inKeyword,
+    );
     seen(data);
   }
 
@@ -1070,15 +1151,19 @@ abstract class AbstractParserAstListener implements Listener {
 
   @override
   void beginForInExpression(Token token) {
-    ForInExpressionBegin data =
-        new ForInExpressionBegin(ParserAstType.BEGIN, token: token);
+    ForInExpressionBegin data = new ForInExpressionBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endForInExpression(Token token) {
-    ForInExpressionEnd data =
-        new ForInExpressionEnd(ParserAstType.END, token: token);
+    ForInExpressionEnd data = new ForInExpressionEnd(
+      ParserAstType.END,
+      token: token,
+    );
     seen(data);
   }
 
@@ -1096,66 +1181,90 @@ abstract class AbstractParserAstListener implements Listener {
 
   @override
   void beginNamedFunctionExpression(Token token) {
-    NamedFunctionExpressionBegin data =
-        new NamedFunctionExpressionBegin(ParserAstType.BEGIN, token: token);
+    NamedFunctionExpressionBegin data = new NamedFunctionExpressionBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endNamedFunctionExpression(Token endToken) {
-    NamedFunctionExpressionEnd data =
-        new NamedFunctionExpressionEnd(ParserAstType.END, endToken: endToken);
+    NamedFunctionExpressionEnd data = new NamedFunctionExpressionEnd(
+      ParserAstType.END,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginLocalFunctionDeclaration(Token token) {
-    LocalFunctionDeclarationBegin data =
-        new LocalFunctionDeclarationBegin(ParserAstType.BEGIN, token: token);
+    LocalFunctionDeclarationBegin data = new LocalFunctionDeclarationBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endLocalFunctionDeclaration(Token endToken) {
-    LocalFunctionDeclarationEnd data =
-        new LocalFunctionDeclarationEnd(ParserAstType.END, endToken: endToken);
+    LocalFunctionDeclarationEnd data = new LocalFunctionDeclarationEnd(
+      ParserAstType.END,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginBlockFunctionBody(Token token) {
-    BlockFunctionBodyBegin data =
-        new BlockFunctionBodyBegin(ParserAstType.BEGIN, token: token);
+    BlockFunctionBodyBegin data = new BlockFunctionBodyBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endBlockFunctionBody(int count, Token beginToken, Token endToken) {
-    BlockFunctionBodyEnd data = new BlockFunctionBodyEnd(ParserAstType.END,
-        count: count, beginToken: beginToken, endToken: endToken);
+    BlockFunctionBodyEnd data = new BlockFunctionBodyEnd(
+      ParserAstType.END,
+      count: count,
+      beginToken: beginToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void handleNoFunctionBody(Token token) {
-    NoFunctionBodyHandle data =
-        new NoFunctionBodyHandle(ParserAstType.HANDLE, token: token);
+    NoFunctionBodyHandle data = new NoFunctionBodyHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
-  void handleFunctionBodySkipped(Token token, bool isExpressionBody) {
+  void handleFunctionBodySkipped(
+    Token beginToken,
+    Token endToken,
+    bool isExpressionBody,
+  ) {
     FunctionBodySkippedHandle data = new FunctionBodySkippedHandle(
-        ParserAstType.HANDLE,
-        token: token,
-        isExpressionBody: isExpressionBody);
+      ParserAstType.HANDLE,
+      beginToken: beginToken,
+      endToken: endToken,
+      isExpressionBody: isExpressionBody,
+    );
     seen(data);
   }
 
   @override
   void beginFunctionName(Token token) {
-    FunctionNameBegin data =
-        new FunctionNameBegin(ParserAstType.BEGIN, token: token);
+    FunctionNameBegin data = new FunctionNameBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
@@ -1165,10 +1274,12 @@ abstract class AbstractParserAstListener implements Listener {
     Token token,
     bool isFunctionExpression,
   ) {
-    FunctionNameEnd data = new FunctionNameEnd(ParserAstType.END,
-        beginToken: beginToken,
-        token: token,
-        isFunctionExpression: isFunctionExpression);
+    FunctionNameEnd data = new FunctionNameEnd(
+      ParserAstType.END,
+      beginToken: beginToken,
+      token: token,
+      isFunctionExpression: isFunctionExpression,
+    );
     seen(data);
   }
 
@@ -1185,46 +1296,56 @@ abstract class AbstractParserAstListener implements Listener {
     Token? equals,
     Token endToken,
   ) {
-    TypedefEnd data = new TypedefEnd(ParserAstType.END,
-        augmentToken: augmentToken,
-        typedefKeyword: typedefKeyword,
-        equals: equals,
-        endToken: endToken);
+    TypedefEnd data = new TypedefEnd(
+      ParserAstType.END,
+      augmentToken: augmentToken,
+      typedefKeyword: typedefKeyword,
+      equals: equals,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void handleClassWithClause(Token withKeyword) {
-    ClassWithClauseHandle data = new ClassWithClauseHandle(ParserAstType.HANDLE,
-        withKeyword: withKeyword);
+    ClassWithClauseHandle data = new ClassWithClauseHandle(
+      ParserAstType.HANDLE,
+      withKeyword: withKeyword,
+    );
     seen(data);
   }
 
   @override
   void handleClassNoWithClause() {
-    ClassNoWithClauseHandle data =
-        new ClassNoWithClauseHandle(ParserAstType.HANDLE);
+    ClassNoWithClauseHandle data = new ClassNoWithClauseHandle(
+      ParserAstType.HANDLE,
+    );
     seen(data);
   }
 
   @override
   void handleEnumWithClause(Token withKeyword) {
-    EnumWithClauseHandle data = new EnumWithClauseHandle(ParserAstType.HANDLE,
-        withKeyword: withKeyword);
+    EnumWithClauseHandle data = new EnumWithClauseHandle(
+      ParserAstType.HANDLE,
+      withKeyword: withKeyword,
+    );
     seen(data);
   }
 
   @override
   void handleEnumNoWithClause() {
-    EnumNoWithClauseHandle data =
-        new EnumNoWithClauseHandle(ParserAstType.HANDLE);
+    EnumNoWithClauseHandle data = new EnumNoWithClauseHandle(
+      ParserAstType.HANDLE,
+    );
     seen(data);
   }
 
   @override
   void handleMixinWithClause(Token withKeyword) {
-    MixinWithClauseHandle data = new MixinWithClauseHandle(ParserAstType.HANDLE,
-        withKeyword: withKeyword);
+    MixinWithClauseHandle data = new MixinWithClauseHandle(
+      ParserAstType.HANDLE,
+      withKeyword: withKeyword,
+    );
     seen(data);
   }
 
@@ -1242,25 +1363,28 @@ abstract class AbstractParserAstListener implements Listener {
     Token name,
   ) {
     NamedMixinApplicationBegin data = new NamedMixinApplicationBegin(
-        ParserAstType.BEGIN,
-        beginToken: beginToken,
-        abstractToken: abstractToken,
-        macroToken: macroToken,
-        sealedToken: sealedToken,
-        baseToken: baseToken,
-        interfaceToken: interfaceToken,
-        finalToken: finalToken,
-        augmentToken: augmentToken,
-        mixinToken: mixinToken,
-        name: name);
+      ParserAstType.BEGIN,
+      beginToken: beginToken,
+      abstractToken: abstractToken,
+      macroToken: macroToken,
+      sealedToken: sealedToken,
+      baseToken: baseToken,
+      interfaceToken: interfaceToken,
+      finalToken: finalToken,
+      augmentToken: augmentToken,
+      mixinToken: mixinToken,
+      name: name,
+    );
     seen(data);
   }
 
   @override
   void handleNamedMixinApplicationWithClause(Token withKeyword) {
     NamedMixinApplicationWithClauseHandle data =
-        new NamedMixinApplicationWithClauseHandle(ParserAstType.HANDLE,
-            withKeyword: withKeyword);
+        new NamedMixinApplicationWithClauseHandle(
+          ParserAstType.HANDLE,
+          withKeyword: withKeyword,
+        );
     seen(data);
   }
 
@@ -1273,19 +1397,22 @@ abstract class AbstractParserAstListener implements Listener {
     Token endToken,
   ) {
     NamedMixinApplicationEnd data = new NamedMixinApplicationEnd(
-        ParserAstType.END,
-        begin: begin,
-        classKeyword: classKeyword,
-        equals: equals,
-        implementsKeyword: implementsKeyword,
-        endToken: endToken);
+      ParserAstType.END,
+      begin: begin,
+      classKeyword: classKeyword,
+      equals: equals,
+      implementsKeyword: implementsKeyword,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginHide(Token hideKeyword) {
-    HideBegin data =
-        new HideBegin(ParserAstType.BEGIN, hideKeyword: hideKeyword);
+    HideBegin data = new HideBegin(
+      ParserAstType.BEGIN,
+      hideKeyword: hideKeyword,
+    );
     seen(data);
   }
 
@@ -1297,8 +1424,10 @@ abstract class AbstractParserAstListener implements Listener {
 
   @override
   void handleIdentifierList(int count) {
-    IdentifierListHandle data =
-        new IdentifierListHandle(ParserAstType.HANDLE, count: count);
+    IdentifierListHandle data = new IdentifierListHandle(
+      ParserAstType.HANDLE,
+      count: count,
+    );
     seen(data);
   }
 
@@ -1316,208 +1445,276 @@ abstract class AbstractParserAstListener implements Listener {
 
   @override
   void beginIfStatement(Token token) {
-    IfStatementBegin data =
-        new IfStatementBegin(ParserAstType.BEGIN, token: token);
+    IfStatementBegin data = new IfStatementBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endIfStatement(Token ifToken, Token? elseToken, Token endToken) {
-    IfStatementEnd data = new IfStatementEnd(ParserAstType.END,
-        ifToken: ifToken, elseToken: elseToken, endToken: endToken);
+    IfStatementEnd data = new IfStatementEnd(
+      ParserAstType.END,
+      ifToken: ifToken,
+      elseToken: elseToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginThenStatement(Token token) {
-    ThenStatementBegin data =
-        new ThenStatementBegin(ParserAstType.BEGIN, token: token);
+    ThenStatementBegin data = new ThenStatementBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endThenStatement(Token beginToken, Token endToken) {
-    ThenStatementEnd data = new ThenStatementEnd(ParserAstType.END,
-        beginToken: beginToken, endToken: endToken);
+    ThenStatementEnd data = new ThenStatementEnd(
+      ParserAstType.END,
+      beginToken: beginToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginElseStatement(Token token) {
-    ElseStatementBegin data =
-        new ElseStatementBegin(ParserAstType.BEGIN, token: token);
+    ElseStatementBegin data = new ElseStatementBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endElseStatement(Token beginToken, Token endToken) {
-    ElseStatementEnd data = new ElseStatementEnd(ParserAstType.END,
-        beginToken: beginToken, endToken: endToken);
+    ElseStatementEnd data = new ElseStatementEnd(
+      ParserAstType.END,
+      beginToken: beginToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginImport(Token importKeyword) {
-    ImportBegin data =
-        new ImportBegin(ParserAstType.BEGIN, importKeyword: importKeyword);
+    ImportBegin data = new ImportBegin(
+      ParserAstType.BEGIN,
+      importKeyword: importKeyword,
+    );
     seen(data);
   }
 
   @override
   void handleImportPrefix(Token? deferredKeyword, Token? asKeyword) {
-    ImportPrefixHandle data = new ImportPrefixHandle(ParserAstType.HANDLE,
-        deferredKeyword: deferredKeyword, asKeyword: asKeyword);
+    ImportPrefixHandle data = new ImportPrefixHandle(
+      ParserAstType.HANDLE,
+      deferredKeyword: deferredKeyword,
+      asKeyword: asKeyword,
+    );
     seen(data);
   }
 
   @override
   void endImport(Token importKeyword, Token? augmentToken, Token? semicolon) {
-    ImportEnd data = new ImportEnd(ParserAstType.END,
-        importKeyword: importKeyword,
-        augmentToken: augmentToken,
-        semicolon: semicolon);
+    ImportEnd data = new ImportEnd(
+      ParserAstType.END,
+      importKeyword: importKeyword,
+      augmentToken: augmentToken,
+      semicolon: semicolon,
+    );
     seen(data);
   }
 
   @override
   void handleRecoverImport(Token? semicolon) {
-    RecoverImportHandle data =
-        new RecoverImportHandle(ParserAstType.HANDLE, semicolon: semicolon);
+    RecoverImportHandle data = new RecoverImportHandle(
+      ParserAstType.HANDLE,
+      semicolon: semicolon,
+    );
     seen(data);
   }
 
   @override
   void beginConditionalUris(Token token) {
-    ConditionalUrisBegin data =
-        new ConditionalUrisBegin(ParserAstType.BEGIN, token: token);
+    ConditionalUrisBegin data = new ConditionalUrisBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endConditionalUris(int count) {
-    ConditionalUrisEnd data =
-        new ConditionalUrisEnd(ParserAstType.END, count: count);
+    ConditionalUrisEnd data = new ConditionalUrisEnd(
+      ParserAstType.END,
+      count: count,
+    );
     seen(data);
   }
 
   @override
   void beginConditionalUri(Token ifKeyword) {
-    ConditionalUriBegin data =
-        new ConditionalUriBegin(ParserAstType.BEGIN, ifKeyword: ifKeyword);
+    ConditionalUriBegin data = new ConditionalUriBegin(
+      ParserAstType.BEGIN,
+      ifKeyword: ifKeyword,
+    );
     seen(data);
   }
 
   @override
   void endConditionalUri(Token ifKeyword, Token leftParen, Token? equalSign) {
-    ConditionalUriEnd data = new ConditionalUriEnd(ParserAstType.END,
-        ifKeyword: ifKeyword, leftParen: leftParen, equalSign: equalSign);
+    ConditionalUriEnd data = new ConditionalUriEnd(
+      ParserAstType.END,
+      ifKeyword: ifKeyword,
+      leftParen: leftParen,
+      equalSign: equalSign,
+    );
     seen(data);
   }
 
   @override
   void handleDottedName(int count, Token firstIdentifier) {
-    DottedNameHandle data = new DottedNameHandle(ParserAstType.HANDLE,
-        count: count, firstIdentifier: firstIdentifier);
+    DottedNameHandle data = new DottedNameHandle(
+      ParserAstType.HANDLE,
+      count: count,
+      firstIdentifier: firstIdentifier,
+    );
     seen(data);
   }
 
   @override
   void beginImplicitCreationExpression(Token token) {
-    ImplicitCreationExpressionBegin data =
-        new ImplicitCreationExpressionBegin(ParserAstType.BEGIN, token: token);
+    ImplicitCreationExpressionBegin data = new ImplicitCreationExpressionBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endImplicitCreationExpression(Token token, Token openAngleBracket) {
     ImplicitCreationExpressionEnd data = new ImplicitCreationExpressionEnd(
-        ParserAstType.END,
-        token: token,
-        openAngleBracket: openAngleBracket);
+      ParserAstType.END,
+      token: token,
+      openAngleBracket: openAngleBracket,
+    );
     seen(data);
   }
 
   @override
   void beginInitializedIdentifier(Token token) {
-    InitializedIdentifierBegin data =
-        new InitializedIdentifierBegin(ParserAstType.BEGIN, token: token);
+    InitializedIdentifierBegin data = new InitializedIdentifierBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endInitializedIdentifier(Token nameToken) {
-    InitializedIdentifierEnd data =
-        new InitializedIdentifierEnd(ParserAstType.END, nameToken: nameToken);
+    InitializedIdentifierEnd data = new InitializedIdentifierEnd(
+      ParserAstType.END,
+      nameToken: nameToken,
+    );
     seen(data);
   }
 
   @override
   void beginFieldInitializer(Token token) {
-    FieldInitializerBegin data =
-        new FieldInitializerBegin(ParserAstType.BEGIN, token: token);
+    FieldInitializerBegin data = new FieldInitializerBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endFieldInitializer(Token assignment, Token endToken) {
-    FieldInitializerEnd data = new FieldInitializerEnd(ParserAstType.END,
-        assignment: assignment, endToken: endToken);
+    FieldInitializerEnd data = new FieldInitializerEnd(
+      ParserAstType.END,
+      assignment: assignment,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void handleNoFieldInitializer(Token token) {
-    NoFieldInitializerHandle data =
-        new NoFieldInitializerHandle(ParserAstType.HANDLE, token: token);
+    NoFieldInitializerHandle data = new NoFieldInitializerHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void beginVariableInitializer(Token token) {
-    VariableInitializerBegin data =
-        new VariableInitializerBegin(ParserAstType.BEGIN, token: token);
+    VariableInitializerBegin data = new VariableInitializerBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endVariableInitializer(Token assignmentOperator) {
-    VariableInitializerEnd data = new VariableInitializerEnd(ParserAstType.END,
-        assignmentOperator: assignmentOperator);
+    VariableInitializerEnd data = new VariableInitializerEnd(
+      ParserAstType.END,
+      assignmentOperator: assignmentOperator,
+    );
     seen(data);
   }
 
   @override
   void handleNoVariableInitializer(Token token) {
-    NoVariableInitializerHandle data =
-        new NoVariableInitializerHandle(ParserAstType.HANDLE, token: token);
+    NoVariableInitializerHandle data = new NoVariableInitializerHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void beginInitializer(Token token) {
-    InitializerBegin data =
-        new InitializerBegin(ParserAstType.BEGIN, token: token);
+    InitializerBegin data = new InitializerBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endInitializer(Token endToken) {
-    InitializerEnd data =
-        new InitializerEnd(ParserAstType.END, endToken: endToken);
+    InitializerEnd data = new InitializerEnd(
+      ParserAstType.END,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginInitializers(Token token) {
-    InitializersBegin data =
-        new InitializersBegin(ParserAstType.BEGIN, token: token);
+    InitializersBegin data = new InitializersBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endInitializers(int count, Token beginToken, Token endToken) {
-    InitializersEnd data = new InitializersEnd(ParserAstType.END,
-        count: count, beginToken: beginToken, endToken: endToken);
+    InitializersEnd data = new InitializersEnd(
+      ParserAstType.END,
+      count: count,
+      beginToken: beginToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
@@ -1529,22 +1726,28 @@ abstract class AbstractParserAstListener implements Listener {
 
   @override
   void handleInvalidExpression(Token token) {
-    InvalidExpressionHandle data =
-        new InvalidExpressionHandle(ParserAstType.HANDLE, token: token);
+    InvalidExpressionHandle data = new InvalidExpressionHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleInvalidFunctionBody(Token token) {
-    InvalidFunctionBodyHandle data =
-        new InvalidFunctionBodyHandle(ParserAstType.HANDLE, token: token);
+    InvalidFunctionBodyHandle data = new InvalidFunctionBodyHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleInvalidTypeReference(Token token) {
-    InvalidTypeReferenceHandle data =
-        new InvalidTypeReferenceHandle(ParserAstType.HANDLE, token: token);
+    InvalidTypeReferenceHandle data = new InvalidTypeReferenceHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
@@ -1556,24 +1759,30 @@ abstract class AbstractParserAstListener implements Listener {
 
   @override
   void beginLabeledStatement(Token token, int labelCount) {
-    LabeledStatementBegin data = new LabeledStatementBegin(ParserAstType.BEGIN,
-        token: token, labelCount: labelCount);
+    LabeledStatementBegin data = new LabeledStatementBegin(
+      ParserAstType.BEGIN,
+      token: token,
+      labelCount: labelCount,
+    );
     seen(data);
   }
 
   @override
   void endLabeledStatement(int labelCount) {
-    LabeledStatementEnd data =
-        new LabeledStatementEnd(ParserAstType.END, labelCount: labelCount);
+    LabeledStatementEnd data = new LabeledStatementEnd(
+      ParserAstType.END,
+      labelCount: labelCount,
+    );
     seen(data);
   }
 
   @override
   void beginLibraryAugmentation(Token augmentKeyword, Token libraryKeyword) {
     LibraryAugmentationBegin data = new LibraryAugmentationBegin(
-        ParserAstType.BEGIN,
-        augmentKeyword: augmentKeyword,
-        libraryKeyword: libraryKeyword);
+      ParserAstType.BEGIN,
+      augmentKeyword: augmentKeyword,
+      libraryKeyword: libraryKeyword,
+    );
     seen(data);
   }
 
@@ -1583,24 +1792,32 @@ abstract class AbstractParserAstListener implements Listener {
     Token libraryKeyword,
     Token semicolon,
   ) {
-    LibraryAugmentationEnd data = new LibraryAugmentationEnd(ParserAstType.END,
-        augmentKeyword: augmentKeyword,
-        libraryKeyword: libraryKeyword,
-        semicolon: semicolon);
+    LibraryAugmentationEnd data = new LibraryAugmentationEnd(
+      ParserAstType.END,
+      augmentKeyword: augmentKeyword,
+      libraryKeyword: libraryKeyword,
+      semicolon: semicolon,
+    );
     seen(data);
   }
 
   @override
   void beginLibraryName(Token token) {
-    LibraryNameBegin data =
-        new LibraryNameBegin(ParserAstType.BEGIN, token: token);
+    LibraryNameBegin data = new LibraryNameBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endLibraryName(Token libraryKeyword, Token semicolon, bool hasName) {
-    LibraryNameEnd data = new LibraryNameEnd(ParserAstType.END,
-        libraryKeyword: libraryKeyword, semicolon: semicolon, hasName: hasName);
+    LibraryNameEnd data = new LibraryNameEnd(
+      ParserAstType.END,
+      libraryKeyword: libraryKeyword,
+      semicolon: semicolon,
+      hasName: hasName,
+    );
     seen(data);
   }
 
@@ -1611,50 +1828,62 @@ abstract class AbstractParserAstListener implements Listener {
     Token? nullAwareKeyToken,
     Token? nullAwareValueToken,
   }) {
-    LiteralMapEntryHandle data = new LiteralMapEntryHandle(ParserAstType.HANDLE,
-        colon: colon,
-        endToken: endToken,
-        nullAwareKeyToken: nullAwareKeyToken,
-        nullAwareValueToken: nullAwareValueToken);
+    LiteralMapEntryHandle data = new LiteralMapEntryHandle(
+      ParserAstType.HANDLE,
+      colon: colon,
+      endToken: endToken,
+      nullAwareKeyToken: nullAwareKeyToken,
+      nullAwareValueToken: nullAwareValueToken,
+    );
     seen(data);
   }
 
   @override
   void handleMapPatternEntry(Token colon, Token endToken) {
-    MapPatternEntryHandle data = new MapPatternEntryHandle(ParserAstType.HANDLE,
-        colon: colon, endToken: endToken);
+    MapPatternEntryHandle data = new MapPatternEntryHandle(
+      ParserAstType.HANDLE,
+      colon: colon,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginLiteralString(Token token) {
-    LiteralStringBegin data =
-        new LiteralStringBegin(ParserAstType.BEGIN, token: token);
+    LiteralStringBegin data = new LiteralStringBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleInterpolationExpression(Token leftBracket, Token? rightBracket) {
     InterpolationExpressionHandle data = new InterpolationExpressionHandle(
-        ParserAstType.HANDLE,
-        leftBracket: leftBracket,
-        rightBracket: rightBracket);
+      ParserAstType.HANDLE,
+      leftBracket: leftBracket,
+      rightBracket: rightBracket,
+    );
     seen(data);
   }
 
   @override
   void endLiteralString(int interpolationCount, Token endToken) {
-    LiteralStringEnd data = new LiteralStringEnd(ParserAstType.END,
-        interpolationCount: interpolationCount, endToken: endToken);
+    LiteralStringEnd data = new LiteralStringEnd(
+      ParserAstType.END,
+      interpolationCount: interpolationCount,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void handleAdjacentStringLiterals(Token startToken, int literalCount) {
     AdjacentStringLiteralsHandle data = new AdjacentStringLiteralsHandle(
-        ParserAstType.HANDLE,
-        startToken: startToken,
-        literalCount: literalCount);
+      ParserAstType.HANDLE,
+      startToken: startToken,
+      literalCount: literalCount,
+    );
     seen(data);
   }
 
@@ -1666,8 +1895,10 @@ abstract class AbstractParserAstListener implements Listener {
 
   @override
   void handleInvalidMember(Token endToken) {
-    InvalidMemberHandle data =
-        new InvalidMemberHandle(ParserAstType.HANDLE, endToken: endToken);
+    InvalidMemberHandle data = new InvalidMemberHandle(
+      ParserAstType.HANDLE,
+      endToken: endToken,
+    );
     seen(data);
   }
 
@@ -1689,161 +1920,98 @@ abstract class AbstractParserAstListener implements Listener {
     Token name,
     String? enclosingDeclarationName,
   ) {
-    MethodBegin data = new MethodBegin(ParserAstType.BEGIN,
-        declarationKind: declarationKind,
-        augmentToken: augmentToken,
-        externalToken: externalToken,
-        staticToken: staticToken,
-        covariantToken: covariantToken,
-        varFinalOrConst: varFinalOrConst,
-        getOrSet: getOrSet,
-        name: name,
-        enclosingDeclarationName: enclosingDeclarationName);
+    MethodBegin data = new MethodBegin(
+      ParserAstType.BEGIN,
+      declarationKind: declarationKind,
+      augmentToken: augmentToken,
+      externalToken: externalToken,
+      staticToken: staticToken,
+      covariantToken: covariantToken,
+      varFinalOrConst: varFinalOrConst,
+      getOrSet: getOrSet,
+      name: name,
+      enclosingDeclarationName: enclosingDeclarationName,
+    );
     seen(data);
   }
 
   @override
-  void endClassMethod(
+  void endMethod(
+    DeclarationKind kind,
     Token? getOrSet,
     Token beginToken,
     Token beginParam,
     Token? beginInitializers,
     Token endToken,
   ) {
-    ClassMethodEnd data = new ClassMethodEnd(ParserAstType.END,
-        getOrSet: getOrSet,
-        beginToken: beginToken,
-        beginParam: beginParam,
-        beginInitializers: beginInitializers,
-        endToken: endToken);
+    MethodEnd data = new MethodEnd(
+      ParserAstType.END,
+      kind: kind,
+      getOrSet: getOrSet,
+      beginToken: beginToken,
+      beginParam: beginParam,
+      beginInitializers: beginInitializers,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
-  void endMixinMethod(
+  void beginConstructor(
+    DeclarationKind declarationKind,
+    Token? augmentToken,
+    Token? externalToken,
+    Token? staticToken,
+    Token? covariantToken,
+    Token? varFinalOrConst,
     Token? getOrSet,
-    Token beginToken,
-    Token beginParam,
-    Token? beginInitializers,
-    Token endToken,
+    Token? newToken,
+    Token name,
+    String? enclosingDeclarationName,
   ) {
-    MixinMethodEnd data = new MixinMethodEnd(ParserAstType.END,
-        getOrSet: getOrSet,
-        beginToken: beginToken,
-        beginParam: beginParam,
-        beginInitializers: beginInitializers,
-        endToken: endToken);
+    ConstructorBegin data = new ConstructorBegin(
+      ParserAstType.BEGIN,
+      declarationKind: declarationKind,
+      augmentToken: augmentToken,
+      externalToken: externalToken,
+      staticToken: staticToken,
+      covariantToken: covariantToken,
+      varFinalOrConst: varFinalOrConst,
+      getOrSet: getOrSet,
+      newToken: newToken,
+      name: name,
+      enclosingDeclarationName: enclosingDeclarationName,
+    );
     seen(data);
   }
 
   @override
-  void endExtensionMethod(
-    Token? getOrSet,
+  void endConstructor(
+    DeclarationKind kind,
     Token beginToken,
+    Token? newToken,
     Token beginParam,
     Token? beginInitializers,
     Token endToken,
   ) {
-    ExtensionMethodEnd data = new ExtensionMethodEnd(ParserAstType.END,
-        getOrSet: getOrSet,
-        beginToken: beginToken,
-        beginParam: beginParam,
-        beginInitializers: beginInitializers,
-        endToken: endToken);
-    seen(data);
-  }
-
-  @override
-  void endExtensionTypeMethod(
-    Token? getOrSet,
-    Token beginToken,
-    Token beginParam,
-    Token? beginInitializers,
-    Token endToken,
-  ) {
-    ExtensionTypeMethodEnd data = new ExtensionTypeMethodEnd(ParserAstType.END,
-        getOrSet: getOrSet,
-        beginToken: beginToken,
-        beginParam: beginParam,
-        beginInitializers: beginInitializers,
-        endToken: endToken);
-    seen(data);
-  }
-
-  @override
-  void endClassConstructor(
-    Token? getOrSet,
-    Token beginToken,
-    Token beginParam,
-    Token? beginInitializers,
-    Token endToken,
-  ) {
-    ClassConstructorEnd data = new ClassConstructorEnd(ParserAstType.END,
-        getOrSet: getOrSet,
-        beginToken: beginToken,
-        beginParam: beginParam,
-        beginInitializers: beginInitializers,
-        endToken: endToken);
-    seen(data);
-  }
-
-  @override
-  void endMixinConstructor(
-    Token? getOrSet,
-    Token beginToken,
-    Token beginParam,
-    Token? beginInitializers,
-    Token endToken,
-  ) {
-    MixinConstructorEnd data = new MixinConstructorEnd(ParserAstType.END,
-        getOrSet: getOrSet,
-        beginToken: beginToken,
-        beginParam: beginParam,
-        beginInitializers: beginInitializers,
-        endToken: endToken);
-    seen(data);
-  }
-
-  @override
-  void endExtensionConstructor(
-    Token? getOrSet,
-    Token beginToken,
-    Token beginParam,
-    Token? beginInitializers,
-    Token endToken,
-  ) {
-    ExtensionConstructorEnd data = new ExtensionConstructorEnd(
-        ParserAstType.END,
-        getOrSet: getOrSet,
-        beginToken: beginToken,
-        beginParam: beginParam,
-        beginInitializers: beginInitializers,
-        endToken: endToken);
-    seen(data);
-  }
-
-  @override
-  void endExtensionTypeConstructor(
-    Token? getOrSet,
-    Token beginToken,
-    Token beginParam,
-    Token? beginInitializers,
-    Token endToken,
-  ) {
-    ExtensionTypeConstructorEnd data = new ExtensionTypeConstructorEnd(
-        ParserAstType.END,
-        getOrSet: getOrSet,
-        beginToken: beginToken,
-        beginParam: beginParam,
-        beginInitializers: beginInitializers,
-        endToken: endToken);
+    ConstructorEnd data = new ConstructorEnd(
+      ParserAstType.END,
+      kind: kind,
+      beginToken: beginToken,
+      newToken: newToken,
+      beginParam: beginParam,
+      beginInitializers: beginInitializers,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginMetadataStar(Token token) {
-    MetadataStarBegin data =
-        new MetadataStarBegin(ParserAstType.BEGIN, token: token);
+    MetadataStarBegin data = new MetadataStarBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
@@ -1861,17 +2029,21 @@ abstract class AbstractParserAstListener implements Listener {
 
   @override
   void endMetadata(Token beginToken, Token? periodBeforeName, Token endToken) {
-    MetadataEnd data = new MetadataEnd(ParserAstType.END,
-        beginToken: beginToken,
-        periodBeforeName: periodBeforeName,
-        endToken: endToken);
+    MetadataEnd data = new MetadataEnd(
+      ParserAstType.END,
+      beginToken: beginToken,
+      periodBeforeName: periodBeforeName,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginOptionalFormalParameters(Token token) {
-    OptionalFormalParametersBegin data =
-        new OptionalFormalParametersBegin(ParserAstType.BEGIN, token: token);
+    OptionalFormalParametersBegin data = new OptionalFormalParametersBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
@@ -1883,11 +2055,12 @@ abstract class AbstractParserAstListener implements Listener {
     MemberKind kind,
   ) {
     OptionalFormalParametersEnd data = new OptionalFormalParametersEnd(
-        ParserAstType.END,
-        count: count,
-        beginToken: beginToken,
-        endToken: endToken,
-        kind: kind);
+      ParserAstType.END,
+      count: count,
+      beginToken: beginToken,
+      endToken: endToken,
+      kind: kind,
+    );
     seen(data);
   }
 
@@ -1899,8 +2072,11 @@ abstract class AbstractParserAstListener implements Listener {
 
   @override
   void endPart(Token partKeyword, Token semicolon) {
-    PartEnd data = new PartEnd(ParserAstType.END,
-        partKeyword: partKeyword, semicolon: semicolon);
+    PartEnd data = new PartEnd(
+      ParserAstType.END,
+      partKeyword: partKeyword,
+      semicolon: semicolon,
+    );
     seen(data);
   }
 
@@ -1917,77 +2093,90 @@ abstract class AbstractParserAstListener implements Listener {
     Token semicolon,
     bool hasName,
   ) {
-    PartOfEnd data = new PartOfEnd(ParserAstType.END,
-        partKeyword: partKeyword,
-        ofKeyword: ofKeyword,
-        semicolon: semicolon,
-        hasName: hasName);
+    PartOfEnd data = new PartOfEnd(
+      ParserAstType.END,
+      partKeyword: partKeyword,
+      ofKeyword: ofKeyword,
+      semicolon: semicolon,
+      hasName: hasName,
+    );
     seen(data);
   }
 
   @override
   void beginRedirectingFactoryBody(Token token) {
-    RedirectingFactoryBodyBegin data =
-        new RedirectingFactoryBodyBegin(ParserAstType.BEGIN, token: token);
+    RedirectingFactoryBodyBegin data = new RedirectingFactoryBodyBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endRedirectingFactoryBody(Token beginToken, Token endToken) {
     RedirectingFactoryBodyEnd data = new RedirectingFactoryBodyEnd(
-        ParserAstType.END,
-        beginToken: beginToken,
-        endToken: endToken);
+      ParserAstType.END,
+      beginToken: beginToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginReturnStatement(Token token) {
-    ReturnStatementBegin data =
-        new ReturnStatementBegin(ParserAstType.BEGIN, token: token);
+    ReturnStatementBegin data = new ReturnStatementBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleNativeFunctionBody(Token nativeToken, Token semicolon) {
     NativeFunctionBodyHandle data = new NativeFunctionBodyHandle(
-        ParserAstType.HANDLE,
-        nativeToken: nativeToken,
-        semicolon: semicolon);
+      ParserAstType.HANDLE,
+      nativeToken: nativeToken,
+      semicolon: semicolon,
+    );
     seen(data);
   }
 
   @override
   void handleNativeFunctionBodyIgnored(Token nativeToken, Token semicolon) {
     NativeFunctionBodyIgnoredHandle data = new NativeFunctionBodyIgnoredHandle(
-        ParserAstType.HANDLE,
-        nativeToken: nativeToken,
-        semicolon: semicolon);
+      ParserAstType.HANDLE,
+      nativeToken: nativeToken,
+      semicolon: semicolon,
+    );
     seen(data);
   }
 
   @override
   void handleNativeFunctionBodySkipped(Token nativeToken, Token semicolon) {
     NativeFunctionBodySkippedHandle data = new NativeFunctionBodySkippedHandle(
-        ParserAstType.HANDLE,
-        nativeToken: nativeToken,
-        semicolon: semicolon);
+      ParserAstType.HANDLE,
+      nativeToken: nativeToken,
+      semicolon: semicolon,
+    );
     seen(data);
   }
 
   @override
   void handleEmptyFunctionBody(Token semicolon) {
-    EmptyFunctionBodyHandle data =
-        new EmptyFunctionBodyHandle(ParserAstType.HANDLE, semicolon: semicolon);
+    EmptyFunctionBodyHandle data = new EmptyFunctionBodyHandle(
+      ParserAstType.HANDLE,
+      semicolon: semicolon,
+    );
     seen(data);
   }
 
   @override
   void handleExpressionFunctionBody(Token arrowToken, Token? endToken) {
     ExpressionFunctionBodyHandle data = new ExpressionFunctionBodyHandle(
-        ParserAstType.HANDLE,
-        arrowToken: arrowToken,
-        endToken: endToken);
+      ParserAstType.HANDLE,
+      arrowToken: arrowToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
@@ -1997,24 +2186,31 @@ abstract class AbstractParserAstListener implements Listener {
     Token beginToken,
     Token endToken,
   ) {
-    ReturnStatementEnd data = new ReturnStatementEnd(ParserAstType.END,
-        hasExpression: hasExpression,
-        beginToken: beginToken,
-        endToken: endToken);
+    ReturnStatementEnd data = new ReturnStatementEnd(
+      ParserAstType.END,
+      hasExpression: hasExpression,
+      beginToken: beginToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void handleSend(Token beginToken, Token endToken) {
-    SendHandle data = new SendHandle(ParserAstType.HANDLE,
-        beginToken: beginToken, endToken: endToken);
+    SendHandle data = new SendHandle(
+      ParserAstType.HANDLE,
+      beginToken: beginToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginShow(Token showKeyword) {
-    ShowBegin data =
-        new ShowBegin(ParserAstType.BEGIN, showKeyword: showKeyword);
+    ShowBegin data = new ShowBegin(
+      ParserAstType.BEGIN,
+      showKeyword: showKeyword,
+    );
     seen(data);
   }
 
@@ -2026,50 +2222,68 @@ abstract class AbstractParserAstListener implements Listener {
 
   @override
   void beginSwitchStatement(Token token) {
-    SwitchStatementBegin data =
-        new SwitchStatementBegin(ParserAstType.BEGIN, token: token);
+    SwitchStatementBegin data = new SwitchStatementBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endSwitchStatement(Token switchKeyword, Token endToken) {
-    SwitchStatementEnd data = new SwitchStatementEnd(ParserAstType.END,
-        switchKeyword: switchKeyword, endToken: endToken);
+    SwitchStatementEnd data = new SwitchStatementEnd(
+      ParserAstType.END,
+      switchKeyword: switchKeyword,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginSwitchExpression(Token token) {
-    SwitchExpressionBegin data =
-        new SwitchExpressionBegin(ParserAstType.BEGIN, token: token);
+    SwitchExpressionBegin data = new SwitchExpressionBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endSwitchExpression(Token switchKeyword, Token endToken) {
-    SwitchExpressionEnd data = new SwitchExpressionEnd(ParserAstType.END,
-        switchKeyword: switchKeyword, endToken: endToken);
+    SwitchExpressionEnd data = new SwitchExpressionEnd(
+      ParserAstType.END,
+      switchKeyword: switchKeyword,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginSwitchBlock(Token token) {
-    SwitchBlockBegin data =
-        new SwitchBlockBegin(ParserAstType.BEGIN, token: token);
+    SwitchBlockBegin data = new SwitchBlockBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endSwitchBlock(int caseCount, Token beginToken, Token endToken) {
-    SwitchBlockEnd data = new SwitchBlockEnd(ParserAstType.END,
-        caseCount: caseCount, beginToken: beginToken, endToken: endToken);
+    SwitchBlockEnd data = new SwitchBlockEnd(
+      ParserAstType.END,
+      caseCount: caseCount,
+      beginToken: beginToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginSwitchExpressionBlock(Token token) {
-    SwitchExpressionBlockBegin data =
-        new SwitchExpressionBlockBegin(ParserAstType.BEGIN, token: token);
+    SwitchExpressionBlockBegin data = new SwitchExpressionBlockBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
@@ -2080,67 +2294,87 @@ abstract class AbstractParserAstListener implements Listener {
     Token endToken,
   ) {
     SwitchExpressionBlockEnd data = new SwitchExpressionBlockEnd(
-        ParserAstType.END,
-        caseCount: caseCount,
-        beginToken: beginToken,
-        endToken: endToken);
+      ParserAstType.END,
+      caseCount: caseCount,
+      beginToken: beginToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginLiteralSymbol(Token token) {
-    LiteralSymbolBegin data =
-        new LiteralSymbolBegin(ParserAstType.BEGIN, token: token);
+    LiteralSymbolBegin data = new LiteralSymbolBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endLiteralSymbol(Token hashToken, int identifierCount) {
-    LiteralSymbolEnd data = new LiteralSymbolEnd(ParserAstType.END,
-        hashToken: hashToken, identifierCount: identifierCount);
+    LiteralSymbolEnd data = new LiteralSymbolEnd(
+      ParserAstType.END,
+      hashToken: hashToken,
+      identifierCount: identifierCount,
+    );
     seen(data);
   }
 
   @override
   void handleThrowExpression(Token throwToken, Token endToken) {
-    ThrowExpressionHandle data = new ThrowExpressionHandle(ParserAstType.HANDLE,
-        throwToken: throwToken, endToken: endToken);
+    ThrowExpressionHandle data = new ThrowExpressionHandle(
+      ParserAstType.HANDLE,
+      throwToken: throwToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginRethrowStatement(Token token) {
-    RethrowStatementBegin data =
-        new RethrowStatementBegin(ParserAstType.BEGIN, token: token);
+    RethrowStatementBegin data = new RethrowStatementBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endRethrowStatement(Token rethrowToken, Token endToken) {
-    RethrowStatementEnd data = new RethrowStatementEnd(ParserAstType.END,
-        rethrowToken: rethrowToken, endToken: endToken);
+    RethrowStatementEnd data = new RethrowStatementEnd(
+      ParserAstType.END,
+      rethrowToken: rethrowToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void endTopLevelDeclaration(Token endToken) {
-    TopLevelDeclarationEnd data =
-        new TopLevelDeclarationEnd(ParserAstType.END, endToken: endToken);
+    TopLevelDeclarationEnd data = new TopLevelDeclarationEnd(
+      ParserAstType.END,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void handleInvalidTopLevelDeclaration(Token endToken) {
     InvalidTopLevelDeclarationHandle data =
-        new InvalidTopLevelDeclarationHandle(ParserAstType.HANDLE,
-            endToken: endToken);
+        new InvalidTopLevelDeclarationHandle(
+          ParserAstType.HANDLE,
+          endToken: endToken,
+        );
     seen(data);
   }
 
   @override
   void beginTopLevelMember(Token token) {
-    TopLevelMemberBegin data =
-        new TopLevelMemberBegin(ParserAstType.BEGIN, token: token);
+    TopLevelMemberBegin data = new TopLevelMemberBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
@@ -2156,16 +2390,18 @@ abstract class AbstractParserAstListener implements Listener {
     Token? varFinalOrConst,
     Token lastConsumed,
   ) {
-    FieldsBegin data = new FieldsBegin(ParserAstType.BEGIN,
-        declarationKind: declarationKind,
-        abstractToken: abstractToken,
-        augmentToken: augmentToken,
-        externalToken: externalToken,
-        staticToken: staticToken,
-        covariantToken: covariantToken,
-        lateToken: lateToken,
-        varFinalOrConst: varFinalOrConst,
-        lastConsumed: lastConsumed);
+    FieldsBegin data = new FieldsBegin(
+      ParserAstType.BEGIN,
+      declarationKind: declarationKind,
+      abstractToken: abstractToken,
+      augmentToken: augmentToken,
+      externalToken: externalToken,
+      staticToken: staticToken,
+      covariantToken: covariantToken,
+      lateToken: lateToken,
+      varFinalOrConst: varFinalOrConst,
+      lastConsumed: lastConsumed,
+    );
     seen(data);
   }
 
@@ -2181,16 +2417,18 @@ abstract class AbstractParserAstListener implements Listener {
     Token beginToken,
     Token endToken,
   ) {
-    TopLevelFieldsEnd data = new TopLevelFieldsEnd(ParserAstType.END,
-        augmentToken: augmentToken,
-        externalToken: externalToken,
-        staticToken: staticToken,
-        covariantToken: covariantToken,
-        lateToken: lateToken,
-        varFinalOrConst: varFinalOrConst,
-        count: count,
-        beginToken: beginToken,
-        endToken: endToken);
+    TopLevelFieldsEnd data = new TopLevelFieldsEnd(
+      ParserAstType.END,
+      augmentToken: augmentToken,
+      externalToken: externalToken,
+      staticToken: staticToken,
+      covariantToken: covariantToken,
+      lateToken: lateToken,
+      varFinalOrConst: varFinalOrConst,
+      count: count,
+      beginToken: beginToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
@@ -2200,31 +2438,41 @@ abstract class AbstractParserAstListener implements Listener {
     Token? augmentToken,
     Token? externalToken,
   ) {
-    TopLevelMethodBegin data = new TopLevelMethodBegin(ParserAstType.BEGIN,
-        lastConsumed: lastConsumed,
-        augmentToken: augmentToken,
-        externalToken: externalToken);
+    TopLevelMethodBegin data = new TopLevelMethodBegin(
+      ParserAstType.BEGIN,
+      lastConsumed: lastConsumed,
+      augmentToken: augmentToken,
+      externalToken: externalToken,
+    );
     seen(data);
   }
 
   @override
   void endTopLevelMethod(Token beginToken, Token? getOrSet, Token endToken) {
-    TopLevelMethodEnd data = new TopLevelMethodEnd(ParserAstType.END,
-        beginToken: beginToken, getOrSet: getOrSet, endToken: endToken);
+    TopLevelMethodEnd data = new TopLevelMethodEnd(
+      ParserAstType.END,
+      beginToken: beginToken,
+      getOrSet: getOrSet,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginTryStatement(Token token) {
-    TryStatementBegin data =
-        new TryStatementBegin(ParserAstType.BEGIN, token: token);
+    TryStatementBegin data = new TryStatementBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void beginCatchClause(Token token) {
-    CatchClauseBegin data =
-        new CatchClauseBegin(ParserAstType.BEGIN, token: token);
+    CatchClauseBegin data = new CatchClauseBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
@@ -2236,15 +2484,21 @@ abstract class AbstractParserAstListener implements Listener {
 
   @override
   void handleCatchBlock(Token? onKeyword, Token? catchKeyword, Token? comma) {
-    CatchBlockHandle data = new CatchBlockHandle(ParserAstType.HANDLE,
-        onKeyword: onKeyword, catchKeyword: catchKeyword, comma: comma);
+    CatchBlockHandle data = new CatchBlockHandle(
+      ParserAstType.HANDLE,
+      onKeyword: onKeyword,
+      catchKeyword: catchKeyword,
+      comma: comma,
+    );
     seen(data);
   }
 
   @override
   void handleFinallyBlock(Token finallyKeyword) {
-    FinallyBlockHandle data = new FinallyBlockHandle(ParserAstType.HANDLE,
-        finallyKeyword: finallyKeyword);
+    FinallyBlockHandle data = new FinallyBlockHandle(
+      ParserAstType.HANDLE,
+      finallyKeyword: finallyKeyword,
+    );
     seen(data);
   }
 
@@ -2255,47 +2509,59 @@ abstract class AbstractParserAstListener implements Listener {
     Token? finallyKeyword,
     Token endToken,
   ) {
-    TryStatementEnd data = new TryStatementEnd(ParserAstType.END,
-        catchCount: catchCount,
-        tryKeyword: tryKeyword,
-        finallyKeyword: finallyKeyword,
-        endToken: endToken);
+    TryStatementEnd data = new TryStatementEnd(
+      ParserAstType.END,
+      catchCount: catchCount,
+      tryKeyword: tryKeyword,
+      finallyKeyword: finallyKeyword,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void handleType(Token beginToken, Token? questionMark) {
-    TypeHandle data = new TypeHandle(ParserAstType.HANDLE,
-        beginToken: beginToken, questionMark: questionMark);
+    TypeHandle data = new TypeHandle(
+      ParserAstType.HANDLE,
+      beginToken: beginToken,
+      questionMark: questionMark,
+    );
     seen(data);
   }
 
   @override
   void handleNonNullAssertExpression(Token bang) {
-    NonNullAssertExpressionHandle data =
-        new NonNullAssertExpressionHandle(ParserAstType.HANDLE, bang: bang);
+    NonNullAssertExpressionHandle data = new NonNullAssertExpressionHandle(
+      ParserAstType.HANDLE,
+      bang: bang,
+    );
     seen(data);
   }
 
   @override
   void handleNullAssertPattern(Token bang) {
-    NullAssertPatternHandle data =
-        new NullAssertPatternHandle(ParserAstType.HANDLE, bang: bang);
+    NullAssertPatternHandle data = new NullAssertPatternHandle(
+      ParserAstType.HANDLE,
+      bang: bang,
+    );
     seen(data);
   }
 
   @override
   void handleNullCheckPattern(Token question) {
-    NullCheckPatternHandle data =
-        new NullCheckPatternHandle(ParserAstType.HANDLE, question: question);
+    NullCheckPatternHandle data = new NullCheckPatternHandle(
+      ParserAstType.HANDLE,
+      question: question,
+    );
     seen(data);
   }
 
   @override
   void handleAssignedVariablePattern(Token variable) {
     AssignedVariablePatternHandle data = new AssignedVariablePatternHandle(
-        ParserAstType.HANDLE,
-        variable: variable);
+      ParserAstType.HANDLE,
+      variable: variable,
+    );
     seen(data);
   }
 
@@ -2306,17 +2572,21 @@ abstract class AbstractParserAstListener implements Listener {
     required bool inAssignmentPattern,
   }) {
     DeclaredVariablePatternHandle data = new DeclaredVariablePatternHandle(
-        ParserAstType.HANDLE,
-        keyword: keyword,
-        variable: variable,
-        inAssignmentPattern: inAssignmentPattern);
+      ParserAstType.HANDLE,
+      keyword: keyword,
+      variable: variable,
+      inAssignmentPattern: inAssignmentPattern,
+    );
     seen(data);
   }
 
   @override
   void handleWildcardPattern(Token? keyword, Token wildcard) {
-    WildcardPatternHandle data = new WildcardPatternHandle(ParserAstType.HANDLE,
-        keyword: keyword, wildcard: wildcard);
+    WildcardPatternHandle data = new WildcardPatternHandle(
+      ParserAstType.HANDLE,
+      keyword: keyword,
+      wildcard: wildcard,
+    );
     seen(data);
   }
 
@@ -2328,8 +2598,10 @@ abstract class AbstractParserAstListener implements Listener {
 
   @override
   void beginRecordType(Token leftBracket) {
-    RecordTypeBegin data =
-        new RecordTypeBegin(ParserAstType.BEGIN, leftBracket: leftBracket);
+    RecordTypeBegin data = new RecordTypeBegin(
+      ParserAstType.BEGIN,
+      leftBracket: leftBracket,
+    );
     seen(data);
   }
 
@@ -2340,11 +2612,13 @@ abstract class AbstractParserAstListener implements Listener {
     int count,
     bool hasNamedFields,
   ) {
-    RecordTypeEnd data = new RecordTypeEnd(ParserAstType.END,
-        leftBracket: leftBracket,
-        questionMark: questionMark,
-        count: count,
-        hasNamedFields: hasNamedFields);
+    RecordTypeEnd data = new RecordTypeEnd(
+      ParserAstType.END,
+      leftBracket: leftBracket,
+      questionMark: questionMark,
+      count: count,
+      hasNamedFields: hasNamedFields,
+    );
     seen(data);
   }
 
@@ -2363,75 +2637,95 @@ abstract class AbstractParserAstListener implements Listener {
   @override
   void beginRecordTypeNamedFields(Token leftBracket) {
     RecordTypeNamedFieldsBegin data = new RecordTypeNamedFieldsBegin(
-        ParserAstType.BEGIN,
-        leftBracket: leftBracket);
+      ParserAstType.BEGIN,
+      leftBracket: leftBracket,
+    );
     seen(data);
   }
 
   @override
   void endRecordTypeNamedFields(int count, Token leftBracket) {
     RecordTypeNamedFieldsEnd data = new RecordTypeNamedFieldsEnd(
-        ParserAstType.END,
-        count: count,
-        leftBracket: leftBracket);
+      ParserAstType.END,
+      count: count,
+      leftBracket: leftBracket,
+    );
     seen(data);
   }
 
   @override
   void beginFunctionType(Token beginToken) {
-    FunctionTypeBegin data =
-        new FunctionTypeBegin(ParserAstType.BEGIN, beginToken: beginToken);
+    FunctionTypeBegin data = new FunctionTypeBegin(
+      ParserAstType.BEGIN,
+      beginToken: beginToken,
+    );
     seen(data);
   }
 
   @override
   void endFunctionType(Token functionToken, Token? questionMark) {
-    FunctionTypeEnd data = new FunctionTypeEnd(ParserAstType.END,
-        functionToken: functionToken, questionMark: questionMark);
+    FunctionTypeEnd data = new FunctionTypeEnd(
+      ParserAstType.END,
+      functionToken: functionToken,
+      questionMark: questionMark,
+    );
     seen(data);
   }
 
   @override
   void beginTypeArguments(Token token) {
-    TypeArgumentsBegin data =
-        new TypeArgumentsBegin(ParserAstType.BEGIN, token: token);
+    TypeArgumentsBegin data = new TypeArgumentsBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endTypeArguments(int count, Token beginToken, Token endToken) {
-    TypeArgumentsEnd data = new TypeArgumentsEnd(ParserAstType.END,
-        count: count, beginToken: beginToken, endToken: endToken);
+    TypeArgumentsEnd data = new TypeArgumentsEnd(
+      ParserAstType.END,
+      count: count,
+      beginToken: beginToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void handleInvalidTypeArguments(Token token) {
-    InvalidTypeArgumentsHandle data =
-        new InvalidTypeArgumentsHandle(ParserAstType.HANDLE, token: token);
+    InvalidTypeArgumentsHandle data = new InvalidTypeArgumentsHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleNoTypeArguments(Token token) {
-    NoTypeArgumentsHandle data =
-        new NoTypeArgumentsHandle(ParserAstType.HANDLE, token: token);
+    NoTypeArgumentsHandle data = new NoTypeArgumentsHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void beginTypeVariable(Token token) {
-    TypeVariableBegin data =
-        new TypeVariableBegin(ParserAstType.BEGIN, token: token);
+    TypeVariableBegin data = new TypeVariableBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleTypeVariablesDefined(Token token, int count) {
     TypeVariablesDefinedHandle data = new TypeVariablesDefinedHandle(
-        ParserAstType.HANDLE,
-        token: token,
-        count: count);
+      ParserAstType.HANDLE,
+      token: token,
+      count: count,
+    );
     seen(data);
   }
 
@@ -2442,39 +2736,51 @@ abstract class AbstractParserAstListener implements Listener {
     Token? extendsOrSuper,
     Token? variance,
   ) {
-    TypeVariableEnd data = new TypeVariableEnd(ParserAstType.END,
-        token: token,
-        index: index,
-        extendsOrSuper: extendsOrSuper,
-        variance: variance);
+    TypeVariableEnd data = new TypeVariableEnd(
+      ParserAstType.END,
+      token: token,
+      index: index,
+      extendsOrSuper: extendsOrSuper,
+      variance: variance,
+    );
     seen(data);
   }
 
   @override
   void beginTypeVariables(Token token) {
-    TypeVariablesBegin data =
-        new TypeVariablesBegin(ParserAstType.BEGIN, token: token);
+    TypeVariablesBegin data = new TypeVariablesBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endTypeVariables(Token beginToken, Token endToken) {
-    TypeVariablesEnd data = new TypeVariablesEnd(ParserAstType.END,
-        beginToken: beginToken, endToken: endToken);
+    TypeVariablesEnd data = new TypeVariablesEnd(
+      ParserAstType.END,
+      beginToken: beginToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginFunctionExpression(Token token) {
-    FunctionExpressionBegin data =
-        new FunctionExpressionBegin(ParserAstType.BEGIN, token: token);
+    FunctionExpressionBegin data = new FunctionExpressionBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endFunctionExpression(Token beginToken, Token endToken) {
-    FunctionExpressionEnd data = new FunctionExpressionEnd(ParserAstType.END,
-        beginToken: beginToken, endToken: endToken);
+    FunctionExpressionEnd data = new FunctionExpressionEnd(
+      ParserAstType.END,
+      beginToken: beginToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
@@ -2485,114 +2791,189 @@ abstract class AbstractParserAstListener implements Listener {
     Token? varFinalOrConst,
   ) {
     VariablesDeclarationBegin data = new VariablesDeclarationBegin(
-        ParserAstType.BEGIN,
-        token: token,
-        lateToken: lateToken,
-        varFinalOrConst: varFinalOrConst);
+      ParserAstType.BEGIN,
+      token: token,
+      lateToken: lateToken,
+      varFinalOrConst: varFinalOrConst,
+    );
     seen(data);
   }
 
   @override
   void endVariablesDeclaration(int count, Token? endToken) {
     VariablesDeclarationEnd data = new VariablesDeclarationEnd(
-        ParserAstType.END,
-        count: count,
-        endToken: endToken);
+      ParserAstType.END,
+      count: count,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginWhileStatement(Token token) {
-    WhileStatementBegin data =
-        new WhileStatementBegin(ParserAstType.BEGIN, token: token);
+    WhileStatementBegin data = new WhileStatementBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endWhileStatement(Token whileKeyword, Token endToken) {
-    WhileStatementEnd data = new WhileStatementEnd(ParserAstType.END,
-        whileKeyword: whileKeyword, endToken: endToken);
+    WhileStatementEnd data = new WhileStatementEnd(
+      ParserAstType.END,
+      whileKeyword: whileKeyword,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginAsOperatorType(Token operator) {
-    AsOperatorTypeBegin data =
-        new AsOperatorTypeBegin(ParserAstType.BEGIN, operator: operator);
+    AsOperatorTypeBegin data = new AsOperatorTypeBegin(
+      ParserAstType.BEGIN,
+      operator: operator,
+    );
     seen(data);
   }
 
   @override
   void endAsOperatorType(Token operator) {
-    AsOperatorTypeEnd data =
-        new AsOperatorTypeEnd(ParserAstType.END, operator: operator);
+    AsOperatorTypeEnd data = new AsOperatorTypeEnd(
+      ParserAstType.END,
+      operator: operator,
+    );
     seen(data);
   }
 
   @override
   void handleAsOperator(Token operator) {
-    AsOperatorHandle data =
-        new AsOperatorHandle(ParserAstType.HANDLE, operator: operator);
+    AsOperatorHandle data = new AsOperatorHandle(
+      ParserAstType.HANDLE,
+      operator: operator,
+    );
     seen(data);
   }
 
   @override
   void handleCastPattern(Token operator) {
-    CastPatternHandle data =
-        new CastPatternHandle(ParserAstType.HANDLE, operator: operator);
+    CastPatternHandle data = new CastPatternHandle(
+      ParserAstType.HANDLE,
+      operator: operator,
+    );
     seen(data);
   }
 
   @override
   void handleAssignmentExpression(Token token, Token endToken) {
     AssignmentExpressionHandle data = new AssignmentExpressionHandle(
-        ParserAstType.HANDLE,
-        token: token,
-        endToken: endToken);
+      ParserAstType.HANDLE,
+      token: token,
+      endToken: endToken,
+    );
+    seen(data);
+  }
+
+  @override
+  void beginAnonymousMethodInvocation(Token token) {
+    AnonymousMethodInvocationBegin data = new AnonymousMethodInvocationBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
+    seen(data);
+  }
+
+  @override
+  void endAnonymousMethodInvocation(
+    Token beginToken,
+    Token? functionDefinition,
+    Token endToken, {
+    required bool isExpression,
+  }) {
+    AnonymousMethodInvocationEnd data = new AnonymousMethodInvocationEnd(
+      ParserAstType.END,
+      beginToken: beginToken,
+      functionDefinition: functionDefinition,
+      endToken: endToken,
+      isExpression: isExpression,
+    );
+    seen(data);
+  }
+
+  @override
+  void handleImplicitFormalParameters(Token token) {
+    ImplicitFormalParametersHandle data = new ImplicitFormalParametersHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void beginBinaryExpression(Token token) {
-    BinaryExpressionBegin data =
-        new BinaryExpressionBegin(ParserAstType.BEGIN, token: token);
+    BinaryExpressionBegin data = new BinaryExpressionBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endBinaryExpression(Token token, Token endToken) {
-    BinaryExpressionEnd data = new BinaryExpressionEnd(ParserAstType.END,
-        token: token, endToken: endToken);
+    BinaryExpressionEnd data = new BinaryExpressionEnd(
+      ParserAstType.END,
+      token: token,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginBinaryPattern(Token token) {
-    BinaryPatternBegin data =
-        new BinaryPatternBegin(ParserAstType.BEGIN, token: token);
+    BinaryPatternBegin data = new BinaryPatternBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endBinaryPattern(Token token) {
-    BinaryPatternEnd data =
-        new BinaryPatternEnd(ParserAstType.END, token: token);
+    BinaryPatternEnd data = new BinaryPatternEnd(
+      ParserAstType.END,
+      token: token,
+    );
     seen(data);
   }
 
   @override
-  void handleEndingBinaryExpression(Token token, Token endToken) {
-    EndingBinaryExpressionHandle data = new EndingBinaryExpressionHandle(
-        ParserAstType.HANDLE,
-        token: token,
-        endToken: endToken);
+  void handleDotAccess(Token token, Token endToken, bool isNullAware) {
+    DotAccessHandle data = new DotAccessHandle(
+      ParserAstType.HANDLE,
+      token: token,
+      endToken: endToken,
+      isNullAware: isNullAware,
+    );
+    seen(data);
+  }
+
+  @override
+  void handleCascadeAccess(Token token, Token endToken, bool isNullAware) {
+    CascadeAccessHandle data = new CascadeAccessHandle(
+      ParserAstType.HANDLE,
+      token: token,
+      endToken: endToken,
+      isNullAware: isNullAware,
+    );
     seen(data);
   }
 
   @override
   void beginConditionalExpression(Token question) {
-    ConditionalExpressionBegin data =
-        new ConditionalExpressionBegin(ParserAstType.BEGIN, question: question);
+    ConditionalExpressionBegin data = new ConditionalExpressionBegin(
+      ParserAstType.BEGIN,
+      question: question,
+    );
     seen(data);
   }
 
@@ -2606,134 +2987,169 @@ abstract class AbstractParserAstListener implements Listener {
   @override
   void endConditionalExpression(Token question, Token colon, Token endToken) {
     ConditionalExpressionEnd data = new ConditionalExpressionEnd(
-        ParserAstType.END,
-        question: question,
-        colon: colon,
-        endToken: endToken);
+      ParserAstType.END,
+      question: question,
+      colon: colon,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginConstExpression(Token constKeyword) {
-    ConstExpressionBegin data = new ConstExpressionBegin(ParserAstType.BEGIN,
-        constKeyword: constKeyword);
+    ConstExpressionBegin data = new ConstExpressionBegin(
+      ParserAstType.BEGIN,
+      constKeyword: constKeyword,
+    );
     seen(data);
   }
 
   @override
   void endConstExpression(Token token) {
-    ConstExpressionEnd data =
-        new ConstExpressionEnd(ParserAstType.END, token: token);
+    ConstExpressionEnd data = new ConstExpressionEnd(
+      ParserAstType.END,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleConstFactory(Token constKeyword) {
-    ConstFactoryHandle data = new ConstFactoryHandle(ParserAstType.HANDLE,
-        constKeyword: constKeyword);
+    ConstFactoryHandle data = new ConstFactoryHandle(
+      ParserAstType.HANDLE,
+      constKeyword: constKeyword,
+    );
     seen(data);
   }
 
   @override
   void beginForControlFlow(Token? awaitToken, Token forToken) {
-    ForControlFlowBegin data = new ForControlFlowBegin(ParserAstType.BEGIN,
-        awaitToken: awaitToken, forToken: forToken);
+    ForControlFlowBegin data = new ForControlFlowBegin(
+      ParserAstType.BEGIN,
+      awaitToken: awaitToken,
+      forToken: forToken,
+    );
     seen(data);
   }
 
   @override
   void endForControlFlow(Token token) {
-    ForControlFlowEnd data =
-        new ForControlFlowEnd(ParserAstType.END, token: token);
+    ForControlFlowEnd data = new ForControlFlowEnd(
+      ParserAstType.END,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endForInControlFlow(Token token) {
-    ForInControlFlowEnd data =
-        new ForInControlFlowEnd(ParserAstType.END, token: token);
+    ForInControlFlowEnd data = new ForInControlFlowEnd(
+      ParserAstType.END,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void beginIfControlFlow(Token ifToken) {
-    IfControlFlowBegin data =
-        new IfControlFlowBegin(ParserAstType.BEGIN, ifToken: ifToken);
+    IfControlFlowBegin data = new IfControlFlowBegin(
+      ParserAstType.BEGIN,
+      ifToken: ifToken,
+    );
     seen(data);
   }
 
   @override
   void handleThenControlFlow(Token token) {
-    ThenControlFlowHandle data =
-        new ThenControlFlowHandle(ParserAstType.HANDLE, token: token);
+    ThenControlFlowHandle data = new ThenControlFlowHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleElseControlFlow(Token elseToken) {
-    ElseControlFlowHandle data =
-        new ElseControlFlowHandle(ParserAstType.HANDLE, elseToken: elseToken);
+    ElseControlFlowHandle data = new ElseControlFlowHandle(
+      ParserAstType.HANDLE,
+      elseToken: elseToken,
+    );
     seen(data);
   }
 
   @override
   void endIfControlFlow(Token token) {
-    IfControlFlowEnd data =
-        new IfControlFlowEnd(ParserAstType.END, token: token);
+    IfControlFlowEnd data = new IfControlFlowEnd(
+      ParserAstType.END,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endIfElseControlFlow(Token token) {
-    IfElseControlFlowEnd data =
-        new IfElseControlFlowEnd(ParserAstType.END, token: token);
+    IfElseControlFlowEnd data = new IfElseControlFlowEnd(
+      ParserAstType.END,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleSpreadExpression(Token spreadToken) {
     SpreadExpressionHandle data = new SpreadExpressionHandle(
-        ParserAstType.HANDLE,
-        spreadToken: spreadToken);
+      ParserAstType.HANDLE,
+      spreadToken: spreadToken,
+    );
     seen(data);
   }
 
   @override
   void handleNullAwareElement(Token nullAwareToken) {
     NullAwareElementHandle data = new NullAwareElementHandle(
-        ParserAstType.HANDLE,
-        nullAwareToken: nullAwareToken);
+      ParserAstType.HANDLE,
+      nullAwareToken: nullAwareToken,
+    );
     seen(data);
   }
 
   @override
   void handleRestPattern(Token dots, {required bool hasSubPattern}) {
-    RestPatternHandle data = new RestPatternHandle(ParserAstType.HANDLE,
-        dots: dots, hasSubPattern: hasSubPattern);
+    RestPatternHandle data = new RestPatternHandle(
+      ParserAstType.HANDLE,
+      dots: dots,
+      hasSubPattern: hasSubPattern,
+    );
     seen(data);
   }
 
   @override
   void beginFunctionTypedFormalParameter(Token token) {
     FunctionTypedFormalParameterBegin data =
-        new FunctionTypedFormalParameterBegin(ParserAstType.BEGIN,
-            token: token);
+        new FunctionTypedFormalParameterBegin(
+          ParserAstType.BEGIN,
+          token: token,
+        );
     seen(data);
   }
 
   @override
   void endFunctionTypedFormalParameter(Token nameToken, Token? question) {
     FunctionTypedFormalParameterEnd data = new FunctionTypedFormalParameterEnd(
-        ParserAstType.END,
-        nameToken: nameToken,
-        question: question);
+      ParserAstType.END,
+      nameToken: nameToken,
+      question: question,
+    );
     seen(data);
   }
 
   @override
   void handleIdentifier(Token token, IdentifierContext context) {
-    IdentifierHandle data = new IdentifierHandle(ParserAstType.HANDLE,
-        token: token, context: context);
+    IdentifierHandle data = new IdentifierHandle(
+      ParserAstType.HANDLE,
+      token: token,
+      context: context,
+    );
     seen(data);
   }
 
@@ -2744,38 +3160,48 @@ abstract class AbstractParserAstListener implements Listener {
     Token closeSquareBracket,
   ) {
     IndexedExpressionHandle data = new IndexedExpressionHandle(
-        ParserAstType.HANDLE,
-        question: question,
-        openSquareBracket: openSquareBracket,
-        closeSquareBracket: closeSquareBracket);
+      ParserAstType.HANDLE,
+      question: question,
+      openSquareBracket: openSquareBracket,
+      closeSquareBracket: closeSquareBracket,
+    );
     seen(data);
   }
 
   @override
   void beginIsOperatorType(Token operator) {
-    IsOperatorTypeBegin data =
-        new IsOperatorTypeBegin(ParserAstType.BEGIN, operator: operator);
+    IsOperatorTypeBegin data = new IsOperatorTypeBegin(
+      ParserAstType.BEGIN,
+      operator: operator,
+    );
     seen(data);
   }
 
   @override
   void endIsOperatorType(Token operator) {
-    IsOperatorTypeEnd data =
-        new IsOperatorTypeEnd(ParserAstType.END, operator: operator);
+    IsOperatorTypeEnd data = new IsOperatorTypeEnd(
+      ParserAstType.END,
+      operator: operator,
+    );
     seen(data);
   }
 
   @override
   void handleIsOperator(Token isOperator, Token? not) {
-    IsOperatorHandle data = new IsOperatorHandle(ParserAstType.HANDLE,
-        isOperator: isOperator, not: not);
+    IsOperatorHandle data = new IsOperatorHandle(
+      ParserAstType.HANDLE,
+      isOperator: isOperator,
+      not: not,
+    );
     seen(data);
   }
 
   @override
   void handleLiteralBool(Token token) {
-    LiteralBoolHandle data =
-        new LiteralBoolHandle(ParserAstType.HANDLE, token: token);
+    LiteralBoolHandle data = new LiteralBoolHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
@@ -2785,8 +3211,12 @@ abstract class AbstractParserAstListener implements Listener {
     Token breakKeyword,
     Token endToken,
   ) {
-    BreakStatementHandle data = new BreakStatementHandle(ParserAstType.HANDLE,
-        hasTarget: hasTarget, breakKeyword: breakKeyword, endToken: endToken);
+    BreakStatementHandle data = new BreakStatementHandle(
+      ParserAstType.HANDLE,
+      hasTarget: hasTarget,
+      breakKeyword: breakKeyword,
+      endToken: endToken,
+    );
     seen(data);
   }
 
@@ -2797,24 +3227,30 @@ abstract class AbstractParserAstListener implements Listener {
     Token endToken,
   ) {
     ContinueStatementHandle data = new ContinueStatementHandle(
-        ParserAstType.HANDLE,
-        hasTarget: hasTarget,
-        continueKeyword: continueKeyword,
-        endToken: endToken);
+      ParserAstType.HANDLE,
+      hasTarget: hasTarget,
+      continueKeyword: continueKeyword,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void handleEmptyStatement(Token token) {
-    EmptyStatementHandle data =
-        new EmptyStatementHandle(ParserAstType.HANDLE, token: token);
+    EmptyStatementHandle data = new EmptyStatementHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void beginAssert(Token assertKeyword, Assert kind) {
-    AssertBegin data = new AssertBegin(ParserAstType.BEGIN,
-        assertKeyword: assertKeyword, kind: kind);
+    AssertBegin data = new AssertBegin(
+      ParserAstType.BEGIN,
+      assertKeyword: assertKeyword,
+      kind: kind,
+    );
     seen(data);
   }
 
@@ -2826,41 +3262,51 @@ abstract class AbstractParserAstListener implements Listener {
     Token? commaToken,
     Token endToken,
   ) {
-    AssertEnd data = new AssertEnd(ParserAstType.END,
-        assertKeyword: assertKeyword,
-        kind: kind,
-        leftParenthesis: leftParenthesis,
-        commaToken: commaToken,
-        endToken: endToken);
+    AssertEnd data = new AssertEnd(
+      ParserAstType.END,
+      assertKeyword: assertKeyword,
+      kind: kind,
+      leftParenthesis: leftParenthesis,
+      commaToken: commaToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void handleLiteralDouble(Token token) {
-    LiteralDoubleHandle data =
-        new LiteralDoubleHandle(ParserAstType.HANDLE, token: token);
+    LiteralDoubleHandle data = new LiteralDoubleHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleLiteralDoubleWithSeparators(Token token) {
     LiteralDoubleWithSeparatorsHandle data =
-        new LiteralDoubleWithSeparatorsHandle(ParserAstType.HANDLE,
-            token: token);
+        new LiteralDoubleWithSeparatorsHandle(
+          ParserAstType.HANDLE,
+          token: token,
+        );
     seen(data);
   }
 
   @override
   void handleLiteralInt(Token token) {
-    LiteralIntHandle data =
-        new LiteralIntHandle(ParserAstType.HANDLE, token: token);
+    LiteralIntHandle data = new LiteralIntHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleLiteralIntWithSeparators(Token token) {
-    LiteralIntWithSeparatorsHandle data =
-        new LiteralIntWithSeparatorsHandle(ParserAstType.HANDLE, token: token);
+    LiteralIntWithSeparatorsHandle data = new LiteralIntWithSeparatorsHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
@@ -2871,18 +3317,24 @@ abstract class AbstractParserAstListener implements Listener {
     Token? constKeyword,
     Token rightBracket,
   ) {
-    LiteralListHandle data = new LiteralListHandle(ParserAstType.HANDLE,
-        count: count,
-        leftBracket: leftBracket,
-        constKeyword: constKeyword,
-        rightBracket: rightBracket);
+    LiteralListHandle data = new LiteralListHandle(
+      ParserAstType.HANDLE,
+      count: count,
+      leftBracket: leftBracket,
+      constKeyword: constKeyword,
+      rightBracket: rightBracket,
+    );
     seen(data);
   }
 
   @override
   void handleListPattern(int count, Token leftBracket, Token rightBracket) {
-    ListPatternHandle data = new ListPatternHandle(ParserAstType.HANDLE,
-        count: count, leftBracket: leftBracket, rightBracket: rightBracket);
+    ListPatternHandle data = new ListPatternHandle(
+      ParserAstType.HANDLE,
+      count: count,
+      leftBracket: leftBracket,
+      rightBracket: rightBracket,
+    );
     seen(data);
   }
 
@@ -2894,75 +3346,116 @@ abstract class AbstractParserAstListener implements Listener {
     Token rightBrace,
     bool hasSetEntry,
   ) {
-    LiteralSetOrMapHandle data = new LiteralSetOrMapHandle(ParserAstType.HANDLE,
-        count: count,
-        leftBrace: leftBrace,
-        constKeyword: constKeyword,
-        rightBrace: rightBrace,
-        hasSetEntry: hasSetEntry);
+    LiteralSetOrMapHandle data = new LiteralSetOrMapHandle(
+      ParserAstType.HANDLE,
+      count: count,
+      leftBrace: leftBrace,
+      constKeyword: constKeyword,
+      rightBrace: rightBrace,
+      hasSetEntry: hasSetEntry,
+    );
     seen(data);
   }
 
   @override
   void handleMapPattern(int count, Token leftBrace, Token rightBrace) {
-    MapPatternHandle data = new MapPatternHandle(ParserAstType.HANDLE,
-        count: count, leftBrace: leftBrace, rightBrace: rightBrace);
+    MapPatternHandle data = new MapPatternHandle(
+      ParserAstType.HANDLE,
+      count: count,
+      leftBrace: leftBrace,
+      rightBrace: rightBrace,
+    );
     seen(data);
   }
 
   @override
   void handleLiteralNull(Token token) {
-    LiteralNullHandle data =
-        new LiteralNullHandle(ParserAstType.HANDLE, token: token);
+    LiteralNullHandle data = new LiteralNullHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleNativeClause(Token nativeToken, bool hasName) {
-    NativeClauseHandle data = new NativeClauseHandle(ParserAstType.HANDLE,
-        nativeToken: nativeToken, hasName: hasName);
+    NativeClauseHandle data = new NativeClauseHandle(
+      ParserAstType.HANDLE,
+      nativeToken: nativeToken,
+      hasName: hasName,
+    );
     seen(data);
   }
 
   @override
   void handleNamedArgument(Token colon) {
-    NamedArgumentHandle data =
-        new NamedArgumentHandle(ParserAstType.HANDLE, colon: colon);
+    NamedArgumentHandle data = new NamedArgumentHandle(
+      ParserAstType.HANDLE,
+      colon: colon,
+    );
+    seen(data);
+  }
+
+  @override
+  void handlePositionalArgument(Token token) {
+    PositionalArgumentHandle data = new PositionalArgumentHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handlePatternField(Token? colon) {
-    PatternFieldHandle data =
-        new PatternFieldHandle(ParserAstType.HANDLE, colon: colon);
+    PatternFieldHandle data = new PatternFieldHandle(
+      ParserAstType.HANDLE,
+      colon: colon,
+    );
     seen(data);
   }
 
   @override
   void handleNamedRecordField(Token colon) {
-    NamedRecordFieldHandle data =
-        new NamedRecordFieldHandle(ParserAstType.HANDLE, colon: colon);
+    NamedRecordFieldHandle data = new NamedRecordFieldHandle(
+      ParserAstType.HANDLE,
+      colon: colon,
+    );
+    seen(data);
+  }
+
+  @override
+  void handlePositionalRecordField(Token token) {
+    PositionalRecordFieldHandle data = new PositionalRecordFieldHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void beginNewExpression(Token token) {
-    NewExpressionBegin data =
-        new NewExpressionBegin(ParserAstType.BEGIN, token: token);
+    NewExpressionBegin data = new NewExpressionBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endNewExpression(Token token) {
-    NewExpressionEnd data =
-        new NewExpressionEnd(ParserAstType.END, token: token);
+    NewExpressionEnd data = new NewExpressionEnd(
+      ParserAstType.END,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleNoArguments(Token token) {
-    NoArgumentsHandle data =
-        new NoArgumentsHandle(ParserAstType.HANDLE, token: token);
+    NoArgumentsHandle data = new NoArgumentsHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
@@ -2970,85 +3463,115 @@ abstract class AbstractParserAstListener implements Listener {
   void handleNoConstructorReferenceContinuationAfterTypeArguments(Token token) {
     NoConstructorReferenceContinuationAfterTypeArgumentsHandle data =
         new NoConstructorReferenceContinuationAfterTypeArgumentsHandle(
-            ParserAstType.HANDLE,
-            token: token);
+          ParserAstType.HANDLE,
+          token: token,
+        );
+    seen(data);
+  }
+
+  @override
+  void handleNoIdentifier(Token token, IdentifierContext identifierContext) {
+    NoIdentifierHandle data = new NoIdentifierHandle(
+      ParserAstType.HANDLE,
+      token: token,
+      identifierContext: identifierContext,
+    );
     seen(data);
   }
 
   @override
   void handleNoTypeNameInConstructorReference(Token token) {
     NoTypeNameInConstructorReferenceHandle data =
-        new NoTypeNameInConstructorReferenceHandle(ParserAstType.HANDLE,
-            token: token);
+        new NoTypeNameInConstructorReferenceHandle(
+          ParserAstType.HANDLE,
+          token: token,
+        );
     seen(data);
   }
 
   @override
   void handleNoType(Token lastConsumed) {
-    NoTypeHandle data =
-        new NoTypeHandle(ParserAstType.HANDLE, lastConsumed: lastConsumed);
+    NoTypeHandle data = new NoTypeHandle(
+      ParserAstType.HANDLE,
+      lastConsumed: lastConsumed,
+    );
     seen(data);
   }
 
   @override
   void handleNoTypeVariables(Token token) {
-    NoTypeVariablesHandle data =
-        new NoTypeVariablesHandle(ParserAstType.HANDLE, token: token);
+    NoTypeVariablesHandle data = new NoTypeVariablesHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleOperator(Token token) {
-    OperatorHandle data =
-        new OperatorHandle(ParserAstType.HANDLE, token: token);
+    OperatorHandle data = new OperatorHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleSwitchCaseNoWhenClause(Token token) {
-    SwitchCaseNoWhenClauseHandle data =
-        new SwitchCaseNoWhenClauseHandle(ParserAstType.HANDLE, token: token);
+    SwitchCaseNoWhenClauseHandle data = new SwitchCaseNoWhenClauseHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleSwitchExpressionCasePattern(Token token) {
     SwitchExpressionCasePatternHandle data =
-        new SwitchExpressionCasePatternHandle(ParserAstType.HANDLE,
-            token: token);
+        new SwitchExpressionCasePatternHandle(
+          ParserAstType.HANDLE,
+          token: token,
+        );
     seen(data);
   }
 
   @override
   void handleSymbolVoid(Token token) {
-    SymbolVoidHandle data =
-        new SymbolVoidHandle(ParserAstType.HANDLE, token: token);
+    SymbolVoidHandle data = new SymbolVoidHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleOperatorName(Token operatorKeyword, Token token) {
-    OperatorNameHandle data = new OperatorNameHandle(ParserAstType.HANDLE,
-        operatorKeyword: operatorKeyword, token: token);
+    OperatorNameHandle data = new OperatorNameHandle(
+      ParserAstType.HANDLE,
+      operatorKeyword: operatorKeyword,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleInvalidOperatorName(Token operatorKeyword, Token token) {
     InvalidOperatorNameHandle data = new InvalidOperatorNameHandle(
-        ParserAstType.HANDLE,
-        operatorKeyword: operatorKeyword,
-        token: token);
+      ParserAstType.HANDLE,
+      operatorKeyword: operatorKeyword,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleParenthesizedCondition(Token token, Token? case_, Token? when) {
     ParenthesizedConditionHandle data = new ParenthesizedConditionHandle(
-        ParserAstType.HANDLE,
-        token: token,
-        case_: case_,
-        when: when);
+      ParserAstType.HANDLE,
+      token: token,
+      case_: case_,
+      when: when,
+    );
     seen(data);
   }
 
@@ -3060,37 +3583,50 @@ abstract class AbstractParserAstListener implements Listener {
 
   @override
   void beginPatternGuard(Token when) {
-    PatternGuardBegin data =
-        new PatternGuardBegin(ParserAstType.BEGIN, when: when);
+    PatternGuardBegin data = new PatternGuardBegin(
+      ParserAstType.BEGIN,
+      when: when,
+    );
     seen(data);
   }
 
   @override
   void beginParenthesizedExpressionOrRecordLiteral(Token token) {
     ParenthesizedExpressionOrRecordLiteralBegin data =
-        new ParenthesizedExpressionOrRecordLiteralBegin(ParserAstType.BEGIN,
-            token: token);
+        new ParenthesizedExpressionOrRecordLiteralBegin(
+          ParserAstType.BEGIN,
+          token: token,
+        );
     seen(data);
   }
 
   @override
   void beginSwitchCaseWhenClause(Token when) {
-    SwitchCaseWhenClauseBegin data =
-        new SwitchCaseWhenClauseBegin(ParserAstType.BEGIN, when: when);
+    SwitchCaseWhenClauseBegin data = new SwitchCaseWhenClauseBegin(
+      ParserAstType.BEGIN,
+      when: when,
+    );
     seen(data);
   }
 
   @override
   void endRecordLiteral(Token token, int count, Token? constKeyword) {
-    RecordLiteralEnd data = new RecordLiteralEnd(ParserAstType.END,
-        token: token, count: count, constKeyword: constKeyword);
+    RecordLiteralEnd data = new RecordLiteralEnd(
+      ParserAstType.END,
+      token: token,
+      count: count,
+      constKeyword: constKeyword,
+    );
     seen(data);
   }
 
   @override
   void handleRecordPattern(Token token, int count) {
-    RecordPatternHandle data = new RecordPatternHandle(ParserAstType.HANDLE,
-        token: token, count: count);
+    RecordPatternHandle data = new RecordPatternHandle(
+      ParserAstType.HANDLE,
+      token: token,
+      count: count,
+    );
     seen(data);
   }
 
@@ -3108,36 +3644,46 @@ abstract class AbstractParserAstListener implements Listener {
 
   @override
   void endParenthesizedExpression(Token token) {
-    ParenthesizedExpressionEnd data =
-        new ParenthesizedExpressionEnd(ParserAstType.END, token: token);
+    ParenthesizedExpressionEnd data = new ParenthesizedExpressionEnd(
+      ParserAstType.END,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endSwitchCaseWhenClause(Token token) {
-    SwitchCaseWhenClauseEnd data =
-        new SwitchCaseWhenClauseEnd(ParserAstType.END, token: token);
+    SwitchCaseWhenClauseEnd data = new SwitchCaseWhenClauseEnd(
+      ParserAstType.END,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleParenthesizedPattern(Token token) {
-    ParenthesizedPatternHandle data =
-        new ParenthesizedPatternHandle(ParserAstType.HANDLE, token: token);
+    ParenthesizedPatternHandle data = new ParenthesizedPatternHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void beginConstantPattern(Token? constKeyword) {
-    ConstantPatternBegin data = new ConstantPatternBegin(ParserAstType.BEGIN,
-        constKeyword: constKeyword);
+    ConstantPatternBegin data = new ConstantPatternBegin(
+      ParserAstType.BEGIN,
+      constKeyword: constKeyword,
+    );
     seen(data);
   }
 
   @override
   void endConstantPattern(Token? constKeyword) {
-    ConstantPatternEnd data =
-        new ConstantPatternEnd(ParserAstType.END, constKeyword: constKeyword);
+    ConstantPatternEnd data = new ConstantPatternEnd(
+      ParserAstType.END,
+      constKeyword: constKeyword,
+    );
     seen(data);
   }
 
@@ -3147,31 +3693,40 @@ abstract class AbstractParserAstListener implements Listener {
     Token? dot,
     Token? secondIdentifier,
   ) {
-    ObjectPatternHandle data = new ObjectPatternHandle(ParserAstType.HANDLE,
-        firstIdentifier: firstIdentifier,
-        dot: dot,
-        secondIdentifier: secondIdentifier);
+    ObjectPatternHandle data = new ObjectPatternHandle(
+      ParserAstType.HANDLE,
+      firstIdentifier: firstIdentifier,
+      dot: dot,
+      secondIdentifier: secondIdentifier,
+    );
     seen(data);
   }
 
   @override
   void handleQualified(Token period) {
-    QualifiedHandle data =
-        new QualifiedHandle(ParserAstType.HANDLE, period: period);
+    QualifiedHandle data = new QualifiedHandle(
+      ParserAstType.HANDLE,
+      period: period,
+    );
     seen(data);
   }
 
   @override
   void handleStringPart(Token token) {
-    StringPartHandle data =
-        new StringPartHandle(ParserAstType.HANDLE, token: token);
+    StringPartHandle data = new StringPartHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleSuperExpression(Token token, IdentifierContext context) {
-    SuperExpressionHandle data = new SuperExpressionHandle(ParserAstType.HANDLE,
-        token: token, context: context);
+    SuperExpressionHandle data = new SuperExpressionHandle(
+      ParserAstType.HANDLE,
+      token: token,
+      context: context,
+    );
     seen(data);
   }
 
@@ -3182,19 +3737,22 @@ abstract class AbstractParserAstListener implements Listener {
     IdentifierContext context,
   ) {
     AugmentSuperExpressionHandle data = new AugmentSuperExpressionHandle(
-        ParserAstType.HANDLE,
-        augmentToken: augmentToken,
-        superToken: superToken,
-        context: context);
+      ParserAstType.HANDLE,
+      augmentToken: augmentToken,
+      superToken: superToken,
+      context: context,
+    );
     seen(data);
   }
 
   @override
   void beginSwitchCase(int labelCount, int expressionCount, Token beginToken) {
-    SwitchCaseBegin data = new SwitchCaseBegin(ParserAstType.BEGIN,
-        labelCount: labelCount,
-        expressionCount: expressionCount,
-        beginToken: beginToken);
+    SwitchCaseBegin data = new SwitchCaseBegin(
+      ParserAstType.BEGIN,
+      labelCount: labelCount,
+      expressionCount: expressionCount,
+      beginToken: beginToken,
+    );
     seen(data);
   }
 
@@ -3208,21 +3766,24 @@ abstract class AbstractParserAstListener implements Listener {
     Token beginToken,
     Token endToken,
   ) {
-    SwitchCaseEnd data = new SwitchCaseEnd(ParserAstType.END,
-        labelCount: labelCount,
-        expressionCount: expressionCount,
-        defaultKeyword: defaultKeyword,
-        colonAfterDefault: colonAfterDefault,
-        statementCount: statementCount,
-        beginToken: beginToken,
-        endToken: endToken);
+    SwitchCaseEnd data = new SwitchCaseEnd(
+      ParserAstType.END,
+      labelCount: labelCount,
+      expressionCount: expressionCount,
+      defaultKeyword: defaultKeyword,
+      colonAfterDefault: colonAfterDefault,
+      statementCount: statementCount,
+      beginToken: beginToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void beginSwitchExpressionCase() {
-    SwitchExpressionCaseBegin data =
-        new SwitchExpressionCaseBegin(ParserAstType.BEGIN);
+    SwitchExpressionCaseBegin data = new SwitchExpressionCaseBegin(
+      ParserAstType.BEGIN,
+    );
     seen(data);
   }
 
@@ -3234,48 +3795,60 @@ abstract class AbstractParserAstListener implements Listener {
     Token endToken,
   ) {
     SwitchExpressionCaseEnd data = new SwitchExpressionCaseEnd(
-        ParserAstType.END,
-        beginToken: beginToken,
-        when: when,
-        arrow: arrow,
-        endToken: endToken);
+      ParserAstType.END,
+      beginToken: beginToken,
+      when: when,
+      arrow: arrow,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void handleThisExpression(Token token, IdentifierContext context) {
-    ThisExpressionHandle data = new ThisExpressionHandle(ParserAstType.HANDLE,
-        token: token, context: context);
+    ThisExpressionHandle data = new ThisExpressionHandle(
+      ParserAstType.HANDLE,
+      token: token,
+      context: context,
+    );
     seen(data);
   }
 
   @override
   void handleUnaryPostfixAssignmentExpression(Token token) {
     UnaryPostfixAssignmentExpressionHandle data =
-        new UnaryPostfixAssignmentExpressionHandle(ParserAstType.HANDLE,
-            token: token);
+        new UnaryPostfixAssignmentExpressionHandle(
+          ParserAstType.HANDLE,
+          token: token,
+        );
     seen(data);
   }
 
   @override
   void handleUnaryPrefixExpression(Token token) {
-    UnaryPrefixExpressionHandle data =
-        new UnaryPrefixExpressionHandle(ParserAstType.HANDLE, token: token);
+    UnaryPrefixExpressionHandle data = new UnaryPrefixExpressionHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleRelationalPattern(Token token) {
-    RelationalPatternHandle data =
-        new RelationalPatternHandle(ParserAstType.HANDLE, token: token);
+    RelationalPatternHandle data = new RelationalPatternHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleUnaryPrefixAssignmentExpression(Token token) {
     UnaryPrefixAssignmentExpressionHandle data =
-        new UnaryPrefixAssignmentExpressionHandle(ParserAstType.HANDLE,
-            token: token);
+        new UnaryPrefixAssignmentExpressionHandle(
+          ParserAstType.HANDLE,
+          token: token,
+        );
     seen(data);
   }
 
@@ -3300,47 +3873,60 @@ abstract class AbstractParserAstListener implements Listener {
     FormalParameterKind kind,
   ) {
     ValuedFormalParameterHandle data = new ValuedFormalParameterHandle(
-        ParserAstType.HANDLE,
-        equals: equals,
-        token: token,
-        kind: kind);
+      ParserAstType.HANDLE,
+      equals: equals,
+      token: token,
+      kind: kind,
+    );
     seen(data);
   }
 
   @override
   void handleFormalParameterWithoutValue(Token token) {
     FormalParameterWithoutValueHandle data =
-        new FormalParameterWithoutValueHandle(ParserAstType.HANDLE,
-            token: token);
+        new FormalParameterWithoutValueHandle(
+          ParserAstType.HANDLE,
+          token: token,
+        );
     seen(data);
   }
 
   @override
   void handleVoidKeyword(Token token) {
-    VoidKeywordHandle data =
-        new VoidKeywordHandle(ParserAstType.HANDLE, token: token);
+    VoidKeywordHandle data = new VoidKeywordHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleVoidKeywordWithTypeArguments(Token token) {
     VoidKeywordWithTypeArgumentsHandle data =
-        new VoidKeywordWithTypeArgumentsHandle(ParserAstType.HANDLE,
-            token: token);
+        new VoidKeywordWithTypeArgumentsHandle(
+          ParserAstType.HANDLE,
+          token: token,
+        );
     seen(data);
   }
 
   @override
   void beginYieldStatement(Token token) {
-    YieldStatementBegin data =
-        new YieldStatementBegin(ParserAstType.BEGIN, token: token);
+    YieldStatementBegin data = new YieldStatementBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endYieldStatement(Token yieldToken, Token? starToken, Token endToken) {
-    YieldStatementEnd data = new YieldStatementEnd(ParserAstType.END,
-        yieldToken: yieldToken, starToken: starToken, endToken: endToken);
+    YieldStatementEnd data = new YieldStatementEnd(
+      ParserAstType.END,
+      yieldToken: yieldToken,
+      starToken: starToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
@@ -3352,11 +3938,12 @@ abstract class AbstractParserAstListener implements Listener {
     MessageCode errorCode,
   ) {
     InvalidYieldStatementEnd data = new InvalidYieldStatementEnd(
-        ParserAstType.END,
-        beginToken: beginToken,
-        starToken: starToken,
-        endToken: endToken,
-        errorCode: errorCode);
+      ParserAstType.END,
+      beginToken: beginToken,
+      starToken: starToken,
+      endToken: endToken,
+      errorCode: errorCode,
+    );
     seen(data);
   }
 
@@ -3367,31 +3954,35 @@ abstract class AbstractParserAstListener implements Listener {
     Token endToken,
   ) {
     RecoverableErrorHandle data = new RecoverableErrorHandle(
-        ParserAstType.HANDLE,
-        message: message,
-        startToken: startToken,
-        endToken: endToken);
+      ParserAstType.HANDLE,
+      message: message,
+      startToken: startToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void handleExperimentNotEnabled(
     ExperimentalFlag experimentalFlag,
-    Token startToken,
+    Token beginToken,
     Token endToken,
   ) {
     ExperimentNotEnabledHandle data = new ExperimentNotEnabledHandle(
-        ParserAstType.HANDLE,
-        experimentalFlag: experimentalFlag,
-        startToken: startToken,
-        endToken: endToken);
+      ParserAstType.HANDLE,
+      experimentalFlag: experimentalFlag,
+      beginToken: beginToken,
+      endToken: endToken,
+    );
     seen(data);
   }
 
   @override
   void handleErrorToken(ErrorToken token) {
-    ErrorTokenHandle data =
-        new ErrorTokenHandle(ParserAstType.HANDLE, token: token);
+    ErrorTokenHandle data = new ErrorTokenHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
@@ -3402,20 +3993,23 @@ abstract class AbstractParserAstListener implements Listener {
     int stringOffset,
     int length,
   ) {
-    UnescapeErrorHandle data = new UnescapeErrorHandle(ParserAstType.HANDLE,
-        message: message,
-        location: location,
-        stringOffset: stringOffset,
-        length: length);
+    UnescapeErrorHandle data = new UnescapeErrorHandle(
+      ParserAstType.HANDLE,
+      message: message,
+      location: location,
+      stringOffset: stringOffset,
+      length: length,
+    );
     seen(data);
   }
 
   @override
   void handleInvalidStatement(Token token, Message message) {
     InvalidStatementHandle data = new InvalidStatementHandle(
-        ParserAstType.HANDLE,
-        token: token,
-        message: message);
+      ParserAstType.HANDLE,
+      token: token,
+      message: message,
+    );
     seen(data);
   }
 
@@ -3428,15 +4022,18 @@ abstract class AbstractParserAstListener implements Listener {
   @override
   void handleTypeArgumentApplication(Token openAngleBracket) {
     TypeArgumentApplicationHandle data = new TypeArgumentApplicationHandle(
-        ParserAstType.HANDLE,
-        openAngleBracket: openAngleBracket);
+      ParserAstType.HANDLE,
+      openAngleBracket: openAngleBracket,
+    );
     seen(data);
   }
 
   @override
   void handleNewAsIdentifier(Token token) {
-    NewAsIdentifierHandle data =
-        new NewAsIdentifierHandle(ParserAstType.HANDLE, token: token);
+    NewAsIdentifierHandle data = new NewAsIdentifierHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
@@ -3447,43 +4044,57 @@ abstract class AbstractParserAstListener implements Listener {
     Token semicolon,
   ) {
     PatternVariableDeclarationStatementHandle data =
-        new PatternVariableDeclarationStatementHandle(ParserAstType.HANDLE,
-            keyword: keyword, equals: equals, semicolon: semicolon);
+        new PatternVariableDeclarationStatementHandle(
+          ParserAstType.HANDLE,
+          keyword: keyword,
+          equals: equals,
+          semicolon: semicolon,
+        );
     seen(data);
   }
 
   @override
   void handlePatternAssignment(Token equals) {
-    PatternAssignmentHandle data =
-        new PatternAssignmentHandle(ParserAstType.HANDLE, equals: equals);
+    PatternAssignmentHandle data = new PatternAssignmentHandle(
+      ParserAstType.HANDLE,
+      equals: equals,
+    );
     seen(data);
   }
 
   @override
   void handleDotShorthandContext(Token token) {
-    DotShorthandContextHandle data =
-        new DotShorthandContextHandle(ParserAstType.HANDLE, token: token);
+    DotShorthandContextHandle data = new DotShorthandContextHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void handleDotShorthandHead(Token token) {
-    DotShorthandHeadHandle data =
-        new DotShorthandHeadHandle(ParserAstType.HANDLE, token: token);
+    DotShorthandHeadHandle data = new DotShorthandHeadHandle(
+      ParserAstType.HANDLE,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void beginConstDotShorthand(Token token) {
-    ConstDotShorthandBegin data =
-        new ConstDotShorthandBegin(ParserAstType.BEGIN, token: token);
+    ConstDotShorthandBegin data = new ConstDotShorthandBegin(
+      ParserAstType.BEGIN,
+      token: token,
+    );
     seen(data);
   }
 
   @override
   void endConstDotShorthand(Token token) {
-    ConstDotShorthandEnd data =
-        new ConstDotShorthandEnd(ParserAstType.END, token: token);
+    ConstDotShorthandEnd data = new ConstDotShorthandEnd(
+      ParserAstType.END,
+      token: token,
+    );
     seen(data);
   }
 }
@@ -3492,12 +4103,10 @@ class ArgumentsBegin extends ParserAstNode {
   final Token token;
 
   ArgumentsBegin(ParserAstType type, {required this.token})
-      : super("Arguments", type);
+    : super("Arguments", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitArgumentsBegin(this);
@@ -3511,16 +4120,19 @@ class ArgumentsEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  ArgumentsEnd(ParserAstType type,
-      {required this.count, required this.beginToken, required this.endToken})
-      : super("Arguments", type);
+  ArgumentsEnd(
+    ParserAstType type, {
+    required this.count,
+    required this.beginToken,
+    required this.endToken,
+  }) : super("Arguments", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "count": count,
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
+    "count": count,
+    "beginToken": beginToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitArgumentsEnd(this);
@@ -3534,16 +4146,19 @@ class ObjectPatternFieldsHandle extends ParserAstNode
   @override
   final Token endToken;
 
-  ObjectPatternFieldsHandle(ParserAstType type,
-      {required this.count, required this.beginToken, required this.endToken})
-      : super("ObjectPatternFields", type);
+  ObjectPatternFieldsHandle(
+    ParserAstType type, {
+    required this.count,
+    required this.beginToken,
+    required this.endToken,
+  }) : super("ObjectPatternFields", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "count": count,
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
+    "count": count,
+    "beginToken": beginToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitObjectPatternFieldsHandle(this);
@@ -3554,13 +4169,13 @@ class AsyncModifierHandle extends ParserAstNode {
   final Token? starToken;
 
   AsyncModifierHandle(ParserAstType type, {this.asyncToken, this.starToken})
-      : super("AsyncModifier", type);
+    : super("AsyncModifier", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "asyncToken": asyncToken,
-        "starToken": starToken,
-      };
+    "asyncToken": asyncToken,
+    "starToken": starToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitAsyncModifierHandle(this);
@@ -3570,12 +4185,10 @@ class AwaitExpressionBegin extends ParserAstNode {
   final Token token;
 
   AwaitExpressionBegin(ParserAstType type, {required this.token})
-      : super("AwaitExpression", type);
+    : super("AwaitExpression", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitAwaitExpressionBegin(this);
@@ -3588,15 +4201,17 @@ class AwaitExpressionEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  AwaitExpressionEnd(ParserAstType type,
-      {required this.beginToken, required this.endToken})
-      : super("AwaitExpression", type);
+  AwaitExpressionEnd(
+    ParserAstType type, {
+    required this.beginToken,
+    required this.endToken,
+  }) : super("AwaitExpression", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
+    "beginToken": beginToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitAwaitExpressionEnd(this);
@@ -3610,18 +4225,19 @@ class InvalidAwaitExpressionEnd extends ParserAstNode
   final Token endToken;
   final MessageCode errorCode;
 
-  InvalidAwaitExpressionEnd(ParserAstType type,
-      {required this.beginToken,
-      required this.endToken,
-      required this.errorCode})
-      : super("InvalidAwaitExpression", type);
+  InvalidAwaitExpressionEnd(
+    ParserAstType type, {
+    required this.beginToken,
+    required this.endToken,
+    required this.errorCode,
+  }) : super("InvalidAwaitExpression", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "endToken": endToken,
-        "errorCode": errorCode,
-      };
+    "beginToken": beginToken,
+    "endToken": endToken,
+    "errorCode": errorCode,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitInvalidAwaitExpressionEnd(this);
@@ -3632,13 +4248,13 @@ class BlockBegin extends ParserAstNode {
   final BlockKind blockKind;
 
   BlockBegin(ParserAstType type, {required this.token, required this.blockKind})
-      : super("Block", type);
+    : super("Block", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-        "blockKind": blockKind,
-      };
+    "token": token,
+    "blockKind": blockKind,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitBlockBegin(this);
@@ -3652,20 +4268,21 @@ class BlockEnd extends ParserAstNode implements BeginAndEndTokenParserAstNode {
   final Token endToken;
   final BlockKind blockKind;
 
-  BlockEnd(ParserAstType type,
-      {required this.count,
-      required this.beginToken,
-      required this.endToken,
-      required this.blockKind})
-      : super("Block", type);
+  BlockEnd(
+    ParserAstType type, {
+    required this.count,
+    required this.beginToken,
+    required this.endToken,
+    required this.blockKind,
+  }) : super("Block", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "count": count,
-        "beginToken": beginToken,
-        "endToken": endToken,
-        "blockKind": blockKind,
-      };
+    "count": count,
+    "beginToken": beginToken,
+    "endToken": endToken,
+    "blockKind": blockKind,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitBlockEnd(this);
@@ -3675,12 +4292,10 @@ class InvalidTopLevelBlockHandle extends ParserAstNode {
   final Token token;
 
   InvalidTopLevelBlockHandle(ParserAstType type, {required this.token})
-      : super("InvalidTopLevelBlock", type);
+    : super("InvalidTopLevelBlock", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitInvalidTopLevelBlockHandle(this);
@@ -3690,12 +4305,10 @@ class CascadeBegin extends ParserAstNode {
   final Token token;
 
   CascadeBegin(ParserAstType type, {required this.token})
-      : super("Cascade", type);
+    : super("Cascade", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitCascadeBegin(this);
@@ -3715,12 +4328,10 @@ class CaseExpressionBegin extends ParserAstNode {
   final Token caseKeyword;
 
   CaseExpressionBegin(ParserAstType type, {required this.caseKeyword})
-      : super("CaseExpression", type);
+    : super("CaseExpression", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "caseKeyword": caseKeyword,
-      };
+  Map<String, Object?> get deprecatedArguments => {"caseKeyword": caseKeyword};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitCaseExpressionBegin(this);
@@ -3731,16 +4342,19 @@ class CaseExpressionEnd extends ParserAstNode {
   final Token? when;
   final Token colon;
 
-  CaseExpressionEnd(ParserAstType type,
-      {required this.caseKeyword, this.when, required this.colon})
-      : super("CaseExpression", type);
+  CaseExpressionEnd(
+    ParserAstType type, {
+    required this.caseKeyword,
+    this.when,
+    required this.colon,
+  }) : super("CaseExpression", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "caseKeyword": caseKeyword,
-        "when": when,
-        "colon": colon,
-      };
+    "caseKeyword": caseKeyword,
+    "when": when,
+    "colon": colon,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitCaseExpressionEnd(this);
@@ -3750,15 +4364,17 @@ class ClassOrMixinOrExtensionBodyBegin extends ParserAstNode {
   final DeclarationKind kind;
   final Token token;
 
-  ClassOrMixinOrExtensionBodyBegin(ParserAstType type,
-      {required this.kind, required this.token})
-      : super("ClassOrMixinOrExtensionBody", type);
+  ClassOrMixinOrExtensionBodyBegin(
+    ParserAstType type, {
+    required this.kind,
+    required this.token,
+  }) : super("ClassOrMixinOrExtensionBody", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "kind": kind,
-        "token": token,
-      };
+    "kind": kind,
+    "token": token,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -3774,20 +4390,21 @@ class ClassOrMixinOrExtensionBodyEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  ClassOrMixinOrExtensionBodyEnd(ParserAstType type,
-      {required this.kind,
-      required this.memberCount,
-      required this.beginToken,
-      required this.endToken})
-      : super("ClassOrMixinOrExtensionBody", type);
+  ClassOrMixinOrExtensionBodyEnd(
+    ParserAstType type, {
+    required this.kind,
+    required this.memberCount,
+    required this.beginToken,
+    required this.endToken,
+  }) : super("ClassOrMixinOrExtensionBody", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "kind": kind,
-        "memberCount": memberCount,
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
+    "kind": kind,
+    "memberCount": memberCount,
+    "beginToken": beginToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -3797,14 +4414,13 @@ class ClassOrMixinOrExtensionBodyEnd extends ParserAstNode
 class ClassOrMixinOrNamedMixinApplicationPreludeBegin extends ParserAstNode {
   final Token token;
 
-  ClassOrMixinOrNamedMixinApplicationPreludeBegin(ParserAstType type,
-      {required this.token})
-      : super("ClassOrMixinOrNamedMixinApplicationPrelude", type);
+  ClassOrMixinOrNamedMixinApplicationPreludeBegin(
+    ParserAstType type, {
+    required this.token,
+  }) : super("ClassOrMixinOrNamedMixinApplicationPrelude", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -3823,32 +4439,33 @@ class ClassDeclarationBegin extends ParserAstNode {
   final Token? mixinToken;
   final Token name;
 
-  ClassDeclarationBegin(ParserAstType type,
-      {required this.begin,
-      this.abstractToken,
-      this.macroToken,
-      this.sealedToken,
-      this.baseToken,
-      this.interfaceToken,
-      this.finalToken,
-      this.augmentToken,
-      this.mixinToken,
-      required this.name})
-      : super("ClassDeclaration", type);
+  ClassDeclarationBegin(
+    ParserAstType type, {
+    required this.begin,
+    this.abstractToken,
+    this.macroToken,
+    this.sealedToken,
+    this.baseToken,
+    this.interfaceToken,
+    this.finalToken,
+    this.augmentToken,
+    this.mixinToken,
+    required this.name,
+  }) : super("ClassDeclaration", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "begin": begin,
-        "abstractToken": abstractToken,
-        "macroToken": macroToken,
-        "sealedToken": sealedToken,
-        "baseToken": baseToken,
-        "interfaceToken": interfaceToken,
-        "finalToken": finalToken,
-        "augmentToken": augmentToken,
-        "mixinToken": mixinToken,
-        "name": name,
-      };
+    "begin": begin,
+    "abstractToken": abstractToken,
+    "macroToken": macroToken,
+    "sealedToken": sealedToken,
+    "baseToken": baseToken,
+    "interfaceToken": interfaceToken,
+    "finalToken": finalToken,
+    "augmentToken": augmentToken,
+    "mixinToken": mixinToken,
+    "name": name,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitClassDeclarationBegin(this);
@@ -3858,15 +4475,17 @@ class ClassExtendsHandle extends ParserAstNode {
   final Token? extendsKeyword;
   final int typeCount;
 
-  ClassExtendsHandle(ParserAstType type,
-      {this.extendsKeyword, required this.typeCount})
-      : super("ClassExtends", type);
+  ClassExtendsHandle(
+    ParserAstType type, {
+    this.extendsKeyword,
+    required this.typeCount,
+  }) : super("ClassExtends", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "extendsKeyword": extendsKeyword,
-        "typeCount": typeCount,
-      };
+    "extendsKeyword": extendsKeyword,
+    "typeCount": typeCount,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitClassExtendsHandle(this);
@@ -3876,15 +4495,17 @@ class ImplementsHandle extends ParserAstNode {
   final Token? implementsKeyword;
   final int interfacesCount;
 
-  ImplementsHandle(ParserAstType type,
-      {this.implementsKeyword, required this.interfacesCount})
-      : super("Implements", type);
+  ImplementsHandle(
+    ParserAstType type, {
+    this.implementsKeyword,
+    required this.interfacesCount,
+  }) : super("Implements", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "implementsKeyword": implementsKeyword,
-        "interfacesCount": interfacesCount,
-      };
+    "implementsKeyword": implementsKeyword,
+    "interfacesCount": interfacesCount,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitImplementsHandle(this);
@@ -3895,16 +4516,19 @@ class ClassHeaderHandle extends ParserAstNode {
   final Token classKeyword;
   final Token? nativeToken;
 
-  ClassHeaderHandle(ParserAstType type,
-      {required this.begin, required this.classKeyword, this.nativeToken})
-      : super("ClassHeader", type);
+  ClassHeaderHandle(
+    ParserAstType type, {
+    required this.begin,
+    required this.classKeyword,
+    this.nativeToken,
+  }) : super("ClassHeader", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "begin": begin,
-        "classKeyword": classKeyword,
-        "nativeToken": nativeToken,
-      };
+    "begin": begin,
+    "classKeyword": classKeyword,
+    "nativeToken": nativeToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitClassHeaderHandle(this);
@@ -3914,12 +4538,10 @@ class RecoverDeclarationHeaderHandle extends ParserAstNode {
   final DeclarationHeaderKind kind;
 
   RecoverDeclarationHeaderHandle(ParserAstType type, {required this.kind})
-      : super("RecoverDeclarationHeader", type);
+    : super("RecoverDeclarationHeader", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "kind": kind,
-      };
+  Map<String, Object?> get deprecatedArguments => {"kind": kind};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -3933,18 +4555,50 @@ class ClassDeclarationEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  ClassDeclarationEnd(ParserAstType type,
-      {required this.beginToken, required this.endToken})
-      : super("ClassDeclaration", type);
+  ClassDeclarationEnd(
+    ParserAstType type, {
+    required this.beginToken,
+    required this.endToken,
+  }) : super("ClassDeclaration", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
+    "beginToken": beginToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitClassDeclarationEnd(this);
+}
+
+class NoClassBodyHandle extends ParserAstNode {
+  final Token semicolonToken;
+
+  NoClassBodyHandle(ParserAstType type, {required this.semicolonToken})
+    : super("NoClassBody", type);
+
+  @override
+  Map<String, Object?> get deprecatedArguments => {
+    "semicolonToken": semicolonToken,
+  };
+
+  @override
+  R accept<R>(ParserAstVisitor<R> v) => v.visitNoClassBodyHandle(this);
+}
+
+class NoExtensionTypeBodyHandle extends ParserAstNode {
+  final Token semicolonToken;
+
+  NoExtensionTypeBodyHandle(ParserAstType type, {required this.semicolonToken})
+    : super("NoExtensionTypeBody", type);
+
+  @override
+  Map<String, Object?> get deprecatedArguments => {
+    "semicolonToken": semicolonToken,
+  };
+
+  @override
+  R accept<R>(ParserAstVisitor<R> v) => v.visitNoExtensionTypeBodyHandle(this);
 }
 
 class MixinDeclarationBegin extends ParserAstNode {
@@ -3954,22 +4608,23 @@ class MixinDeclarationBegin extends ParserAstNode {
   final Token mixinKeyword;
   final Token name;
 
-  MixinDeclarationBegin(ParserAstType type,
-      {required this.beginToken,
-      this.augmentToken,
-      this.baseToken,
-      required this.mixinKeyword,
-      required this.name})
-      : super("MixinDeclaration", type);
+  MixinDeclarationBegin(
+    ParserAstType type, {
+    required this.beginToken,
+    this.augmentToken,
+    this.baseToken,
+    required this.mixinKeyword,
+    required this.name,
+  }) : super("MixinDeclaration", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "augmentToken": augmentToken,
-        "baseToken": baseToken,
-        "mixinKeyword": mixinKeyword,
-        "name": name,
-      };
+    "beginToken": beginToken,
+    "augmentToken": augmentToken,
+    "baseToken": baseToken,
+    "mixinKeyword": mixinKeyword,
+    "name": name,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitMixinDeclarationBegin(this);
@@ -3980,13 +4635,13 @@ class MixinOnHandle extends ParserAstNode {
   final int typeCount;
 
   MixinOnHandle(ParserAstType type, {this.onKeyword, required this.typeCount})
-      : super("MixinOn", type);
+    : super("MixinOn", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "onKeyword": onKeyword,
-        "typeCount": typeCount,
-      };
+    "onKeyword": onKeyword,
+    "typeCount": typeCount,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitMixinOnHandle(this);
@@ -3996,12 +4651,12 @@ class MixinHeaderHandle extends ParserAstNode {
   final Token mixinKeyword;
 
   MixinHeaderHandle(ParserAstType type, {required this.mixinKeyword})
-      : super("MixinHeader", type);
+    : super("MixinHeader", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "mixinKeyword": mixinKeyword,
-      };
+    "mixinKeyword": mixinKeyword,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitMixinHeaderHandle(this);
@@ -4009,13 +4664,28 @@ class MixinHeaderHandle extends ParserAstNode {
 
 class RecoverMixinHeaderHandle extends ParserAstNode {
   RecoverMixinHeaderHandle(ParserAstType type)
-      : super("RecoverMixinHeader", type);
+    : super("RecoverMixinHeader", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitRecoverMixinHeaderHandle(this);
+}
+
+class NoMixinBodyHandle extends ParserAstNode {
+  final Token semicolonToken;
+
+  NoMixinBodyHandle(ParserAstType type, {required this.semicolonToken})
+    : super("NoMixinBody", type);
+
+  @override
+  Map<String, Object?> get deprecatedArguments => {
+    "semicolonToken": semicolonToken,
+  };
+
+  @override
+  R accept<R>(ParserAstVisitor<R> v) => v.visitNoMixinBodyHandle(this);
 }
 
 class MixinDeclarationEnd extends ParserAstNode
@@ -4025,15 +4695,17 @@ class MixinDeclarationEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  MixinDeclarationEnd(ParserAstType type,
-      {required this.beginToken, required this.endToken})
-      : super("MixinDeclaration", type);
+  MixinDeclarationEnd(
+    ParserAstType type, {
+    required this.beginToken,
+    required this.endToken,
+  }) : super("MixinDeclaration", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
+    "beginToken": beginToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitMixinDeclarationEnd(this);
@@ -4042,14 +4714,13 @@ class MixinDeclarationEnd extends ParserAstNode
 class UncategorizedTopLevelDeclarationBegin extends ParserAstNode {
   final Token token;
 
-  UncategorizedTopLevelDeclarationBegin(ParserAstType type,
-      {required this.token})
-      : super("UncategorizedTopLevelDeclaration", type);
+  UncategorizedTopLevelDeclarationBegin(
+    ParserAstType type, {
+    required this.token,
+  }) : super("UncategorizedTopLevelDeclaration", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -4059,14 +4730,15 @@ class UncategorizedTopLevelDeclarationBegin extends ParserAstNode {
 class ExtensionDeclarationPreludeBegin extends ParserAstNode {
   final Token extensionKeyword;
 
-  ExtensionDeclarationPreludeBegin(ParserAstType type,
-      {required this.extensionKeyword})
-      : super("ExtensionDeclarationPrelude", type);
+  ExtensionDeclarationPreludeBegin(
+    ParserAstType type, {
+    required this.extensionKeyword,
+  }) : super("ExtensionDeclarationPrelude", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "extensionKeyword": extensionKeyword,
-      };
+    "extensionKeyword": extensionKeyword,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -4078,16 +4750,19 @@ class ExtensionDeclarationBegin extends ParserAstNode {
   final Token extensionKeyword;
   final Token? name;
 
-  ExtensionDeclarationBegin(ParserAstType type,
-      {this.augmentToken, required this.extensionKeyword, this.name})
-      : super("ExtensionDeclaration", type);
+  ExtensionDeclarationBegin(
+    ParserAstType type, {
+    this.augmentToken,
+    required this.extensionKeyword,
+    this.name,
+  }) : super("ExtensionDeclaration", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "augmentToken": augmentToken,
-        "extensionKeyword": extensionKeyword,
-        "name": name,
-      };
+    "augmentToken": augmentToken,
+    "extensionKeyword": extensionKeyword,
+    "name": name,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitExtensionDeclarationBegin(this);
@@ -4102,23 +4777,39 @@ class ExtensionDeclarationEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  ExtensionDeclarationEnd(ParserAstType type,
-      {required this.beginToken,
-      required this.extensionKeyword,
-      this.onKeyword,
-      required this.endToken})
-      : super("ExtensionDeclaration", type);
+  ExtensionDeclarationEnd(
+    ParserAstType type, {
+    required this.beginToken,
+    required this.extensionKeyword,
+    this.onKeyword,
+    required this.endToken,
+  }) : super("ExtensionDeclaration", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "extensionKeyword": extensionKeyword,
-        "onKeyword": onKeyword,
-        "endToken": endToken,
-      };
+    "beginToken": beginToken,
+    "extensionKeyword": extensionKeyword,
+    "onKeyword": onKeyword,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitExtensionDeclarationEnd(this);
+}
+
+class NoExtensionBodyHandle extends ParserAstNode {
+  final Token semicolonToken;
+
+  NoExtensionBodyHandle(ParserAstType type, {required this.semicolonToken})
+    : super("NoExtensionBody", type);
+
+  @override
+  Map<String, Object?> get deprecatedArguments => {
+    "semicolonToken": semicolonToken,
+  };
+
+  @override
+  R accept<R>(ParserAstVisitor<R> v) => v.visitNoExtensionBodyHandle(this);
 }
 
 class ExtensionTypeDeclarationBegin extends ParserAstNode {
@@ -4126,16 +4817,19 @@ class ExtensionTypeDeclarationBegin extends ParserAstNode {
   final Token extensionKeyword;
   final Token name;
 
-  ExtensionTypeDeclarationBegin(ParserAstType type,
-      {this.augmentKeyword, required this.extensionKeyword, required this.name})
-      : super("ExtensionTypeDeclaration", type);
+  ExtensionTypeDeclarationBegin(
+    ParserAstType type, {
+    this.augmentKeyword,
+    required this.extensionKeyword,
+    required this.name,
+  }) : super("ExtensionTypeDeclaration", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "augmentKeyword": augmentKeyword,
-        "extensionKeyword": extensionKeyword,
-        "name": name,
-      };
+    "augmentKeyword": augmentKeyword,
+    "extensionKeyword": extensionKeyword,
+    "name": name,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -4152,22 +4846,23 @@ class ExtensionTypeDeclarationEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  ExtensionTypeDeclarationEnd(ParserAstType type,
-      {required this.beginToken,
-      this.augmentToken,
-      required this.extensionKeyword,
-      required this.typeKeyword,
-      required this.endToken})
-      : super("ExtensionTypeDeclaration", type);
+  ExtensionTypeDeclarationEnd(
+    ParserAstType type, {
+    required this.beginToken,
+    this.augmentToken,
+    required this.extensionKeyword,
+    required this.typeKeyword,
+    required this.endToken,
+  }) : super("ExtensionTypeDeclaration", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "augmentToken": augmentToken,
-        "extensionKeyword": extensionKeyword,
-        "typeKeyword": typeKeyword,
-        "endToken": endToken,
-      };
+    "beginToken": beginToken,
+    "augmentToken": augmentToken,
+    "extensionKeyword": extensionKeyword,
+    "typeKeyword": typeKeyword,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -4178,67 +4873,112 @@ class PrimaryConstructorBegin extends ParserAstNode {
   final Token beginToken;
 
   PrimaryConstructorBegin(ParserAstType type, {required this.beginToken})
-      : super("PrimaryConstructor", type);
+    : super("PrimaryConstructor", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-      };
+  Map<String, Object?> get deprecatedArguments => {"beginToken": beginToken};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitPrimaryConstructorBegin(this);
 }
 
 class PrimaryConstructorEnd extends ParserAstNode {
+  final DeclarationKind kind;
   final Token beginToken;
   final Token? constKeyword;
   final bool hasConstructorName;
 
-  PrimaryConstructorEnd(ParserAstType type,
-      {required this.beginToken,
-      this.constKeyword,
-      required this.hasConstructorName})
-      : super("PrimaryConstructor", type);
+  PrimaryConstructorEnd(
+    ParserAstType type, {
+    required this.kind,
+    required this.beginToken,
+    this.constKeyword,
+    required this.hasConstructorName,
+  }) : super("PrimaryConstructor", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "constKeyword": constKeyword,
-        "hasConstructorName": hasConstructorName,
-      };
+    "kind": kind,
+    "beginToken": beginToken,
+    "constKeyword": constKeyword,
+    "hasConstructorName": hasConstructorName,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitPrimaryConstructorEnd(this);
 }
 
 class NoPrimaryConstructorHandle extends ParserAstNode {
+  final DeclarationKind kind;
   final Token token;
   final Token? constKeyword;
 
-  NoPrimaryConstructorHandle(ParserAstType type,
-      {required this.token, this.constKeyword})
-      : super("NoPrimaryConstructor", type);
+  NoPrimaryConstructorHandle(
+    ParserAstType type, {
+    required this.kind,
+    required this.token,
+    this.constKeyword,
+  }) : super("NoPrimaryConstructor", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-        "constKeyword": constKeyword,
-      };
+    "kind": kind,
+    "token": token,
+    "constKeyword": constKeyword,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitNoPrimaryConstructorHandle(this);
+}
+
+class PrimaryConstructorBodyBegin extends ParserAstNode {
+  final Token token;
+
+  PrimaryConstructorBodyBegin(ParserAstType type, {required this.token})
+    : super("PrimaryConstructorBody", type);
+
+  @override
+  Map<String, Object?> get deprecatedArguments => {"token": token};
+
+  @override
+  R accept<R>(ParserAstVisitor<R> v) =>
+      v.visitPrimaryConstructorBodyBegin(this);
+}
+
+class PrimaryConstructorBodyEnd extends ParserAstNode
+    implements BeginAndEndTokenParserAstNode {
+  @override
+  final Token beginToken;
+  final Token? beginInitializers;
+  @override
+  final Token endToken;
+
+  PrimaryConstructorBodyEnd(
+    ParserAstType type, {
+    required this.beginToken,
+    this.beginInitializers,
+    required this.endToken,
+  }) : super("PrimaryConstructorBody", type);
+
+  @override
+  Map<String, Object?> get deprecatedArguments => {
+    "beginToken": beginToken,
+    "beginInitializers": beginInitializers,
+    "endToken": endToken,
+  };
+
+  @override
+  R accept<R>(ParserAstVisitor<R> v) => v.visitPrimaryConstructorBodyEnd(this);
 }
 
 class CombinatorsBegin extends ParserAstNode {
   final Token token;
 
   CombinatorsBegin(ParserAstType type, {required this.token})
-      : super("Combinators", type);
+    : super("Combinators", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitCombinatorsBegin(this);
@@ -4248,12 +4988,10 @@ class CombinatorsEnd extends ParserAstNode {
   final int count;
 
   CombinatorsEnd(ParserAstType type, {required this.count})
-      : super("Combinators", type);
+    : super("Combinators", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "count": count,
-      };
+  Map<String, Object?> get deprecatedArguments => {"count": count};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitCombinatorsEnd(this);
@@ -4263,12 +5001,10 @@ class CompilationUnitBegin extends ParserAstNode {
   final Token token;
 
   CompilationUnitBegin(ParserAstType type, {required this.token})
-      : super("CompilationUnit", type);
+    : super("CompilationUnit", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitCompilationUnitBegin(this);
@@ -4288,15 +5024,17 @@ class CompilationUnitEnd extends ParserAstNode {
   final int count;
   final Token token;
 
-  CompilationUnitEnd(ParserAstType type,
-      {required this.count, required this.token})
-      : super("CompilationUnit", type);
+  CompilationUnitEnd(
+    ParserAstType type, {
+    required this.count,
+    required this.token,
+  }) : super("CompilationUnit", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "count": count,
-        "token": token,
-      };
+    "count": count,
+    "token": token,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitCompilationUnitEnd(this);
@@ -4306,12 +5044,10 @@ class ConstLiteralBegin extends ParserAstNode {
   final Token token;
 
   ConstLiteralBegin(ParserAstType type, {required this.token})
-      : super("ConstLiteral", type);
+    : super("ConstLiteral", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitConstLiteralBegin(this);
@@ -4321,12 +5057,10 @@ class ConstLiteralEnd extends ParserAstNode {
   final Token endToken;
 
   ConstLiteralEnd(ParserAstType type, {required this.endToken})
-      : super("ConstLiteral", type);
+    : super("ConstLiteral", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "endToken": endToken,
-      };
+  Map<String, Object?> get deprecatedArguments => {"endToken": endToken};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitConstLiteralEnd(this);
@@ -4336,12 +5070,10 @@ class ConstructorReferenceBegin extends ParserAstNode {
   final Token start;
 
   ConstructorReferenceBegin(ParserAstType type, {required this.start})
-      : super("ConstructorReference", type);
+    : super("ConstructorReference", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "start": start,
-      };
+  Map<String, Object?> get deprecatedArguments => {"start": start};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitConstructorReferenceBegin(this);
@@ -4353,20 +5085,21 @@ class ConstructorReferenceEnd extends ParserAstNode {
   final Token endToken;
   final ConstructorReferenceContext constructorReferenceContext;
 
-  ConstructorReferenceEnd(ParserAstType type,
-      {required this.start,
-      this.periodBeforeName,
-      required this.endToken,
-      required this.constructorReferenceContext})
-      : super("ConstructorReference", type);
+  ConstructorReferenceEnd(
+    ParserAstType type, {
+    required this.start,
+    this.periodBeforeName,
+    required this.endToken,
+    required this.constructorReferenceContext,
+  }) : super("ConstructorReference", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "start": start,
-        "periodBeforeName": periodBeforeName,
-        "endToken": endToken,
-        "constructorReferenceContext": constructorReferenceContext,
-      };
+    "start": start,
+    "periodBeforeName": periodBeforeName,
+    "endToken": endToken,
+    "constructorReferenceContext": constructorReferenceContext,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitConstructorReferenceEnd(this);
@@ -4376,12 +5109,10 @@ class DoWhileStatementBegin extends ParserAstNode {
   final Token token;
 
   DoWhileStatementBegin(ParserAstType type, {required this.token})
-      : super("DoWhileStatement", type);
+    : super("DoWhileStatement", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitDoWhileStatementBegin(this);
@@ -4392,18 +5123,19 @@ class DoWhileStatementEnd extends ParserAstNode {
   final Token whileKeyword;
   final Token endToken;
 
-  DoWhileStatementEnd(ParserAstType type,
-      {required this.doKeyword,
-      required this.whileKeyword,
-      required this.endToken})
-      : super("DoWhileStatement", type);
+  DoWhileStatementEnd(
+    ParserAstType type, {
+    required this.doKeyword,
+    required this.whileKeyword,
+    required this.endToken,
+  }) : super("DoWhileStatement", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "doKeyword": doKeyword,
-        "whileKeyword": whileKeyword,
-        "endToken": endToken,
-      };
+    "doKeyword": doKeyword,
+    "whileKeyword": whileKeyword,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitDoWhileStatementEnd(this);
@@ -4413,12 +5145,10 @@ class DoWhileStatementBodyBegin extends ParserAstNode {
   final Token token;
 
   DoWhileStatementBodyBegin(ParserAstType type, {required this.token})
-      : super("DoWhileStatementBody", type);
+    : super("DoWhileStatementBody", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitDoWhileStatementBodyBegin(this);
@@ -4428,12 +5158,10 @@ class DoWhileStatementBodyEnd extends ParserAstNode {
   final Token token;
 
   DoWhileStatementBodyEnd(ParserAstType type, {required this.token})
-      : super("DoWhileStatementBody", type);
+    : super("DoWhileStatementBody", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitDoWhileStatementBodyEnd(this);
@@ -4443,12 +5171,10 @@ class WhileStatementBodyBegin extends ParserAstNode {
   final Token token;
 
   WhileStatementBodyBegin(ParserAstType type, {required this.token})
-      : super("WhileStatementBody", type);
+    : super("WhileStatementBody", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitWhileStatementBodyBegin(this);
@@ -4458,33 +5184,57 @@ class WhileStatementBodyEnd extends ParserAstNode {
   final Token endToken;
 
   WhileStatementBodyEnd(ParserAstType type, {required this.endToken})
-      : super("WhileStatementBody", type);
+    : super("WhileStatementBody", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "endToken": endToken,
-      };
+  Map<String, Object?> get deprecatedArguments => {"endToken": endToken};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitWhileStatementBodyEnd(this);
 }
 
-class EnumBegin extends ParserAstNode {
+class EnumDeclarationPreludeBegin extends ParserAstNode {
   final Token enumKeyword;
 
-  EnumBegin(ParserAstType type, {required this.enumKeyword})
-      : super("Enum", type);
+  EnumDeclarationPreludeBegin(ParserAstType type, {required this.enumKeyword})
+    : super("EnumDeclarationPrelude", type);
+
+  @override
+  Map<String, Object?> get deprecatedArguments => {"enumKeyword": enumKeyword};
+
+  @override
+  R accept<R>(ParserAstVisitor<R> v) =>
+      v.visitEnumDeclarationPreludeBegin(this);
+}
+
+class EnumDeclarationBegin extends ParserAstNode {
+  final Token beginToken;
+  final Token? augmentToken;
+  final Token enumKeyword;
+  final Token name;
+
+  EnumDeclarationBegin(
+    ParserAstType type, {
+    required this.beginToken,
+    this.augmentToken,
+    required this.enumKeyword,
+    required this.name,
+  }) : super("EnumDeclaration", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "enumKeyword": enumKeyword,
-      };
+    "beginToken": beginToken,
+    "augmentToken": augmentToken,
+    "enumKeyword": enumKeyword,
+    "name": name,
+  };
 
   @override
-  R accept<R>(ParserAstVisitor<R> v) => v.visitEnumBegin(this);
+  R accept<R>(ParserAstVisitor<R> v) => v.visitEnumDeclarationBegin(this);
 }
 
-class EnumEnd extends ParserAstNode implements BeginAndEndTokenParserAstNode {
+class EnumDeclarationEnd extends ParserAstNode
+    implements BeginAndEndTokenParserAstNode {
   @override
   final Token beginToken;
   final Token enumKeyword;
@@ -4493,71 +5243,43 @@ class EnumEnd extends ParserAstNode implements BeginAndEndTokenParserAstNode {
   @override
   final Token endToken;
 
-  EnumEnd(ParserAstType type,
-      {required this.beginToken,
-      required this.enumKeyword,
-      required this.leftBrace,
-      required this.memberCount,
-      required this.endToken})
-      : super("Enum", type);
+  EnumDeclarationEnd(
+    ParserAstType type, {
+    required this.beginToken,
+    required this.enumKeyword,
+    required this.leftBrace,
+    required this.memberCount,
+    required this.endToken,
+  }) : super("EnumDeclaration", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "enumKeyword": enumKeyword,
-        "leftBrace": leftBrace,
-        "memberCount": memberCount,
-        "endToken": endToken,
-      };
+    "beginToken": beginToken,
+    "enumKeyword": enumKeyword,
+    "leftBrace": leftBrace,
+    "memberCount": memberCount,
+    "endToken": endToken,
+  };
 
   @override
-  R accept<R>(ParserAstVisitor<R> v) => v.visitEnumEnd(this);
-}
-
-class EnumConstructorEnd extends ParserAstNode
-    implements BeginAndEndTokenParserAstNode {
-  final Token? getOrSet;
-  @override
-  final Token beginToken;
-  final Token beginParam;
-  final Token? beginInitializers;
-  @override
-  final Token endToken;
-
-  EnumConstructorEnd(ParserAstType type,
-      {this.getOrSet,
-      required this.beginToken,
-      required this.beginParam,
-      this.beginInitializers,
-      required this.endToken})
-      : super("EnumConstructor", type);
-
-  @override
-  Map<String, Object?> get deprecatedArguments => {
-        "getOrSet": getOrSet,
-        "beginToken": beginToken,
-        "beginParam": beginParam,
-        "beginInitializers": beginInitializers,
-        "endToken": endToken,
-      };
-
-  @override
-  R accept<R>(ParserAstVisitor<R> v) => v.visitEnumConstructorEnd(this);
+  R accept<R>(ParserAstVisitor<R> v) => v.visitEnumDeclarationEnd(this);
 }
 
 class EnumElementsHandle extends ParserAstNode {
   final Token elementsEndToken;
   final int elementsCount;
 
-  EnumElementsHandle(ParserAstType type,
-      {required this.elementsEndToken, required this.elementsCount})
-      : super("EnumElements", type);
+  EnumElementsHandle(
+    ParserAstType type, {
+    required this.elementsEndToken,
+    required this.elementsCount,
+  }) : super("EnumElements", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "elementsEndToken": elementsEndToken,
-        "elementsCount": elementsCount,
-      };
+    "elementsEndToken": elementsEndToken,
+    "elementsCount": elementsCount,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitEnumElementsHandle(this);
@@ -4568,74 +5290,103 @@ class EnumHeaderHandle extends ParserAstNode {
   final Token enumKeyword;
   final Token leftBrace;
 
-  EnumHeaderHandle(ParserAstType type,
-      {this.augmentToken, required this.enumKeyword, required this.leftBrace})
-      : super("EnumHeader", type);
+  EnumHeaderHandle(
+    ParserAstType type, {
+    this.augmentToken,
+    required this.enumKeyword,
+    required this.leftBrace,
+  }) : super("EnumHeader", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "augmentToken": augmentToken,
-        "enumKeyword": enumKeyword,
-        "leftBrace": leftBrace,
-      };
+    "augmentToken": augmentToken,
+    "enumKeyword": enumKeyword,
+    "leftBrace": leftBrace,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitEnumHeaderHandle(this);
+}
+
+class EnumBodyBegin extends ParserAstNode {
+  final Token token;
+
+  EnumBodyBegin(ParserAstType type, {required this.token})
+    : super("EnumBody", type);
+
+  @override
+  Map<String, Object?> get deprecatedArguments => {"token": token};
+
+  @override
+  R accept<R>(ParserAstVisitor<R> v) => v.visitEnumBodyBegin(this);
+}
+
+class EnumBodyEnd extends ParserAstNode
+    implements BeginAndEndTokenParserAstNode {
+  @override
+  final Token beginToken;
+  @override
+  final Token endToken;
+
+  EnumBodyEnd(
+    ParserAstType type, {
+    required this.beginToken,
+    required this.endToken,
+  }) : super("EnumBody", type);
+
+  @override
+  Map<String, Object?> get deprecatedArguments => {
+    "beginToken": beginToken,
+    "endToken": endToken,
+  };
+
+  @override
+  R accept<R>(ParserAstVisitor<R> v) => v.visitEnumBodyEnd(this);
+}
+
+class NoEnumBodyHandle extends ParserAstNode {
+  final Token semicolonToken;
+
+  NoEnumBodyHandle(ParserAstType type, {required this.semicolonToken})
+    : super("NoEnumBody", type);
+
+  @override
+  Map<String, Object?> get deprecatedArguments => {
+    "semicolonToken": semicolonToken,
+  };
+
+  @override
+  R accept<R>(ParserAstVisitor<R> v) => v.visitNoEnumBodyHandle(this);
 }
 
 class EnumElementHandle extends ParserAstNode {
   final Token beginToken;
   final Token? augmentToken;
 
-  EnumElementHandle(ParserAstType type,
-      {required this.beginToken, this.augmentToken})
-      : super("EnumElement", type);
+  EnumElementHandle(
+    ParserAstType type, {
+    required this.beginToken,
+    this.augmentToken,
+  }) : super("EnumElement", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "augmentToken": augmentToken,
-      };
+    "beginToken": beginToken,
+    "augmentToken": augmentToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitEnumElementHandle(this);
-}
-
-class EnumFactoryMethodEnd extends ParserAstNode
-    implements BeginAndEndTokenParserAstNode {
-  @override
-  final Token beginToken;
-  final Token factoryKeyword;
-  @override
-  final Token endToken;
-
-  EnumFactoryMethodEnd(ParserAstType type,
-      {required this.beginToken,
-      required this.factoryKeyword,
-      required this.endToken})
-      : super("EnumFactoryMethod", type);
-
-  @override
-  Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "factoryKeyword": factoryKeyword,
-        "endToken": endToken,
-      };
-
-  @override
-  R accept<R>(ParserAstVisitor<R> v) => v.visitEnumFactoryMethodEnd(this);
 }
 
 class ExportBegin extends ParserAstNode {
   final Token token;
 
   ExportBegin(ParserAstType type, {required this.token})
-      : super("Export", type);
+    : super("Export", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitExportBegin(this);
@@ -4645,15 +5396,17 @@ class ExportEnd extends ParserAstNode {
   final Token exportKeyword;
   final Token semicolon;
 
-  ExportEnd(ParserAstType type,
-      {required this.exportKeyword, required this.semicolon})
-      : super("Export", type);
+  ExportEnd(
+    ParserAstType type, {
+    required this.exportKeyword,
+    required this.semicolon,
+  }) : super("Export", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "exportKeyword": exportKeyword,
-        "semicolon": semicolon,
-      };
+    "exportKeyword": exportKeyword,
+    "semicolon": semicolon,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitExportEnd(this);
@@ -4663,15 +5416,17 @@ class ExtraneousExpressionHandle extends ParserAstNode {
   final Token token;
   final Message message;
 
-  ExtraneousExpressionHandle(ParserAstType type,
-      {required this.token, required this.message})
-      : super("ExtraneousExpression", type);
+  ExtraneousExpressionHandle(
+    ParserAstType type, {
+    required this.token,
+    required this.message,
+  }) : super("ExtraneousExpression", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-        "message": message,
-      };
+    "token": token,
+    "message": message,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitExtraneousExpressionHandle(this);
@@ -4684,144 +5439,75 @@ class ExpressionStatementHandle extends ParserAstNode
   @override
   final Token endToken;
 
-  ExpressionStatementHandle(ParserAstType type,
-      {required this.beginToken, required this.endToken})
-      : super("ExpressionStatement", type);
+  ExpressionStatementHandle(
+    ParserAstType type, {
+    required this.beginToken,
+    required this.endToken,
+  }) : super("ExpressionStatement", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
+    "beginToken": beginToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitExpressionStatementHandle(this);
 }
 
-class FactoryMethodBegin extends ParserAstNode {
+class FactoryBegin extends ParserAstNode {
   final DeclarationKind declarationKind;
   final Token lastConsumed;
   final Token? externalToken;
   final Token? constToken;
 
-  FactoryMethodBegin(ParserAstType type,
-      {required this.declarationKind,
-      required this.lastConsumed,
-      this.externalToken,
-      this.constToken})
-      : super("FactoryMethod", type);
+  FactoryBegin(
+    ParserAstType type, {
+    required this.declarationKind,
+    required this.lastConsumed,
+    this.externalToken,
+    this.constToken,
+  }) : super("Factory", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "declarationKind": declarationKind,
-        "lastConsumed": lastConsumed,
-        "externalToken": externalToken,
-        "constToken": constToken,
-      };
+    "declarationKind": declarationKind,
+    "lastConsumed": lastConsumed,
+    "externalToken": externalToken,
+    "constToken": constToken,
+  };
 
   @override
-  R accept<R>(ParserAstVisitor<R> v) => v.visitFactoryMethodBegin(this);
+  R accept<R>(ParserAstVisitor<R> v) => v.visitFactoryBegin(this);
 }
 
-class ClassFactoryMethodEnd extends ParserAstNode
+class FactoryEnd extends ParserAstNode
     implements BeginAndEndTokenParserAstNode {
+  final DeclarationKind kind;
   @override
   final Token beginToken;
   final Token factoryKeyword;
   @override
   final Token endToken;
 
-  ClassFactoryMethodEnd(ParserAstType type,
-      {required this.beginToken,
-      required this.factoryKeyword,
-      required this.endToken})
-      : super("ClassFactoryMethod", type);
+  FactoryEnd(
+    ParserAstType type, {
+    required this.kind,
+    required this.beginToken,
+    required this.factoryKeyword,
+    required this.endToken,
+  }) : super("Factory", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "factoryKeyword": factoryKeyword,
-        "endToken": endToken,
-      };
+    "kind": kind,
+    "beginToken": beginToken,
+    "factoryKeyword": factoryKeyword,
+    "endToken": endToken,
+  };
 
   @override
-  R accept<R>(ParserAstVisitor<R> v) => v.visitClassFactoryMethodEnd(this);
-}
-
-class MixinFactoryMethodEnd extends ParserAstNode
-    implements BeginAndEndTokenParserAstNode {
-  @override
-  final Token beginToken;
-  final Token factoryKeyword;
-  @override
-  final Token endToken;
-
-  MixinFactoryMethodEnd(ParserAstType type,
-      {required this.beginToken,
-      required this.factoryKeyword,
-      required this.endToken})
-      : super("MixinFactoryMethod", type);
-
-  @override
-  Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "factoryKeyword": factoryKeyword,
-        "endToken": endToken,
-      };
-
-  @override
-  R accept<R>(ParserAstVisitor<R> v) => v.visitMixinFactoryMethodEnd(this);
-}
-
-class ExtensionFactoryMethodEnd extends ParserAstNode
-    implements BeginAndEndTokenParserAstNode {
-  @override
-  final Token beginToken;
-  final Token factoryKeyword;
-  @override
-  final Token endToken;
-
-  ExtensionFactoryMethodEnd(ParserAstType type,
-      {required this.beginToken,
-      required this.factoryKeyword,
-      required this.endToken})
-      : super("ExtensionFactoryMethod", type);
-
-  @override
-  Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "factoryKeyword": factoryKeyword,
-        "endToken": endToken,
-      };
-
-  @override
-  R accept<R>(ParserAstVisitor<R> v) => v.visitExtensionFactoryMethodEnd(this);
-}
-
-class ExtensionTypeFactoryMethodEnd extends ParserAstNode
-    implements BeginAndEndTokenParserAstNode {
-  @override
-  final Token beginToken;
-  final Token factoryKeyword;
-  @override
-  final Token endToken;
-
-  ExtensionTypeFactoryMethodEnd(ParserAstType type,
-      {required this.beginToken,
-      required this.factoryKeyword,
-      required this.endToken})
-      : super("ExtensionTypeFactoryMethod", type);
-
-  @override
-  Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "factoryKeyword": factoryKeyword,
-        "endToken": endToken,
-      };
-
-  @override
-  R accept<R>(ParserAstVisitor<R> v) =>
-      v.visitExtensionTypeFactoryMethodEnd(this);
+  R accept<R>(ParserAstVisitor<R> v) => v.visitFactoryEnd(this);
 }
 
 class FormalParameterBegin extends ParserAstNode {
@@ -4831,28 +5517,30 @@ class FormalParameterBegin extends ParserAstNode {
   final Token? covariantToken;
   final Token? varFinalOrConst;
 
-  FormalParameterBegin(ParserAstType type,
-      {required this.token,
-      required this.kind,
-      this.requiredToken,
-      this.covariantToken,
-      this.varFinalOrConst})
-      : super("FormalParameter", type);
+  FormalParameterBegin(
+    ParserAstType type, {
+    required this.token,
+    required this.kind,
+    this.requiredToken,
+    this.covariantToken,
+    this.varFinalOrConst,
+  }) : super("FormalParameter", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-        "kind": kind,
-        "requiredToken": requiredToken,
-        "covariantToken": covariantToken,
-        "varFinalOrConst": varFinalOrConst,
-      };
+    "token": token,
+    "kind": kind,
+    "requiredToken": requiredToken,
+    "covariantToken": covariantToken,
+    "varFinalOrConst": varFinalOrConst,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitFormalParameterBegin(this);
 }
 
 class FormalParameterEnd extends ParserAstNode {
+  final Token? varOrFinal;
   final Token? thisKeyword;
   final Token? superKeyword;
   final Token? periodAfterThisOrSuper;
@@ -4862,28 +5550,31 @@ class FormalParameterEnd extends ParserAstNode {
   final FormalParameterKind kind;
   final MemberKind memberKind;
 
-  FormalParameterEnd(ParserAstType type,
-      {this.thisKeyword,
-      this.superKeyword,
-      this.periodAfterThisOrSuper,
-      required this.nameToken,
-      this.initializerStart,
-      this.initializerEnd,
-      required this.kind,
-      required this.memberKind})
-      : super("FormalParameter", type);
+  FormalParameterEnd(
+    ParserAstType type, {
+    this.varOrFinal,
+    this.thisKeyword,
+    this.superKeyword,
+    this.periodAfterThisOrSuper,
+    required this.nameToken,
+    this.initializerStart,
+    this.initializerEnd,
+    required this.kind,
+    required this.memberKind,
+  }) : super("FormalParameter", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "thisKeyword": thisKeyword,
-        "superKeyword": superKeyword,
-        "periodAfterThisOrSuper": periodAfterThisOrSuper,
-        "nameToken": nameToken,
-        "initializerStart": initializerStart,
-        "initializerEnd": initializerEnd,
-        "kind": kind,
-        "memberKind": memberKind,
-      };
+    "varOrFinal": varOrFinal,
+    "thisKeyword": thisKeyword,
+    "superKeyword": superKeyword,
+    "periodAfterThisOrSuper": periodAfterThisOrSuper,
+    "nameToken": nameToken,
+    "initializerStart": initializerStart,
+    "initializerEnd": initializerEnd,
+    "kind": kind,
+    "memberKind": memberKind,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitFormalParameterEnd(this);
@@ -4893,15 +5584,17 @@ class NoFormalParametersHandle extends ParserAstNode {
   final Token token;
   final MemberKind kind;
 
-  NoFormalParametersHandle(ParserAstType type,
-      {required this.token, required this.kind})
-      : super("NoFormalParameters", type);
+  NoFormalParametersHandle(
+    ParserAstType type, {
+    required this.token,
+    required this.kind,
+  }) : super("NoFormalParameters", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-        "kind": kind,
-      };
+    "token": token,
+    "kind": kind,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitNoFormalParametersHandle(this);
@@ -4911,15 +5604,17 @@ class FormalParametersBegin extends ParserAstNode {
   final Token token;
   final MemberKind kind;
 
-  FormalParametersBegin(ParserAstType type,
-      {required this.token, required this.kind})
-      : super("FormalParameters", type);
+  FormalParametersBegin(
+    ParserAstType type, {
+    required this.token,
+    required this.kind,
+  }) : super("FormalParameters", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-        "kind": kind,
-      };
+    "token": token,
+    "kind": kind,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitFormalParametersBegin(this);
@@ -4934,27 +5629,28 @@ class FormalParametersEnd extends ParserAstNode
   final Token endToken;
   final MemberKind kind;
 
-  FormalParametersEnd(ParserAstType type,
-      {required this.count,
-      required this.beginToken,
-      required this.endToken,
-      required this.kind})
-      : super("FormalParameters", type);
+  FormalParametersEnd(
+    ParserAstType type, {
+    required this.count,
+    required this.beginToken,
+    required this.endToken,
+    required this.kind,
+  }) : super("FormalParameters", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "count": count,
-        "beginToken": beginToken,
-        "endToken": endToken,
-        "kind": kind,
-      };
+    "count": count,
+    "beginToken": beginToken,
+    "endToken": endToken,
+    "kind": kind,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitFormalParametersEnd(this);
 }
 
-class ClassFieldsEnd extends ParserAstNode
-    implements BeginAndEndTokenParserAstNode {
+class FieldsEnd extends ParserAstNode implements BeginAndEndTokenParserAstNode {
+  final DeclarationKind kind;
   final Token? abstractToken;
   final Token? augmentToken;
   final Token? externalToken;
@@ -4968,262 +5664,48 @@ class ClassFieldsEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  ClassFieldsEnd(ParserAstType type,
-      {this.abstractToken,
-      this.augmentToken,
-      this.externalToken,
-      this.staticToken,
-      this.covariantToken,
-      this.lateToken,
-      this.varFinalOrConst,
-      required this.count,
-      required this.beginToken,
-      required this.endToken})
-      : super("ClassFields", type);
+  FieldsEnd(
+    ParserAstType type, {
+    required this.kind,
+    this.abstractToken,
+    this.augmentToken,
+    this.externalToken,
+    this.staticToken,
+    this.covariantToken,
+    this.lateToken,
+    this.varFinalOrConst,
+    required this.count,
+    required this.beginToken,
+    required this.endToken,
+  }) : super("Fields", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "abstractToken": abstractToken,
-        "augmentToken": augmentToken,
-        "externalToken": externalToken,
-        "staticToken": staticToken,
-        "covariantToken": covariantToken,
-        "lateToken": lateToken,
-        "varFinalOrConst": varFinalOrConst,
-        "count": count,
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
+    "kind": kind,
+    "abstractToken": abstractToken,
+    "augmentToken": augmentToken,
+    "externalToken": externalToken,
+    "staticToken": staticToken,
+    "covariantToken": covariantToken,
+    "lateToken": lateToken,
+    "varFinalOrConst": varFinalOrConst,
+    "count": count,
+    "beginToken": beginToken,
+    "endToken": endToken,
+  };
 
   @override
-  R accept<R>(ParserAstVisitor<R> v) => v.visitClassFieldsEnd(this);
-}
-
-class MixinFieldsEnd extends ParserAstNode
-    implements BeginAndEndTokenParserAstNode {
-  final Token? abstractToken;
-  final Token? augmentToken;
-  final Token? externalToken;
-  final Token? staticToken;
-  final Token? covariantToken;
-  final Token? lateToken;
-  final Token? varFinalOrConst;
-  final int count;
-  @override
-  final Token beginToken;
-  @override
-  final Token endToken;
-
-  MixinFieldsEnd(ParserAstType type,
-      {this.abstractToken,
-      this.augmentToken,
-      this.externalToken,
-      this.staticToken,
-      this.covariantToken,
-      this.lateToken,
-      this.varFinalOrConst,
-      required this.count,
-      required this.beginToken,
-      required this.endToken})
-      : super("MixinFields", type);
-
-  @override
-  Map<String, Object?> get deprecatedArguments => {
-        "abstractToken": abstractToken,
-        "augmentToken": augmentToken,
-        "externalToken": externalToken,
-        "staticToken": staticToken,
-        "covariantToken": covariantToken,
-        "lateToken": lateToken,
-        "varFinalOrConst": varFinalOrConst,
-        "count": count,
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
-
-  @override
-  R accept<R>(ParserAstVisitor<R> v) => v.visitMixinFieldsEnd(this);
-}
-
-class ExtensionFieldsEnd extends ParserAstNode
-    implements BeginAndEndTokenParserAstNode {
-  final Token? abstractToken;
-  final Token? augmentToken;
-  final Token? externalToken;
-  final Token? staticToken;
-  final Token? covariantToken;
-  final Token? lateToken;
-  final Token? varFinalOrConst;
-  final int count;
-  @override
-  final Token beginToken;
-  @override
-  final Token endToken;
-
-  ExtensionFieldsEnd(ParserAstType type,
-      {this.abstractToken,
-      this.augmentToken,
-      this.externalToken,
-      this.staticToken,
-      this.covariantToken,
-      this.lateToken,
-      this.varFinalOrConst,
-      required this.count,
-      required this.beginToken,
-      required this.endToken})
-      : super("ExtensionFields", type);
-
-  @override
-  Map<String, Object?> get deprecatedArguments => {
-        "abstractToken": abstractToken,
-        "augmentToken": augmentToken,
-        "externalToken": externalToken,
-        "staticToken": staticToken,
-        "covariantToken": covariantToken,
-        "lateToken": lateToken,
-        "varFinalOrConst": varFinalOrConst,
-        "count": count,
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
-
-  @override
-  R accept<R>(ParserAstVisitor<R> v) => v.visitExtensionFieldsEnd(this);
-}
-
-class ExtensionTypeFieldsEnd extends ParserAstNode
-    implements BeginAndEndTokenParserAstNode {
-  final Token? abstractToken;
-  final Token? augmentToken;
-  final Token? externalToken;
-  final Token? staticToken;
-  final Token? covariantToken;
-  final Token? lateToken;
-  final Token? varFinalOrConst;
-  final int count;
-  @override
-  final Token beginToken;
-  @override
-  final Token endToken;
-
-  ExtensionTypeFieldsEnd(ParserAstType type,
-      {this.abstractToken,
-      this.augmentToken,
-      this.externalToken,
-      this.staticToken,
-      this.covariantToken,
-      this.lateToken,
-      this.varFinalOrConst,
-      required this.count,
-      required this.beginToken,
-      required this.endToken})
-      : super("ExtensionTypeFields", type);
-
-  @override
-  Map<String, Object?> get deprecatedArguments => {
-        "abstractToken": abstractToken,
-        "augmentToken": augmentToken,
-        "externalToken": externalToken,
-        "staticToken": staticToken,
-        "covariantToken": covariantToken,
-        "lateToken": lateToken,
-        "varFinalOrConst": varFinalOrConst,
-        "count": count,
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
-
-  @override
-  R accept<R>(ParserAstVisitor<R> v) => v.visitExtensionTypeFieldsEnd(this);
-}
-
-class EnumFieldsEnd extends ParserAstNode
-    implements BeginAndEndTokenParserAstNode {
-  final Token? abstractToken;
-  final Token? augmentToken;
-  final Token? externalToken;
-  final Token? staticToken;
-  final Token? covariantToken;
-  final Token? lateToken;
-  final Token? varFinalOrConst;
-  final int count;
-  @override
-  final Token beginToken;
-  @override
-  final Token endToken;
-
-  EnumFieldsEnd(ParserAstType type,
-      {this.abstractToken,
-      this.augmentToken,
-      this.externalToken,
-      this.staticToken,
-      this.covariantToken,
-      this.lateToken,
-      this.varFinalOrConst,
-      required this.count,
-      required this.beginToken,
-      required this.endToken})
-      : super("EnumFields", type);
-
-  @override
-  Map<String, Object?> get deprecatedArguments => {
-        "abstractToken": abstractToken,
-        "augmentToken": augmentToken,
-        "externalToken": externalToken,
-        "staticToken": staticToken,
-        "covariantToken": covariantToken,
-        "lateToken": lateToken,
-        "varFinalOrConst": varFinalOrConst,
-        "count": count,
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
-
-  @override
-  R accept<R>(ParserAstVisitor<R> v) => v.visitEnumFieldsEnd(this);
-}
-
-class EnumMethodEnd extends ParserAstNode
-    implements BeginAndEndTokenParserAstNode {
-  final Token? getOrSet;
-  @override
-  final Token beginToken;
-  final Token beginParam;
-  final Token? beginInitializers;
-  @override
-  final Token endToken;
-
-  EnumMethodEnd(ParserAstType type,
-      {this.getOrSet,
-      required this.beginToken,
-      required this.beginParam,
-      this.beginInitializers,
-      required this.endToken})
-      : super("EnumMethod", type);
-
-  @override
-  Map<String, Object?> get deprecatedArguments => {
-        "getOrSet": getOrSet,
-        "beginToken": beginToken,
-        "beginParam": beginParam,
-        "beginInitializers": beginInitializers,
-        "endToken": endToken,
-      };
-
-  @override
-  R accept<R>(ParserAstVisitor<R> v) => v.visitEnumMethodEnd(this);
+  R accept<R>(ParserAstVisitor<R> v) => v.visitFieldsEnd(this);
 }
 
 class ForInitializerEmptyStatementHandle extends ParserAstNode {
   final Token token;
 
   ForInitializerEmptyStatementHandle(ParserAstType type, {required this.token})
-      : super("ForInitializerEmptyStatement", type);
+    : super("ForInitializerEmptyStatement", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -5234,15 +5716,17 @@ class ForInitializerExpressionStatementHandle extends ParserAstNode {
   final Token token;
   final bool forIn;
 
-  ForInitializerExpressionStatementHandle(ParserAstType type,
-      {required this.token, required this.forIn})
-      : super("ForInitializerExpressionStatement", type);
+  ForInitializerExpressionStatementHandle(
+    ParserAstType type, {
+    required this.token,
+    required this.forIn,
+  }) : super("ForInitializerExpressionStatement", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-        "forIn": forIn,
-      };
+    "token": token,
+    "forIn": forIn,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -5253,15 +5737,17 @@ class ForInitializerLocalVariableDeclarationHandle extends ParserAstNode {
   final Token token;
   final bool forIn;
 
-  ForInitializerLocalVariableDeclarationHandle(ParserAstType type,
-      {required this.token, required this.forIn})
-      : super("ForInitializerLocalVariableDeclaration", type);
+  ForInitializerLocalVariableDeclarationHandle(
+    ParserAstType type, {
+    required this.token,
+    required this.forIn,
+  }) : super("ForInitializerLocalVariableDeclaration", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-        "forIn": forIn,
-      };
+    "token": token,
+    "forIn": forIn,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -5272,15 +5758,17 @@ class ForInitializerPatternVariableAssignmentHandle extends ParserAstNode {
   final Token keyword;
   final Token equals;
 
-  ForInitializerPatternVariableAssignmentHandle(ParserAstType type,
-      {required this.keyword, required this.equals})
-      : super("ForInitializerPatternVariableAssignment", type);
+  ForInitializerPatternVariableAssignmentHandle(
+    ParserAstType type, {
+    required this.keyword,
+    required this.equals,
+  }) : super("ForInitializerPatternVariableAssignment", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "keyword": keyword,
-        "equals": equals,
-      };
+    "keyword": keyword,
+    "equals": equals,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -5291,12 +5779,10 @@ class ForStatementBegin extends ParserAstNode {
   final Token token;
 
   ForStatementBegin(ParserAstType type, {required this.token})
-      : super("ForStatement", type);
+    : super("ForStatement", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitForStatementBegin(this);
@@ -5309,22 +5795,23 @@ class ForLoopPartsHandle extends ParserAstNode {
   final Token rightSeparator;
   final int updateExpressionCount;
 
-  ForLoopPartsHandle(ParserAstType type,
-      {required this.forKeyword,
-      required this.leftParen,
-      required this.leftSeparator,
-      required this.rightSeparator,
-      required this.updateExpressionCount})
-      : super("ForLoopParts", type);
+  ForLoopPartsHandle(
+    ParserAstType type, {
+    required this.forKeyword,
+    required this.leftParen,
+    required this.leftSeparator,
+    required this.rightSeparator,
+    required this.updateExpressionCount,
+  }) : super("ForLoopParts", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "forKeyword": forKeyword,
-        "leftParen": leftParen,
-        "leftSeparator": leftSeparator,
-        "rightSeparator": rightSeparator,
-        "updateExpressionCount": updateExpressionCount,
-      };
+    "forKeyword": forKeyword,
+    "leftParen": leftParen,
+    "leftSeparator": leftSeparator,
+    "rightSeparator": rightSeparator,
+    "updateExpressionCount": updateExpressionCount,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitForLoopPartsHandle(this);
@@ -5334,12 +5821,10 @@ class ForStatementEnd extends ParserAstNode {
   final Token endToken;
 
   ForStatementEnd(ParserAstType type, {required this.endToken})
-      : super("ForStatement", type);
+    : super("ForStatement", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "endToken": endToken,
-      };
+  Map<String, Object?> get deprecatedArguments => {"endToken": endToken};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitForStatementEnd(this);
@@ -5349,12 +5834,10 @@ class ForStatementBodyBegin extends ParserAstNode {
   final Token token;
 
   ForStatementBodyBegin(ParserAstType type, {required this.token})
-      : super("ForStatementBody", type);
+    : super("ForStatementBody", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitForStatementBodyBegin(this);
@@ -5364,12 +5847,10 @@ class ForStatementBodyEnd extends ParserAstNode {
   final Token endToken;
 
   ForStatementBodyEnd(ParserAstType type, {required this.endToken})
-      : super("ForStatementBody", type);
+    : super("ForStatementBody", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "endToken": endToken,
-      };
+  Map<String, Object?> get deprecatedArguments => {"endToken": endToken};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitForStatementBodyEnd(this);
@@ -5382,22 +5863,23 @@ class ForInLoopPartsHandle extends ParserAstNode {
   final Token? patternKeyword;
   final Token inKeyword;
 
-  ForInLoopPartsHandle(ParserAstType type,
-      {this.awaitToken,
-      required this.forToken,
-      required this.leftParenthesis,
-      this.patternKeyword,
-      required this.inKeyword})
-      : super("ForInLoopParts", type);
+  ForInLoopPartsHandle(
+    ParserAstType type, {
+    this.awaitToken,
+    required this.forToken,
+    required this.leftParenthesis,
+    this.patternKeyword,
+    required this.inKeyword,
+  }) : super("ForInLoopParts", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "awaitToken": awaitToken,
-        "forToken": forToken,
-        "leftParenthesis": leftParenthesis,
-        "patternKeyword": patternKeyword,
-        "inKeyword": inKeyword,
-      };
+    "awaitToken": awaitToken,
+    "forToken": forToken,
+    "leftParenthesis": leftParenthesis,
+    "patternKeyword": patternKeyword,
+    "inKeyword": inKeyword,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitForInLoopPartsHandle(this);
@@ -5409,9 +5891,7 @@ class ForInEnd extends ParserAstNode {
   ForInEnd(ParserAstType type, {required this.endToken}) : super("ForIn", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "endToken": endToken,
-      };
+  Map<String, Object?> get deprecatedArguments => {"endToken": endToken};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitForInEnd(this);
@@ -5421,12 +5901,10 @@ class ForInExpressionBegin extends ParserAstNode {
   final Token token;
 
   ForInExpressionBegin(ParserAstType type, {required this.token})
-      : super("ForInExpression", type);
+    : super("ForInExpression", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitForInExpressionBegin(this);
@@ -5436,12 +5914,10 @@ class ForInExpressionEnd extends ParserAstNode {
   final Token token;
 
   ForInExpressionEnd(ParserAstType type, {required this.token})
-      : super("ForInExpression", type);
+    : super("ForInExpression", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitForInExpressionEnd(this);
@@ -5451,12 +5927,10 @@ class ForInBodyBegin extends ParserAstNode {
   final Token token;
 
   ForInBodyBegin(ParserAstType type, {required this.token})
-      : super("ForInBody", type);
+    : super("ForInBody", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitForInBodyBegin(this);
@@ -5466,12 +5940,10 @@ class ForInBodyEnd extends ParserAstNode {
   final Token endToken;
 
   ForInBodyEnd(ParserAstType type, {required this.endToken})
-      : super("ForInBody", type);
+    : super("ForInBody", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "endToken": endToken,
-      };
+  Map<String, Object?> get deprecatedArguments => {"endToken": endToken};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitForInBodyEnd(this);
@@ -5481,12 +5953,10 @@ class NamedFunctionExpressionBegin extends ParserAstNode {
   final Token token;
 
   NamedFunctionExpressionBegin(ParserAstType type, {required this.token})
-      : super("NamedFunctionExpression", type);
+    : super("NamedFunctionExpression", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -5497,12 +5967,10 @@ class NamedFunctionExpressionEnd extends ParserAstNode {
   final Token endToken;
 
   NamedFunctionExpressionEnd(ParserAstType type, {required this.endToken})
-      : super("NamedFunctionExpression", type);
+    : super("NamedFunctionExpression", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "endToken": endToken,
-      };
+  Map<String, Object?> get deprecatedArguments => {"endToken": endToken};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitNamedFunctionExpressionEnd(this);
@@ -5512,12 +5980,10 @@ class LocalFunctionDeclarationBegin extends ParserAstNode {
   final Token token;
 
   LocalFunctionDeclarationBegin(ParserAstType type, {required this.token})
-      : super("LocalFunctionDeclaration", type);
+    : super("LocalFunctionDeclaration", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -5528,12 +5994,10 @@ class LocalFunctionDeclarationEnd extends ParserAstNode {
   final Token endToken;
 
   LocalFunctionDeclarationEnd(ParserAstType type, {required this.endToken})
-      : super("LocalFunctionDeclaration", type);
+    : super("LocalFunctionDeclaration", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "endToken": endToken,
-      };
+  Map<String, Object?> get deprecatedArguments => {"endToken": endToken};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -5544,12 +6008,10 @@ class BlockFunctionBodyBegin extends ParserAstNode {
   final Token token;
 
   BlockFunctionBodyBegin(ParserAstType type, {required this.token})
-      : super("BlockFunctionBody", type);
+    : super("BlockFunctionBody", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitBlockFunctionBodyBegin(this);
@@ -5563,16 +6025,19 @@ class BlockFunctionBodyEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  BlockFunctionBodyEnd(ParserAstType type,
-      {required this.count, required this.beginToken, required this.endToken})
-      : super("BlockFunctionBody", type);
+  BlockFunctionBodyEnd(
+    ParserAstType type, {
+    required this.count,
+    required this.beginToken,
+    required this.endToken,
+  }) : super("BlockFunctionBody", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "count": count,
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
+    "count": count,
+    "beginToken": beginToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitBlockFunctionBodyEnd(this);
@@ -5582,30 +6047,36 @@ class NoFunctionBodyHandle extends ParserAstNode {
   final Token token;
 
   NoFunctionBodyHandle(ParserAstType type, {required this.token})
-      : super("NoFunctionBody", type);
+    : super("NoFunctionBody", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitNoFunctionBodyHandle(this);
 }
 
-class FunctionBodySkippedHandle extends ParserAstNode {
-  final Token token;
+class FunctionBodySkippedHandle extends ParserAstNode
+    implements BeginAndEndTokenParserAstNode {
+  @override
+  final Token beginToken;
+  @override
+  final Token endToken;
   final bool isExpressionBody;
 
-  FunctionBodySkippedHandle(ParserAstType type,
-      {required this.token, required this.isExpressionBody})
-      : super("FunctionBodySkipped", type);
+  FunctionBodySkippedHandle(
+    ParserAstType type, {
+    required this.beginToken,
+    required this.endToken,
+    required this.isExpressionBody,
+  }) : super("FunctionBodySkipped", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-        "isExpressionBody": isExpressionBody,
-      };
+    "beginToken": beginToken,
+    "endToken": endToken,
+    "isExpressionBody": isExpressionBody,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitFunctionBodySkippedHandle(this);
@@ -5615,12 +6086,10 @@ class FunctionNameBegin extends ParserAstNode {
   final Token token;
 
   FunctionNameBegin(ParserAstType type, {required this.token})
-      : super("FunctionName", type);
+    : super("FunctionName", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitFunctionNameBegin(this);
@@ -5631,18 +6100,19 @@ class FunctionNameEnd extends ParserAstNode {
   final Token token;
   final bool isFunctionExpression;
 
-  FunctionNameEnd(ParserAstType type,
-      {required this.beginToken,
-      required this.token,
-      required this.isFunctionExpression})
-      : super("FunctionName", type);
+  FunctionNameEnd(
+    ParserAstType type, {
+    required this.beginToken,
+    required this.token,
+    required this.isFunctionExpression,
+  }) : super("FunctionName", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "token": token,
-        "isFunctionExpression": isFunctionExpression,
-      };
+    "beginToken": beginToken,
+    "token": token,
+    "isFunctionExpression": isFunctionExpression,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitFunctionNameEnd(this);
@@ -5652,12 +6122,10 @@ class TypedefBegin extends ParserAstNode {
   final Token token;
 
   TypedefBegin(ParserAstType type, {required this.token})
-      : super("Typedef", type);
+    : super("Typedef", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitTypedefBegin(this);
@@ -5669,20 +6137,21 @@ class TypedefEnd extends ParserAstNode {
   final Token? equals;
   final Token endToken;
 
-  TypedefEnd(ParserAstType type,
-      {this.augmentToken,
-      required this.typedefKeyword,
-      this.equals,
-      required this.endToken})
-      : super("Typedef", type);
+  TypedefEnd(
+    ParserAstType type, {
+    this.augmentToken,
+    required this.typedefKeyword,
+    this.equals,
+    required this.endToken,
+  }) : super("Typedef", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "augmentToken": augmentToken,
-        "typedefKeyword": typedefKeyword,
-        "equals": equals,
-        "endToken": endToken,
-      };
+    "augmentToken": augmentToken,
+    "typedefKeyword": typedefKeyword,
+    "equals": equals,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitTypedefEnd(this);
@@ -5692,12 +6161,10 @@ class ClassWithClauseHandle extends ParserAstNode {
   final Token withKeyword;
 
   ClassWithClauseHandle(ParserAstType type, {required this.withKeyword})
-      : super("ClassWithClause", type);
+    : super("ClassWithClause", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "withKeyword": withKeyword,
-      };
+  Map<String, Object?> get deprecatedArguments => {"withKeyword": withKeyword};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitClassWithClauseHandle(this);
@@ -5705,7 +6172,7 @@ class ClassWithClauseHandle extends ParserAstNode {
 
 class ClassNoWithClauseHandle extends ParserAstNode {
   ClassNoWithClauseHandle(ParserAstType type)
-      : super("ClassNoWithClause", type);
+    : super("ClassNoWithClause", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {};
@@ -5718,12 +6185,10 @@ class EnumWithClauseHandle extends ParserAstNode {
   final Token withKeyword;
 
   EnumWithClauseHandle(ParserAstType type, {required this.withKeyword})
-      : super("EnumWithClause", type);
+    : super("EnumWithClause", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "withKeyword": withKeyword,
-      };
+  Map<String, Object?> get deprecatedArguments => {"withKeyword": withKeyword};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitEnumWithClauseHandle(this);
@@ -5743,12 +6208,10 @@ class MixinWithClauseHandle extends ParserAstNode {
   final Token withKeyword;
 
   MixinWithClauseHandle(ParserAstType type, {required this.withKeyword})
-      : super("MixinWithClause", type);
+    : super("MixinWithClause", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "withKeyword": withKeyword,
-      };
+  Map<String, Object?> get deprecatedArguments => {"withKeyword": withKeyword};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitMixinWithClauseHandle(this);
@@ -5766,32 +6229,33 @@ class NamedMixinApplicationBegin extends ParserAstNode {
   final Token? mixinToken;
   final Token name;
 
-  NamedMixinApplicationBegin(ParserAstType type,
-      {required this.beginToken,
-      this.abstractToken,
-      this.macroToken,
-      this.sealedToken,
-      this.baseToken,
-      this.interfaceToken,
-      this.finalToken,
-      this.augmentToken,
-      this.mixinToken,
-      required this.name})
-      : super("NamedMixinApplication", type);
+  NamedMixinApplicationBegin(
+    ParserAstType type, {
+    required this.beginToken,
+    this.abstractToken,
+    this.macroToken,
+    this.sealedToken,
+    this.baseToken,
+    this.interfaceToken,
+    this.finalToken,
+    this.augmentToken,
+    this.mixinToken,
+    required this.name,
+  }) : super("NamedMixinApplication", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "abstractToken": abstractToken,
-        "macroToken": macroToken,
-        "sealedToken": sealedToken,
-        "baseToken": baseToken,
-        "interfaceToken": interfaceToken,
-        "finalToken": finalToken,
-        "augmentToken": augmentToken,
-        "mixinToken": mixinToken,
-        "name": name,
-      };
+    "beginToken": beginToken,
+    "abstractToken": abstractToken,
+    "macroToken": macroToken,
+    "sealedToken": sealedToken,
+    "baseToken": baseToken,
+    "interfaceToken": interfaceToken,
+    "finalToken": finalToken,
+    "augmentToken": augmentToken,
+    "mixinToken": mixinToken,
+    "name": name,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitNamedMixinApplicationBegin(this);
@@ -5800,14 +6264,13 @@ class NamedMixinApplicationBegin extends ParserAstNode {
 class NamedMixinApplicationWithClauseHandle extends ParserAstNode {
   final Token withKeyword;
 
-  NamedMixinApplicationWithClauseHandle(ParserAstType type,
-      {required this.withKeyword})
-      : super("NamedMixinApplicationWithClause", type);
+  NamedMixinApplicationWithClauseHandle(
+    ParserAstType type, {
+    required this.withKeyword,
+  }) : super("NamedMixinApplicationWithClause", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "withKeyword": withKeyword,
-      };
+  Map<String, Object?> get deprecatedArguments => {"withKeyword": withKeyword};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -5821,22 +6284,23 @@ class NamedMixinApplicationEnd extends ParserAstNode {
   final Token? implementsKeyword;
   final Token endToken;
 
-  NamedMixinApplicationEnd(ParserAstType type,
-      {required this.begin,
-      required this.classKeyword,
-      required this.equals,
-      this.implementsKeyword,
-      required this.endToken})
-      : super("NamedMixinApplication", type);
+  NamedMixinApplicationEnd(
+    ParserAstType type, {
+    required this.begin,
+    required this.classKeyword,
+    required this.equals,
+    this.implementsKeyword,
+    required this.endToken,
+  }) : super("NamedMixinApplication", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "begin": begin,
-        "classKeyword": classKeyword,
-        "equals": equals,
-        "implementsKeyword": implementsKeyword,
-        "endToken": endToken,
-      };
+    "begin": begin,
+    "classKeyword": classKeyword,
+    "equals": equals,
+    "implementsKeyword": implementsKeyword,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitNamedMixinApplicationEnd(this);
@@ -5846,12 +6310,10 @@ class HideBegin extends ParserAstNode {
   final Token hideKeyword;
 
   HideBegin(ParserAstType type, {required this.hideKeyword})
-      : super("Hide", type);
+    : super("Hide", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "hideKeyword": hideKeyword,
-      };
+  Map<String, Object?> get deprecatedArguments => {"hideKeyword": hideKeyword};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitHideBegin(this);
@@ -5861,12 +6323,10 @@ class HideEnd extends ParserAstNode {
   final Token hideKeyword;
 
   HideEnd(ParserAstType type, {required this.hideKeyword})
-      : super("Hide", type);
+    : super("Hide", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "hideKeyword": hideKeyword,
-      };
+  Map<String, Object?> get deprecatedArguments => {"hideKeyword": hideKeyword};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitHideEnd(this);
@@ -5876,12 +6336,10 @@ class IdentifierListHandle extends ParserAstNode {
   final int count;
 
   IdentifierListHandle(ParserAstType type, {required this.count})
-      : super("IdentifierList", type);
+    : super("IdentifierList", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "count": count,
-      };
+  Map<String, Object?> get deprecatedArguments => {"count": count};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitIdentifierListHandle(this);
@@ -5891,12 +6349,10 @@ class TypeListBegin extends ParserAstNode {
   final Token token;
 
   TypeListBegin(ParserAstType type, {required this.token})
-      : super("TypeList", type);
+    : super("TypeList", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitTypeListBegin(this);
@@ -5906,12 +6362,10 @@ class TypeListEnd extends ParserAstNode {
   final int count;
 
   TypeListEnd(ParserAstType type, {required this.count})
-      : super("TypeList", type);
+    : super("TypeList", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "count": count,
-      };
+  Map<String, Object?> get deprecatedArguments => {"count": count};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitTypeListEnd(this);
@@ -5921,12 +6375,10 @@ class IfStatementBegin extends ParserAstNode {
   final Token token;
 
   IfStatementBegin(ParserAstType type, {required this.token})
-      : super("IfStatement", type);
+    : super("IfStatement", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitIfStatementBegin(this);
@@ -5937,16 +6389,19 @@ class IfStatementEnd extends ParserAstNode {
   final Token? elseToken;
   final Token endToken;
 
-  IfStatementEnd(ParserAstType type,
-      {required this.ifToken, this.elseToken, required this.endToken})
-      : super("IfStatement", type);
+  IfStatementEnd(
+    ParserAstType type, {
+    required this.ifToken,
+    this.elseToken,
+    required this.endToken,
+  }) : super("IfStatement", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "ifToken": ifToken,
-        "elseToken": elseToken,
-        "endToken": endToken,
-      };
+    "ifToken": ifToken,
+    "elseToken": elseToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitIfStatementEnd(this);
@@ -5956,12 +6411,10 @@ class ThenStatementBegin extends ParserAstNode {
   final Token token;
 
   ThenStatementBegin(ParserAstType type, {required this.token})
-      : super("ThenStatement", type);
+    : super("ThenStatement", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitThenStatementBegin(this);
@@ -5974,15 +6427,17 @@ class ThenStatementEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  ThenStatementEnd(ParserAstType type,
-      {required this.beginToken, required this.endToken})
-      : super("ThenStatement", type);
+  ThenStatementEnd(
+    ParserAstType type, {
+    required this.beginToken,
+    required this.endToken,
+  }) : super("ThenStatement", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
+    "beginToken": beginToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitThenStatementEnd(this);
@@ -5992,12 +6447,10 @@ class ElseStatementBegin extends ParserAstNode {
   final Token token;
 
   ElseStatementBegin(ParserAstType type, {required this.token})
-      : super("ElseStatement", type);
+    : super("ElseStatement", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitElseStatementBegin(this);
@@ -6010,15 +6463,17 @@ class ElseStatementEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  ElseStatementEnd(ParserAstType type,
-      {required this.beginToken, required this.endToken})
-      : super("ElseStatement", type);
+  ElseStatementEnd(
+    ParserAstType type, {
+    required this.beginToken,
+    required this.endToken,
+  }) : super("ElseStatement", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
+    "beginToken": beginToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitElseStatementEnd(this);
@@ -6028,12 +6483,12 @@ class ImportBegin extends ParserAstNode {
   final Token importKeyword;
 
   ImportBegin(ParserAstType type, {required this.importKeyword})
-      : super("Import", type);
+    : super("Import", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "importKeyword": importKeyword,
-      };
+    "importKeyword": importKeyword,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitImportBegin(this);
@@ -6044,13 +6499,13 @@ class ImportPrefixHandle extends ParserAstNode {
   final Token? asKeyword;
 
   ImportPrefixHandle(ParserAstType type, {this.deferredKeyword, this.asKeyword})
-      : super("ImportPrefix", type);
+    : super("ImportPrefix", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "deferredKeyword": deferredKeyword,
-        "asKeyword": asKeyword,
-      };
+    "deferredKeyword": deferredKeyword,
+    "asKeyword": asKeyword,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitImportPrefixHandle(this);
@@ -6061,16 +6516,19 @@ class ImportEnd extends ParserAstNode {
   final Token? augmentToken;
   final Token? semicolon;
 
-  ImportEnd(ParserAstType type,
-      {required this.importKeyword, this.augmentToken, this.semicolon})
-      : super("Import", type);
+  ImportEnd(
+    ParserAstType type, {
+    required this.importKeyword,
+    this.augmentToken,
+    this.semicolon,
+  }) : super("Import", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "importKeyword": importKeyword,
-        "augmentToken": augmentToken,
-        "semicolon": semicolon,
-      };
+    "importKeyword": importKeyword,
+    "augmentToken": augmentToken,
+    "semicolon": semicolon,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitImportEnd(this);
@@ -6080,12 +6538,10 @@ class RecoverImportHandle extends ParserAstNode {
   final Token? semicolon;
 
   RecoverImportHandle(ParserAstType type, {this.semicolon})
-      : super("RecoverImport", type);
+    : super("RecoverImport", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "semicolon": semicolon,
-      };
+  Map<String, Object?> get deprecatedArguments => {"semicolon": semicolon};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitRecoverImportHandle(this);
@@ -6095,12 +6551,10 @@ class ConditionalUrisBegin extends ParserAstNode {
   final Token token;
 
   ConditionalUrisBegin(ParserAstType type, {required this.token})
-      : super("ConditionalUris", type);
+    : super("ConditionalUris", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitConditionalUrisBegin(this);
@@ -6110,12 +6564,10 @@ class ConditionalUrisEnd extends ParserAstNode {
   final int count;
 
   ConditionalUrisEnd(ParserAstType type, {required this.count})
-      : super("ConditionalUris", type);
+    : super("ConditionalUris", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "count": count,
-      };
+  Map<String, Object?> get deprecatedArguments => {"count": count};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitConditionalUrisEnd(this);
@@ -6125,12 +6577,10 @@ class ConditionalUriBegin extends ParserAstNode {
   final Token ifKeyword;
 
   ConditionalUriBegin(ParserAstType type, {required this.ifKeyword})
-      : super("ConditionalUri", type);
+    : super("ConditionalUri", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "ifKeyword": ifKeyword,
-      };
+  Map<String, Object?> get deprecatedArguments => {"ifKeyword": ifKeyword};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitConditionalUriBegin(this);
@@ -6141,16 +6591,19 @@ class ConditionalUriEnd extends ParserAstNode {
   final Token leftParen;
   final Token? equalSign;
 
-  ConditionalUriEnd(ParserAstType type,
-      {required this.ifKeyword, required this.leftParen, this.equalSign})
-      : super("ConditionalUri", type);
+  ConditionalUriEnd(
+    ParserAstType type, {
+    required this.ifKeyword,
+    required this.leftParen,
+    this.equalSign,
+  }) : super("ConditionalUri", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "ifKeyword": ifKeyword,
-        "leftParen": leftParen,
-        "equalSign": equalSign,
-      };
+    "ifKeyword": ifKeyword,
+    "leftParen": leftParen,
+    "equalSign": equalSign,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitConditionalUriEnd(this);
@@ -6160,15 +6613,17 @@ class DottedNameHandle extends ParserAstNode {
   final int count;
   final Token firstIdentifier;
 
-  DottedNameHandle(ParserAstType type,
-      {required this.count, required this.firstIdentifier})
-      : super("DottedName", type);
+  DottedNameHandle(
+    ParserAstType type, {
+    required this.count,
+    required this.firstIdentifier,
+  }) : super("DottedName", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "count": count,
-        "firstIdentifier": firstIdentifier,
-      };
+    "count": count,
+    "firstIdentifier": firstIdentifier,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitDottedNameHandle(this);
@@ -6178,12 +6633,10 @@ class ImplicitCreationExpressionBegin extends ParserAstNode {
   final Token token;
 
   ImplicitCreationExpressionBegin(ParserAstType type, {required this.token})
-      : super("ImplicitCreationExpression", type);
+    : super("ImplicitCreationExpression", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -6194,15 +6647,17 @@ class ImplicitCreationExpressionEnd extends ParserAstNode {
   final Token token;
   final Token openAngleBracket;
 
-  ImplicitCreationExpressionEnd(ParserAstType type,
-      {required this.token, required this.openAngleBracket})
-      : super("ImplicitCreationExpression", type);
+  ImplicitCreationExpressionEnd(
+    ParserAstType type, {
+    required this.token,
+    required this.openAngleBracket,
+  }) : super("ImplicitCreationExpression", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-        "openAngleBracket": openAngleBracket,
-      };
+    "token": token,
+    "openAngleBracket": openAngleBracket,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -6213,12 +6668,10 @@ class InitializedIdentifierBegin extends ParserAstNode {
   final Token token;
 
   InitializedIdentifierBegin(ParserAstType type, {required this.token})
-      : super("InitializedIdentifier", type);
+    : super("InitializedIdentifier", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitInitializedIdentifierBegin(this);
@@ -6228,12 +6681,10 @@ class InitializedIdentifierEnd extends ParserAstNode {
   final Token nameToken;
 
   InitializedIdentifierEnd(ParserAstType type, {required this.nameToken})
-      : super("InitializedIdentifier", type);
+    : super("InitializedIdentifier", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "nameToken": nameToken,
-      };
+  Map<String, Object?> get deprecatedArguments => {"nameToken": nameToken};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitInitializedIdentifierEnd(this);
@@ -6243,12 +6694,10 @@ class FieldInitializerBegin extends ParserAstNode {
   final Token token;
 
   FieldInitializerBegin(ParserAstType type, {required this.token})
-      : super("FieldInitializer", type);
+    : super("FieldInitializer", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitFieldInitializerBegin(this);
@@ -6258,15 +6707,17 @@ class FieldInitializerEnd extends ParserAstNode {
   final Token assignment;
   final Token endToken;
 
-  FieldInitializerEnd(ParserAstType type,
-      {required this.assignment, required this.endToken})
-      : super("FieldInitializer", type);
+  FieldInitializerEnd(
+    ParserAstType type, {
+    required this.assignment,
+    required this.endToken,
+  }) : super("FieldInitializer", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "assignment": assignment,
-        "endToken": endToken,
-      };
+    "assignment": assignment,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitFieldInitializerEnd(this);
@@ -6276,12 +6727,10 @@ class NoFieldInitializerHandle extends ParserAstNode {
   final Token token;
 
   NoFieldInitializerHandle(ParserAstType type, {required this.token})
-      : super("NoFieldInitializer", type);
+    : super("NoFieldInitializer", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitNoFieldInitializerHandle(this);
@@ -6291,12 +6740,10 @@ class VariableInitializerBegin extends ParserAstNode {
   final Token token;
 
   VariableInitializerBegin(ParserAstType type, {required this.token})
-      : super("VariableInitializer", type);
+    : super("VariableInitializer", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitVariableInitializerBegin(this);
@@ -6306,12 +6753,12 @@ class VariableInitializerEnd extends ParserAstNode {
   final Token assignmentOperator;
 
   VariableInitializerEnd(ParserAstType type, {required this.assignmentOperator})
-      : super("VariableInitializer", type);
+    : super("VariableInitializer", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "assignmentOperator": assignmentOperator,
-      };
+    "assignmentOperator": assignmentOperator,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitVariableInitializerEnd(this);
@@ -6321,12 +6768,10 @@ class NoVariableInitializerHandle extends ParserAstNode {
   final Token token;
 
   NoVariableInitializerHandle(ParserAstType type, {required this.token})
-      : super("NoVariableInitializer", type);
+    : super("NoVariableInitializer", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -6337,12 +6782,10 @@ class InitializerBegin extends ParserAstNode {
   final Token token;
 
   InitializerBegin(ParserAstType type, {required this.token})
-      : super("Initializer", type);
+    : super("Initializer", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitInitializerBegin(this);
@@ -6352,12 +6795,10 @@ class InitializerEnd extends ParserAstNode {
   final Token endToken;
 
   InitializerEnd(ParserAstType type, {required this.endToken})
-      : super("Initializer", type);
+    : super("Initializer", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "endToken": endToken,
-      };
+  Map<String, Object?> get deprecatedArguments => {"endToken": endToken};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitInitializerEnd(this);
@@ -6367,12 +6808,10 @@ class InitializersBegin extends ParserAstNode {
   final Token token;
 
   InitializersBegin(ParserAstType type, {required this.token})
-      : super("Initializers", type);
+    : super("Initializers", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitInitializersBegin(this);
@@ -6386,16 +6825,19 @@ class InitializersEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  InitializersEnd(ParserAstType type,
-      {required this.count, required this.beginToken, required this.endToken})
-      : super("Initializers", type);
+  InitializersEnd(
+    ParserAstType type, {
+    required this.count,
+    required this.beginToken,
+    required this.endToken,
+  }) : super("Initializers", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "count": count,
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
+    "count": count,
+    "beginToken": beginToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitInitializersEnd(this);
@@ -6415,12 +6857,10 @@ class InvalidExpressionHandle extends ParserAstNode {
   final Token token;
 
   InvalidExpressionHandle(ParserAstType type, {required this.token})
-      : super("InvalidExpression", type);
+    : super("InvalidExpression", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitInvalidExpressionHandle(this);
@@ -6430,12 +6870,10 @@ class InvalidFunctionBodyHandle extends ParserAstNode {
   final Token token;
 
   InvalidFunctionBodyHandle(ParserAstType type, {required this.token})
-      : super("InvalidFunctionBody", type);
+    : super("InvalidFunctionBody", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitInvalidFunctionBodyHandle(this);
@@ -6445,12 +6883,10 @@ class InvalidTypeReferenceHandle extends ParserAstNode {
   final Token token;
 
   InvalidTypeReferenceHandle(ParserAstType type, {required this.token})
-      : super("InvalidTypeReference", type);
+    : super("InvalidTypeReference", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitInvalidTypeReferenceHandle(this);
@@ -6462,9 +6898,7 @@ class LabelHandle extends ParserAstNode {
   LabelHandle(ParserAstType type, {required this.token}) : super("Label", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitLabelHandle(this);
@@ -6474,15 +6908,17 @@ class LabeledStatementBegin extends ParserAstNode {
   final Token token;
   final int labelCount;
 
-  LabeledStatementBegin(ParserAstType type,
-      {required this.token, required this.labelCount})
-      : super("LabeledStatement", type);
+  LabeledStatementBegin(
+    ParserAstType type, {
+    required this.token,
+    required this.labelCount,
+  }) : super("LabeledStatement", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-        "labelCount": labelCount,
-      };
+    "token": token,
+    "labelCount": labelCount,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitLabeledStatementBegin(this);
@@ -6492,12 +6928,10 @@ class LabeledStatementEnd extends ParserAstNode {
   final int labelCount;
 
   LabeledStatementEnd(ParserAstType type, {required this.labelCount})
-      : super("LabeledStatement", type);
+    : super("LabeledStatement", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "labelCount": labelCount,
-      };
+  Map<String, Object?> get deprecatedArguments => {"labelCount": labelCount};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitLabeledStatementEnd(this);
@@ -6507,15 +6941,17 @@ class LibraryAugmentationBegin extends ParserAstNode {
   final Token augmentKeyword;
   final Token libraryKeyword;
 
-  LibraryAugmentationBegin(ParserAstType type,
-      {required this.augmentKeyword, required this.libraryKeyword})
-      : super("LibraryAugmentation", type);
+  LibraryAugmentationBegin(
+    ParserAstType type, {
+    required this.augmentKeyword,
+    required this.libraryKeyword,
+  }) : super("LibraryAugmentation", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "augmentKeyword": augmentKeyword,
-        "libraryKeyword": libraryKeyword,
-      };
+    "augmentKeyword": augmentKeyword,
+    "libraryKeyword": libraryKeyword,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitLibraryAugmentationBegin(this);
@@ -6526,18 +6962,19 @@ class LibraryAugmentationEnd extends ParserAstNode {
   final Token libraryKeyword;
   final Token semicolon;
 
-  LibraryAugmentationEnd(ParserAstType type,
-      {required this.augmentKeyword,
-      required this.libraryKeyword,
-      required this.semicolon})
-      : super("LibraryAugmentation", type);
+  LibraryAugmentationEnd(
+    ParserAstType type, {
+    required this.augmentKeyword,
+    required this.libraryKeyword,
+    required this.semicolon,
+  }) : super("LibraryAugmentation", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "augmentKeyword": augmentKeyword,
-        "libraryKeyword": libraryKeyword,
-        "semicolon": semicolon,
-      };
+    "augmentKeyword": augmentKeyword,
+    "libraryKeyword": libraryKeyword,
+    "semicolon": semicolon,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitLibraryAugmentationEnd(this);
@@ -6547,12 +6984,10 @@ class LibraryNameBegin extends ParserAstNode {
   final Token token;
 
   LibraryNameBegin(ParserAstType type, {required this.token})
-      : super("LibraryName", type);
+    : super("LibraryName", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitLibraryNameBegin(this);
@@ -6563,18 +6998,19 @@ class LibraryNameEnd extends ParserAstNode {
   final Token semicolon;
   final bool hasName;
 
-  LibraryNameEnd(ParserAstType type,
-      {required this.libraryKeyword,
-      required this.semicolon,
-      required this.hasName})
-      : super("LibraryName", type);
+  LibraryNameEnd(
+    ParserAstType type, {
+    required this.libraryKeyword,
+    required this.semicolon,
+    required this.hasName,
+  }) : super("LibraryName", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "libraryKeyword": libraryKeyword,
-        "semicolon": semicolon,
-        "hasName": hasName,
-      };
+    "libraryKeyword": libraryKeyword,
+    "semicolon": semicolon,
+    "hasName": hasName,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitLibraryNameEnd(this);
@@ -6586,20 +7022,21 @@ class LiteralMapEntryHandle extends ParserAstNode {
   final Token? nullAwareKeyToken;
   final Token? nullAwareValueToken;
 
-  LiteralMapEntryHandle(ParserAstType type,
-      {required this.colon,
-      required this.endToken,
-      this.nullAwareKeyToken,
-      this.nullAwareValueToken})
-      : super("LiteralMapEntry", type);
+  LiteralMapEntryHandle(
+    ParserAstType type, {
+    required this.colon,
+    required this.endToken,
+    this.nullAwareKeyToken,
+    this.nullAwareValueToken,
+  }) : super("LiteralMapEntry", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "colon": colon,
-        "endToken": endToken,
-        "nullAwareKeyToken": nullAwareKeyToken,
-        "nullAwareValueToken": nullAwareValueToken,
-      };
+    "colon": colon,
+    "endToken": endToken,
+    "nullAwareKeyToken": nullAwareKeyToken,
+    "nullAwareValueToken": nullAwareValueToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitLiteralMapEntryHandle(this);
@@ -6609,15 +7046,17 @@ class MapPatternEntryHandle extends ParserAstNode {
   final Token colon;
   final Token endToken;
 
-  MapPatternEntryHandle(ParserAstType type,
-      {required this.colon, required this.endToken})
-      : super("MapPatternEntry", type);
+  MapPatternEntryHandle(
+    ParserAstType type, {
+    required this.colon,
+    required this.endToken,
+  }) : super("MapPatternEntry", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "colon": colon,
-        "endToken": endToken,
-      };
+    "colon": colon,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitMapPatternEntryHandle(this);
@@ -6627,12 +7066,10 @@ class LiteralStringBegin extends ParserAstNode {
   final Token token;
 
   LiteralStringBegin(ParserAstType type, {required this.token})
-      : super("LiteralString", type);
+    : super("LiteralString", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitLiteralStringBegin(this);
@@ -6642,15 +7079,17 @@ class InterpolationExpressionHandle extends ParserAstNode {
   final Token leftBracket;
   final Token? rightBracket;
 
-  InterpolationExpressionHandle(ParserAstType type,
-      {required this.leftBracket, this.rightBracket})
-      : super("InterpolationExpression", type);
+  InterpolationExpressionHandle(
+    ParserAstType type, {
+    required this.leftBracket,
+    this.rightBracket,
+  }) : super("InterpolationExpression", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "leftBracket": leftBracket,
-        "rightBracket": rightBracket,
-      };
+    "leftBracket": leftBracket,
+    "rightBracket": rightBracket,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -6661,15 +7100,17 @@ class LiteralStringEnd extends ParserAstNode {
   final int interpolationCount;
   final Token endToken;
 
-  LiteralStringEnd(ParserAstType type,
-      {required this.interpolationCount, required this.endToken})
-      : super("LiteralString", type);
+  LiteralStringEnd(
+    ParserAstType type, {
+    required this.interpolationCount,
+    required this.endToken,
+  }) : super("LiteralString", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "interpolationCount": interpolationCount,
-        "endToken": endToken,
-      };
+    "interpolationCount": interpolationCount,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitLiteralStringEnd(this);
@@ -6679,15 +7120,17 @@ class AdjacentStringLiteralsHandle extends ParserAstNode {
   final Token startToken;
   final int literalCount;
 
-  AdjacentStringLiteralsHandle(ParserAstType type,
-      {required this.startToken, required this.literalCount})
-      : super("AdjacentStringLiterals", type);
+  AdjacentStringLiteralsHandle(
+    ParserAstType type, {
+    required this.startToken,
+    required this.literalCount,
+  }) : super("AdjacentStringLiterals", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "startToken": startToken,
-        "literalCount": literalCount,
-      };
+    "startToken": startToken,
+    "literalCount": literalCount,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -6708,12 +7151,10 @@ class InvalidMemberHandle extends ParserAstNode {
   final Token endToken;
 
   InvalidMemberHandle(ParserAstType type, {required this.endToken})
-      : super("InvalidMember", type);
+    : super("InvalidMember", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "endToken": endToken,
-      };
+  Map<String, Object?> get deprecatedArguments => {"endToken": endToken};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitInvalidMemberHandle(this);
@@ -6740,37 +7181,38 @@ class MethodBegin extends ParserAstNode {
   final Token name;
   final String? enclosingDeclarationName;
 
-  MethodBegin(ParserAstType type,
-      {required this.declarationKind,
-      this.augmentToken,
-      this.externalToken,
-      this.staticToken,
-      this.covariantToken,
-      this.varFinalOrConst,
-      this.getOrSet,
-      required this.name,
-      this.enclosingDeclarationName})
-      : super("Method", type);
+  MethodBegin(
+    ParserAstType type, {
+    required this.declarationKind,
+    this.augmentToken,
+    this.externalToken,
+    this.staticToken,
+    this.covariantToken,
+    this.varFinalOrConst,
+    this.getOrSet,
+    required this.name,
+    this.enclosingDeclarationName,
+  }) : super("Method", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "declarationKind": declarationKind,
-        "augmentToken": augmentToken,
-        "externalToken": externalToken,
-        "staticToken": staticToken,
-        "covariantToken": covariantToken,
-        "varFinalOrConst": varFinalOrConst,
-        "getOrSet": getOrSet,
-        "name": name,
-        "enclosingDeclarationName": enclosingDeclarationName,
-      };
+    "declarationKind": declarationKind,
+    "augmentToken": augmentToken,
+    "externalToken": externalToken,
+    "staticToken": staticToken,
+    "covariantToken": covariantToken,
+    "varFinalOrConst": varFinalOrConst,
+    "getOrSet": getOrSet,
+    "name": name,
+    "enclosingDeclarationName": enclosingDeclarationName,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitMethodBegin(this);
 }
 
-class ClassMethodEnd extends ParserAstNode
-    implements BeginAndEndTokenParserAstNode {
+class MethodEnd extends ParserAstNode implements BeginAndEndTokenParserAstNode {
+  final DeclarationKind kind;
   final Token? getOrSet;
   @override
   final Token beginToken;
@@ -6779,255 +7221,117 @@ class ClassMethodEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  ClassMethodEnd(ParserAstType type,
-      {this.getOrSet,
-      required this.beginToken,
-      required this.beginParam,
-      this.beginInitializers,
-      required this.endToken})
-      : super("ClassMethod", type);
+  MethodEnd(
+    ParserAstType type, {
+    required this.kind,
+    this.getOrSet,
+    required this.beginToken,
+    required this.beginParam,
+    this.beginInitializers,
+    required this.endToken,
+  }) : super("Method", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "getOrSet": getOrSet,
-        "beginToken": beginToken,
-        "beginParam": beginParam,
-        "beginInitializers": beginInitializers,
-        "endToken": endToken,
-      };
+    "kind": kind,
+    "getOrSet": getOrSet,
+    "beginToken": beginToken,
+    "beginParam": beginParam,
+    "beginInitializers": beginInitializers,
+    "endToken": endToken,
+  };
 
   @override
-  R accept<R>(ParserAstVisitor<R> v) => v.visitClassMethodEnd(this);
+  R accept<R>(ParserAstVisitor<R> v) => v.visitMethodEnd(this);
 }
 
-class MixinMethodEnd extends ParserAstNode
-    implements BeginAndEndTokenParserAstNode {
+class ConstructorBegin extends ParserAstNode {
+  final DeclarationKind declarationKind;
+  final Token? augmentToken;
+  final Token? externalToken;
+  final Token? staticToken;
+  final Token? covariantToken;
+  final Token? varFinalOrConst;
   final Token? getOrSet;
-  @override
-  final Token beginToken;
-  final Token beginParam;
-  final Token? beginInitializers;
-  @override
-  final Token endToken;
+  final Token? newToken;
+  final Token name;
+  final String? enclosingDeclarationName;
 
-  MixinMethodEnd(ParserAstType type,
-      {this.getOrSet,
-      required this.beginToken,
-      required this.beginParam,
-      this.beginInitializers,
-      required this.endToken})
-      : super("MixinMethod", type);
+  ConstructorBegin(
+    ParserAstType type, {
+    required this.declarationKind,
+    this.augmentToken,
+    this.externalToken,
+    this.staticToken,
+    this.covariantToken,
+    this.varFinalOrConst,
+    this.getOrSet,
+    this.newToken,
+    required this.name,
+    this.enclosingDeclarationName,
+  }) : super("Constructor", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "getOrSet": getOrSet,
-        "beginToken": beginToken,
-        "beginParam": beginParam,
-        "beginInitializers": beginInitializers,
-        "endToken": endToken,
-      };
+    "declarationKind": declarationKind,
+    "augmentToken": augmentToken,
+    "externalToken": externalToken,
+    "staticToken": staticToken,
+    "covariantToken": covariantToken,
+    "varFinalOrConst": varFinalOrConst,
+    "getOrSet": getOrSet,
+    "newToken": newToken,
+    "name": name,
+    "enclosingDeclarationName": enclosingDeclarationName,
+  };
 
   @override
-  R accept<R>(ParserAstVisitor<R> v) => v.visitMixinMethodEnd(this);
+  R accept<R>(ParserAstVisitor<R> v) => v.visitConstructorBegin(this);
 }
 
-class ExtensionMethodEnd extends ParserAstNode
+class ConstructorEnd extends ParserAstNode
     implements BeginAndEndTokenParserAstNode {
-  final Token? getOrSet;
+  final DeclarationKind kind;
   @override
   final Token beginToken;
+  final Token? newToken;
   final Token beginParam;
   final Token? beginInitializers;
   @override
   final Token endToken;
 
-  ExtensionMethodEnd(ParserAstType type,
-      {this.getOrSet,
-      required this.beginToken,
-      required this.beginParam,
-      this.beginInitializers,
-      required this.endToken})
-      : super("ExtensionMethod", type);
+  ConstructorEnd(
+    ParserAstType type, {
+    required this.kind,
+    required this.beginToken,
+    this.newToken,
+    required this.beginParam,
+    this.beginInitializers,
+    required this.endToken,
+  }) : super("Constructor", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "getOrSet": getOrSet,
-        "beginToken": beginToken,
-        "beginParam": beginParam,
-        "beginInitializers": beginInitializers,
-        "endToken": endToken,
-      };
+    "kind": kind,
+    "beginToken": beginToken,
+    "newToken": newToken,
+    "beginParam": beginParam,
+    "beginInitializers": beginInitializers,
+    "endToken": endToken,
+  };
 
   @override
-  R accept<R>(ParserAstVisitor<R> v) => v.visitExtensionMethodEnd(this);
-}
-
-class ExtensionTypeMethodEnd extends ParserAstNode
-    implements BeginAndEndTokenParserAstNode {
-  final Token? getOrSet;
-  @override
-  final Token beginToken;
-  final Token beginParam;
-  final Token? beginInitializers;
-  @override
-  final Token endToken;
-
-  ExtensionTypeMethodEnd(ParserAstType type,
-      {this.getOrSet,
-      required this.beginToken,
-      required this.beginParam,
-      this.beginInitializers,
-      required this.endToken})
-      : super("ExtensionTypeMethod", type);
-
-  @override
-  Map<String, Object?> get deprecatedArguments => {
-        "getOrSet": getOrSet,
-        "beginToken": beginToken,
-        "beginParam": beginParam,
-        "beginInitializers": beginInitializers,
-        "endToken": endToken,
-      };
-
-  @override
-  R accept<R>(ParserAstVisitor<R> v) => v.visitExtensionTypeMethodEnd(this);
-}
-
-class ClassConstructorEnd extends ParserAstNode
-    implements BeginAndEndTokenParserAstNode {
-  final Token? getOrSet;
-  @override
-  final Token beginToken;
-  final Token beginParam;
-  final Token? beginInitializers;
-  @override
-  final Token endToken;
-
-  ClassConstructorEnd(ParserAstType type,
-      {this.getOrSet,
-      required this.beginToken,
-      required this.beginParam,
-      this.beginInitializers,
-      required this.endToken})
-      : super("ClassConstructor", type);
-
-  @override
-  Map<String, Object?> get deprecatedArguments => {
-        "getOrSet": getOrSet,
-        "beginToken": beginToken,
-        "beginParam": beginParam,
-        "beginInitializers": beginInitializers,
-        "endToken": endToken,
-      };
-
-  @override
-  R accept<R>(ParserAstVisitor<R> v) => v.visitClassConstructorEnd(this);
-}
-
-class MixinConstructorEnd extends ParserAstNode
-    implements BeginAndEndTokenParserAstNode {
-  final Token? getOrSet;
-  @override
-  final Token beginToken;
-  final Token beginParam;
-  final Token? beginInitializers;
-  @override
-  final Token endToken;
-
-  MixinConstructorEnd(ParserAstType type,
-      {this.getOrSet,
-      required this.beginToken,
-      required this.beginParam,
-      this.beginInitializers,
-      required this.endToken})
-      : super("MixinConstructor", type);
-
-  @override
-  Map<String, Object?> get deprecatedArguments => {
-        "getOrSet": getOrSet,
-        "beginToken": beginToken,
-        "beginParam": beginParam,
-        "beginInitializers": beginInitializers,
-        "endToken": endToken,
-      };
-
-  @override
-  R accept<R>(ParserAstVisitor<R> v) => v.visitMixinConstructorEnd(this);
-}
-
-class ExtensionConstructorEnd extends ParserAstNode
-    implements BeginAndEndTokenParserAstNode {
-  final Token? getOrSet;
-  @override
-  final Token beginToken;
-  final Token beginParam;
-  final Token? beginInitializers;
-  @override
-  final Token endToken;
-
-  ExtensionConstructorEnd(ParserAstType type,
-      {this.getOrSet,
-      required this.beginToken,
-      required this.beginParam,
-      this.beginInitializers,
-      required this.endToken})
-      : super("ExtensionConstructor", type);
-
-  @override
-  Map<String, Object?> get deprecatedArguments => {
-        "getOrSet": getOrSet,
-        "beginToken": beginToken,
-        "beginParam": beginParam,
-        "beginInitializers": beginInitializers,
-        "endToken": endToken,
-      };
-
-  @override
-  R accept<R>(ParserAstVisitor<R> v) => v.visitExtensionConstructorEnd(this);
-}
-
-class ExtensionTypeConstructorEnd extends ParserAstNode
-    implements BeginAndEndTokenParserAstNode {
-  final Token? getOrSet;
-  @override
-  final Token beginToken;
-  final Token beginParam;
-  final Token? beginInitializers;
-  @override
-  final Token endToken;
-
-  ExtensionTypeConstructorEnd(ParserAstType type,
-      {this.getOrSet,
-      required this.beginToken,
-      required this.beginParam,
-      this.beginInitializers,
-      required this.endToken})
-      : super("ExtensionTypeConstructor", type);
-
-  @override
-  Map<String, Object?> get deprecatedArguments => {
-        "getOrSet": getOrSet,
-        "beginToken": beginToken,
-        "beginParam": beginParam,
-        "beginInitializers": beginInitializers,
-        "endToken": endToken,
-      };
-
-  @override
-  R accept<R>(ParserAstVisitor<R> v) =>
-      v.visitExtensionTypeConstructorEnd(this);
+  R accept<R>(ParserAstVisitor<R> v) => v.visitConstructorEnd(this);
 }
 
 class MetadataStarBegin extends ParserAstNode {
   final Token token;
 
   MetadataStarBegin(ParserAstType type, {required this.token})
-      : super("MetadataStar", type);
+    : super("MetadataStar", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitMetadataStarBegin(this);
@@ -7037,12 +7341,10 @@ class MetadataStarEnd extends ParserAstNode {
   final int count;
 
   MetadataStarEnd(ParserAstType type, {required this.count})
-      : super("MetadataStar", type);
+    : super("MetadataStar", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "count": count,
-      };
+  Map<String, Object?> get deprecatedArguments => {"count": count};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitMetadataStarEnd(this);
@@ -7052,12 +7354,10 @@ class MetadataBegin extends ParserAstNode {
   final Token token;
 
   MetadataBegin(ParserAstType type, {required this.token})
-      : super("Metadata", type);
+    : super("Metadata", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitMetadataBegin(this);
@@ -7071,16 +7371,19 @@ class MetadataEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  MetadataEnd(ParserAstType type,
-      {required this.beginToken, this.periodBeforeName, required this.endToken})
-      : super("Metadata", type);
+  MetadataEnd(
+    ParserAstType type, {
+    required this.beginToken,
+    this.periodBeforeName,
+    required this.endToken,
+  }) : super("Metadata", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "periodBeforeName": periodBeforeName,
-        "endToken": endToken,
-      };
+    "beginToken": beginToken,
+    "periodBeforeName": periodBeforeName,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitMetadataEnd(this);
@@ -7090,12 +7393,10 @@ class OptionalFormalParametersBegin extends ParserAstNode {
   final Token token;
 
   OptionalFormalParametersBegin(ParserAstType type, {required this.token})
-      : super("OptionalFormalParameters", type);
+    : super("OptionalFormalParameters", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -7111,20 +7412,21 @@ class OptionalFormalParametersEnd extends ParserAstNode
   final Token endToken;
   final MemberKind kind;
 
-  OptionalFormalParametersEnd(ParserAstType type,
-      {required this.count,
-      required this.beginToken,
-      required this.endToken,
-      required this.kind})
-      : super("OptionalFormalParameters", type);
+  OptionalFormalParametersEnd(
+    ParserAstType type, {
+    required this.count,
+    required this.beginToken,
+    required this.endToken,
+    required this.kind,
+  }) : super("OptionalFormalParameters", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "count": count,
-        "beginToken": beginToken,
-        "endToken": endToken,
-        "kind": kind,
-      };
+    "count": count,
+    "beginToken": beginToken,
+    "endToken": endToken,
+    "kind": kind,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -7137,9 +7439,7 @@ class PartBegin extends ParserAstNode {
   PartBegin(ParserAstType type, {required this.token}) : super("Part", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitPartBegin(this);
@@ -7149,15 +7449,17 @@ class PartEnd extends ParserAstNode {
   final Token partKeyword;
   final Token semicolon;
 
-  PartEnd(ParserAstType type,
-      {required this.partKeyword, required this.semicolon})
-      : super("Part", type);
+  PartEnd(
+    ParserAstType type, {
+    required this.partKeyword,
+    required this.semicolon,
+  }) : super("Part", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "partKeyword": partKeyword,
-        "semicolon": semicolon,
-      };
+    "partKeyword": partKeyword,
+    "semicolon": semicolon,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitPartEnd(this);
@@ -7167,12 +7469,10 @@ class PartOfBegin extends ParserAstNode {
   final Token token;
 
   PartOfBegin(ParserAstType type, {required this.token})
-      : super("PartOf", type);
+    : super("PartOf", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitPartOfBegin(this);
@@ -7184,20 +7484,21 @@ class PartOfEnd extends ParserAstNode {
   final Token semicolon;
   final bool hasName;
 
-  PartOfEnd(ParserAstType type,
-      {required this.partKeyword,
-      required this.ofKeyword,
-      required this.semicolon,
-      required this.hasName})
-      : super("PartOf", type);
+  PartOfEnd(
+    ParserAstType type, {
+    required this.partKeyword,
+    required this.ofKeyword,
+    required this.semicolon,
+    required this.hasName,
+  }) : super("PartOf", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "partKeyword": partKeyword,
-        "ofKeyword": ofKeyword,
-        "semicolon": semicolon,
-        "hasName": hasName,
-      };
+    "partKeyword": partKeyword,
+    "ofKeyword": ofKeyword,
+    "semicolon": semicolon,
+    "hasName": hasName,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitPartOfEnd(this);
@@ -7207,12 +7508,10 @@ class RedirectingFactoryBodyBegin extends ParserAstNode {
   final Token token;
 
   RedirectingFactoryBodyBegin(ParserAstType type, {required this.token})
-      : super("RedirectingFactoryBody", type);
+    : super("RedirectingFactoryBody", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -7226,15 +7525,17 @@ class RedirectingFactoryBodyEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  RedirectingFactoryBodyEnd(ParserAstType type,
-      {required this.beginToken, required this.endToken})
-      : super("RedirectingFactoryBody", type);
+  RedirectingFactoryBodyEnd(
+    ParserAstType type, {
+    required this.beginToken,
+    required this.endToken,
+  }) : super("RedirectingFactoryBody", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
+    "beginToken": beginToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitRedirectingFactoryBodyEnd(this);
@@ -7244,12 +7545,10 @@ class ReturnStatementBegin extends ParserAstNode {
   final Token token;
 
   ReturnStatementBegin(ParserAstType type, {required this.token})
-      : super("ReturnStatement", type);
+    : super("ReturnStatement", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitReturnStatementBegin(this);
@@ -7259,15 +7558,17 @@ class NativeFunctionBodyHandle extends ParserAstNode {
   final Token nativeToken;
   final Token semicolon;
 
-  NativeFunctionBodyHandle(ParserAstType type,
-      {required this.nativeToken, required this.semicolon})
-      : super("NativeFunctionBody", type);
+  NativeFunctionBodyHandle(
+    ParserAstType type, {
+    required this.nativeToken,
+    required this.semicolon,
+  }) : super("NativeFunctionBody", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "nativeToken": nativeToken,
-        "semicolon": semicolon,
-      };
+    "nativeToken": nativeToken,
+    "semicolon": semicolon,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitNativeFunctionBodyHandle(this);
@@ -7277,15 +7578,17 @@ class NativeFunctionBodyIgnoredHandle extends ParserAstNode {
   final Token nativeToken;
   final Token semicolon;
 
-  NativeFunctionBodyIgnoredHandle(ParserAstType type,
-      {required this.nativeToken, required this.semicolon})
-      : super("NativeFunctionBodyIgnored", type);
+  NativeFunctionBodyIgnoredHandle(
+    ParserAstType type, {
+    required this.nativeToken,
+    required this.semicolon,
+  }) : super("NativeFunctionBodyIgnored", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "nativeToken": nativeToken,
-        "semicolon": semicolon,
-      };
+    "nativeToken": nativeToken,
+    "semicolon": semicolon,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -7296,15 +7599,17 @@ class NativeFunctionBodySkippedHandle extends ParserAstNode {
   final Token nativeToken;
   final Token semicolon;
 
-  NativeFunctionBodySkippedHandle(ParserAstType type,
-      {required this.nativeToken, required this.semicolon})
-      : super("NativeFunctionBodySkipped", type);
+  NativeFunctionBodySkippedHandle(
+    ParserAstType type, {
+    required this.nativeToken,
+    required this.semicolon,
+  }) : super("NativeFunctionBodySkipped", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "nativeToken": nativeToken,
-        "semicolon": semicolon,
-      };
+    "nativeToken": nativeToken,
+    "semicolon": semicolon,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -7315,12 +7620,10 @@ class EmptyFunctionBodyHandle extends ParserAstNode {
   final Token semicolon;
 
   EmptyFunctionBodyHandle(ParserAstType type, {required this.semicolon})
-      : super("EmptyFunctionBody", type);
+    : super("EmptyFunctionBody", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "semicolon": semicolon,
-      };
+  Map<String, Object?> get deprecatedArguments => {"semicolon": semicolon};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitEmptyFunctionBodyHandle(this);
@@ -7330,15 +7633,17 @@ class ExpressionFunctionBodyHandle extends ParserAstNode {
   final Token arrowToken;
   final Token? endToken;
 
-  ExpressionFunctionBodyHandle(ParserAstType type,
-      {required this.arrowToken, this.endToken})
-      : super("ExpressionFunctionBody", type);
+  ExpressionFunctionBodyHandle(
+    ParserAstType type, {
+    required this.arrowToken,
+    this.endToken,
+  }) : super("ExpressionFunctionBody", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "arrowToken": arrowToken,
-        "endToken": endToken,
-      };
+    "arrowToken": arrowToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -7353,18 +7658,19 @@ class ReturnStatementEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  ReturnStatementEnd(ParserAstType type,
-      {required this.hasExpression,
-      required this.beginToken,
-      required this.endToken})
-      : super("ReturnStatement", type);
+  ReturnStatementEnd(
+    ParserAstType type, {
+    required this.hasExpression,
+    required this.beginToken,
+    required this.endToken,
+  }) : super("ReturnStatement", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "hasExpression": hasExpression,
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
+    "hasExpression": hasExpression,
+    "beginToken": beginToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitReturnStatementEnd(this);
@@ -7377,15 +7683,17 @@ class SendHandle extends ParserAstNode
   @override
   final Token endToken;
 
-  SendHandle(ParserAstType type,
-      {required this.beginToken, required this.endToken})
-      : super("Send", type);
+  SendHandle(
+    ParserAstType type, {
+    required this.beginToken,
+    required this.endToken,
+  }) : super("Send", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
+    "beginToken": beginToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitSendHandle(this);
@@ -7395,12 +7703,10 @@ class ShowBegin extends ParserAstNode {
   final Token showKeyword;
 
   ShowBegin(ParserAstType type, {required this.showKeyword})
-      : super("Show", type);
+    : super("Show", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "showKeyword": showKeyword,
-      };
+  Map<String, Object?> get deprecatedArguments => {"showKeyword": showKeyword};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitShowBegin(this);
@@ -7410,12 +7716,10 @@ class ShowEnd extends ParserAstNode {
   final Token showKeyword;
 
   ShowEnd(ParserAstType type, {required this.showKeyword})
-      : super("Show", type);
+    : super("Show", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "showKeyword": showKeyword,
-      };
+  Map<String, Object?> get deprecatedArguments => {"showKeyword": showKeyword};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitShowEnd(this);
@@ -7425,12 +7729,10 @@ class SwitchStatementBegin extends ParserAstNode {
   final Token token;
 
   SwitchStatementBegin(ParserAstType type, {required this.token})
-      : super("SwitchStatement", type);
+    : super("SwitchStatement", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitSwitchStatementBegin(this);
@@ -7440,15 +7742,17 @@ class SwitchStatementEnd extends ParserAstNode {
   final Token switchKeyword;
   final Token endToken;
 
-  SwitchStatementEnd(ParserAstType type,
-      {required this.switchKeyword, required this.endToken})
-      : super("SwitchStatement", type);
+  SwitchStatementEnd(
+    ParserAstType type, {
+    required this.switchKeyword,
+    required this.endToken,
+  }) : super("SwitchStatement", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "switchKeyword": switchKeyword,
-        "endToken": endToken,
-      };
+    "switchKeyword": switchKeyword,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitSwitchStatementEnd(this);
@@ -7458,12 +7762,10 @@ class SwitchExpressionBegin extends ParserAstNode {
   final Token token;
 
   SwitchExpressionBegin(ParserAstType type, {required this.token})
-      : super("SwitchExpression", type);
+    : super("SwitchExpression", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitSwitchExpressionBegin(this);
@@ -7473,15 +7775,17 @@ class SwitchExpressionEnd extends ParserAstNode {
   final Token switchKeyword;
   final Token endToken;
 
-  SwitchExpressionEnd(ParserAstType type,
-      {required this.switchKeyword, required this.endToken})
-      : super("SwitchExpression", type);
+  SwitchExpressionEnd(
+    ParserAstType type, {
+    required this.switchKeyword,
+    required this.endToken,
+  }) : super("SwitchExpression", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "switchKeyword": switchKeyword,
-        "endToken": endToken,
-      };
+    "switchKeyword": switchKeyword,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitSwitchExpressionEnd(this);
@@ -7491,12 +7795,10 @@ class SwitchBlockBegin extends ParserAstNode {
   final Token token;
 
   SwitchBlockBegin(ParserAstType type, {required this.token})
-      : super("SwitchBlock", type);
+    : super("SwitchBlock", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitSwitchBlockBegin(this);
@@ -7510,18 +7812,19 @@ class SwitchBlockEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  SwitchBlockEnd(ParserAstType type,
-      {required this.caseCount,
-      required this.beginToken,
-      required this.endToken})
-      : super("SwitchBlock", type);
+  SwitchBlockEnd(
+    ParserAstType type, {
+    required this.caseCount,
+    required this.beginToken,
+    required this.endToken,
+  }) : super("SwitchBlock", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "caseCount": caseCount,
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
+    "caseCount": caseCount,
+    "beginToken": beginToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitSwitchBlockEnd(this);
@@ -7531,12 +7834,10 @@ class SwitchExpressionBlockBegin extends ParserAstNode {
   final Token token;
 
   SwitchExpressionBlockBegin(ParserAstType type, {required this.token})
-      : super("SwitchExpressionBlock", type);
+    : super("SwitchExpressionBlock", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitSwitchExpressionBlockBegin(this);
@@ -7550,18 +7851,19 @@ class SwitchExpressionBlockEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  SwitchExpressionBlockEnd(ParserAstType type,
-      {required this.caseCount,
-      required this.beginToken,
-      required this.endToken})
-      : super("SwitchExpressionBlock", type);
+  SwitchExpressionBlockEnd(
+    ParserAstType type, {
+    required this.caseCount,
+    required this.beginToken,
+    required this.endToken,
+  }) : super("SwitchExpressionBlock", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "caseCount": caseCount,
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
+    "caseCount": caseCount,
+    "beginToken": beginToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitSwitchExpressionBlockEnd(this);
@@ -7571,12 +7873,10 @@ class LiteralSymbolBegin extends ParserAstNode {
   final Token token;
 
   LiteralSymbolBegin(ParserAstType type, {required this.token})
-      : super("LiteralSymbol", type);
+    : super("LiteralSymbol", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitLiteralSymbolBegin(this);
@@ -7586,15 +7886,17 @@ class LiteralSymbolEnd extends ParserAstNode {
   final Token hashToken;
   final int identifierCount;
 
-  LiteralSymbolEnd(ParserAstType type,
-      {required this.hashToken, required this.identifierCount})
-      : super("LiteralSymbol", type);
+  LiteralSymbolEnd(
+    ParserAstType type, {
+    required this.hashToken,
+    required this.identifierCount,
+  }) : super("LiteralSymbol", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "hashToken": hashToken,
-        "identifierCount": identifierCount,
-      };
+    "hashToken": hashToken,
+    "identifierCount": identifierCount,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitLiteralSymbolEnd(this);
@@ -7604,15 +7906,17 @@ class ThrowExpressionHandle extends ParserAstNode {
   final Token throwToken;
   final Token endToken;
 
-  ThrowExpressionHandle(ParserAstType type,
-      {required this.throwToken, required this.endToken})
-      : super("ThrowExpression", type);
+  ThrowExpressionHandle(
+    ParserAstType type, {
+    required this.throwToken,
+    required this.endToken,
+  }) : super("ThrowExpression", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "throwToken": throwToken,
-        "endToken": endToken,
-      };
+    "throwToken": throwToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitThrowExpressionHandle(this);
@@ -7622,12 +7926,10 @@ class RethrowStatementBegin extends ParserAstNode {
   final Token token;
 
   RethrowStatementBegin(ParserAstType type, {required this.token})
-      : super("RethrowStatement", type);
+    : super("RethrowStatement", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitRethrowStatementBegin(this);
@@ -7637,15 +7939,17 @@ class RethrowStatementEnd extends ParserAstNode {
   final Token rethrowToken;
   final Token endToken;
 
-  RethrowStatementEnd(ParserAstType type,
-      {required this.rethrowToken, required this.endToken})
-      : super("RethrowStatement", type);
+  RethrowStatementEnd(
+    ParserAstType type, {
+    required this.rethrowToken,
+    required this.endToken,
+  }) : super("RethrowStatement", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "rethrowToken": rethrowToken,
-        "endToken": endToken,
-      };
+    "rethrowToken": rethrowToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitRethrowStatementEnd(this);
@@ -7655,12 +7959,10 @@ class TopLevelDeclarationEnd extends ParserAstNode {
   final Token endToken;
 
   TopLevelDeclarationEnd(ParserAstType type, {required this.endToken})
-      : super("TopLevelDeclaration", type);
+    : super("TopLevelDeclaration", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "endToken": endToken,
-      };
+  Map<String, Object?> get deprecatedArguments => {"endToken": endToken};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitTopLevelDeclarationEnd(this);
@@ -7670,12 +7972,10 @@ class InvalidTopLevelDeclarationHandle extends ParserAstNode {
   final Token endToken;
 
   InvalidTopLevelDeclarationHandle(ParserAstType type, {required this.endToken})
-      : super("InvalidTopLevelDeclaration", type);
+    : super("InvalidTopLevelDeclaration", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "endToken": endToken,
-      };
+  Map<String, Object?> get deprecatedArguments => {"endToken": endToken};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -7686,12 +7986,10 @@ class TopLevelMemberBegin extends ParserAstNode {
   final Token token;
 
   TopLevelMemberBegin(ParserAstType type, {required this.token})
-      : super("TopLevelMember", type);
+    : super("TopLevelMember", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitTopLevelMemberBegin(this);
@@ -7708,30 +8006,31 @@ class FieldsBegin extends ParserAstNode {
   final Token? varFinalOrConst;
   final Token lastConsumed;
 
-  FieldsBegin(ParserAstType type,
-      {required this.declarationKind,
-      this.abstractToken,
-      this.augmentToken,
-      this.externalToken,
-      this.staticToken,
-      this.covariantToken,
-      this.lateToken,
-      this.varFinalOrConst,
-      required this.lastConsumed})
-      : super("Fields", type);
+  FieldsBegin(
+    ParserAstType type, {
+    required this.declarationKind,
+    this.abstractToken,
+    this.augmentToken,
+    this.externalToken,
+    this.staticToken,
+    this.covariantToken,
+    this.lateToken,
+    this.varFinalOrConst,
+    required this.lastConsumed,
+  }) : super("Fields", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "declarationKind": declarationKind,
-        "abstractToken": abstractToken,
-        "augmentToken": augmentToken,
-        "externalToken": externalToken,
-        "staticToken": staticToken,
-        "covariantToken": covariantToken,
-        "lateToken": lateToken,
-        "varFinalOrConst": varFinalOrConst,
-        "lastConsumed": lastConsumed,
-      };
+    "declarationKind": declarationKind,
+    "abstractToken": abstractToken,
+    "augmentToken": augmentToken,
+    "externalToken": externalToken,
+    "staticToken": staticToken,
+    "covariantToken": covariantToken,
+    "lateToken": lateToken,
+    "varFinalOrConst": varFinalOrConst,
+    "lastConsumed": lastConsumed,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitFieldsBegin(this);
@@ -7751,30 +8050,31 @@ class TopLevelFieldsEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  TopLevelFieldsEnd(ParserAstType type,
-      {this.augmentToken,
-      this.externalToken,
-      this.staticToken,
-      this.covariantToken,
-      this.lateToken,
-      this.varFinalOrConst,
-      required this.count,
-      required this.beginToken,
-      required this.endToken})
-      : super("TopLevelFields", type);
+  TopLevelFieldsEnd(
+    ParserAstType type, {
+    this.augmentToken,
+    this.externalToken,
+    this.staticToken,
+    this.covariantToken,
+    this.lateToken,
+    this.varFinalOrConst,
+    required this.count,
+    required this.beginToken,
+    required this.endToken,
+  }) : super("TopLevelFields", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "augmentToken": augmentToken,
-        "externalToken": externalToken,
-        "staticToken": staticToken,
-        "covariantToken": covariantToken,
-        "lateToken": lateToken,
-        "varFinalOrConst": varFinalOrConst,
-        "count": count,
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
+    "augmentToken": augmentToken,
+    "externalToken": externalToken,
+    "staticToken": staticToken,
+    "covariantToken": covariantToken,
+    "lateToken": lateToken,
+    "varFinalOrConst": varFinalOrConst,
+    "count": count,
+    "beginToken": beginToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitTopLevelFieldsEnd(this);
@@ -7785,16 +8085,19 @@ class TopLevelMethodBegin extends ParserAstNode {
   final Token? augmentToken;
   final Token? externalToken;
 
-  TopLevelMethodBegin(ParserAstType type,
-      {required this.lastConsumed, this.augmentToken, this.externalToken})
-      : super("TopLevelMethod", type);
+  TopLevelMethodBegin(
+    ParserAstType type, {
+    required this.lastConsumed,
+    this.augmentToken,
+    this.externalToken,
+  }) : super("TopLevelMethod", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "lastConsumed": lastConsumed,
-        "augmentToken": augmentToken,
-        "externalToken": externalToken,
-      };
+    "lastConsumed": lastConsumed,
+    "augmentToken": augmentToken,
+    "externalToken": externalToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitTopLevelMethodBegin(this);
@@ -7808,16 +8111,19 @@ class TopLevelMethodEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  TopLevelMethodEnd(ParserAstType type,
-      {required this.beginToken, this.getOrSet, required this.endToken})
-      : super("TopLevelMethod", type);
+  TopLevelMethodEnd(
+    ParserAstType type, {
+    required this.beginToken,
+    this.getOrSet,
+    required this.endToken,
+  }) : super("TopLevelMethod", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "getOrSet": getOrSet,
-        "endToken": endToken,
-      };
+    "beginToken": beginToken,
+    "getOrSet": getOrSet,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitTopLevelMethodEnd(this);
@@ -7827,12 +8133,10 @@ class TryStatementBegin extends ParserAstNode {
   final Token token;
 
   TryStatementBegin(ParserAstType type, {required this.token})
-      : super("TryStatement", type);
+    : super("TryStatement", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitTryStatementBegin(this);
@@ -7842,12 +8146,10 @@ class CatchClauseBegin extends ParserAstNode {
   final Token token;
 
   CatchClauseBegin(ParserAstType type, {required this.token})
-      : super("CatchClause", type);
+    : super("CatchClause", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitCatchClauseBegin(this);
@@ -7857,12 +8159,10 @@ class CatchClauseEnd extends ParserAstNode {
   final Token token;
 
   CatchClauseEnd(ParserAstType type, {required this.token})
-      : super("CatchClause", type);
+    : super("CatchClause", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitCatchClauseEnd(this);
@@ -7873,16 +8173,19 @@ class CatchBlockHandle extends ParserAstNode {
   final Token? catchKeyword;
   final Token? comma;
 
-  CatchBlockHandle(ParserAstType type,
-      {this.onKeyword, this.catchKeyword, this.comma})
-      : super("CatchBlock", type);
+  CatchBlockHandle(
+    ParserAstType type, {
+    this.onKeyword,
+    this.catchKeyword,
+    this.comma,
+  }) : super("CatchBlock", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "onKeyword": onKeyword,
-        "catchKeyword": catchKeyword,
-        "comma": comma,
-      };
+    "onKeyword": onKeyword,
+    "catchKeyword": catchKeyword,
+    "comma": comma,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitCatchBlockHandle(this);
@@ -7892,12 +8195,12 @@ class FinallyBlockHandle extends ParserAstNode {
   final Token finallyKeyword;
 
   FinallyBlockHandle(ParserAstType type, {required this.finallyKeyword})
-      : super("FinallyBlock", type);
+    : super("FinallyBlock", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "finallyKeyword": finallyKeyword,
-      };
+    "finallyKeyword": finallyKeyword,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitFinallyBlockHandle(this);
@@ -7909,20 +8212,21 @@ class TryStatementEnd extends ParserAstNode {
   final Token? finallyKeyword;
   final Token endToken;
 
-  TryStatementEnd(ParserAstType type,
-      {required this.catchCount,
-      required this.tryKeyword,
-      this.finallyKeyword,
-      required this.endToken})
-      : super("TryStatement", type);
+  TryStatementEnd(
+    ParserAstType type, {
+    required this.catchCount,
+    required this.tryKeyword,
+    this.finallyKeyword,
+    required this.endToken,
+  }) : super("TryStatement", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "catchCount": catchCount,
-        "tryKeyword": tryKeyword,
-        "finallyKeyword": finallyKeyword,
-        "endToken": endToken,
-      };
+    "catchCount": catchCount,
+    "tryKeyword": tryKeyword,
+    "finallyKeyword": finallyKeyword,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitTryStatementEnd(this);
@@ -7933,13 +8237,13 @@ class TypeHandle extends ParserAstNode {
   final Token? questionMark;
 
   TypeHandle(ParserAstType type, {required this.beginToken, this.questionMark})
-      : super("Type", type);
+    : super("Type", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "questionMark": questionMark,
-      };
+    "beginToken": beginToken,
+    "questionMark": questionMark,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitTypeHandle(this);
@@ -7949,12 +8253,10 @@ class NonNullAssertExpressionHandle extends ParserAstNode {
   final Token bang;
 
   NonNullAssertExpressionHandle(ParserAstType type, {required this.bang})
-      : super("NonNullAssertExpression", type);
+    : super("NonNullAssertExpression", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "bang": bang,
-      };
+  Map<String, Object?> get deprecatedArguments => {"bang": bang};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -7965,12 +8267,10 @@ class NullAssertPatternHandle extends ParserAstNode {
   final Token bang;
 
   NullAssertPatternHandle(ParserAstType type, {required this.bang})
-      : super("NullAssertPattern", type);
+    : super("NullAssertPattern", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "bang": bang,
-      };
+  Map<String, Object?> get deprecatedArguments => {"bang": bang};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitNullAssertPatternHandle(this);
@@ -7980,12 +8280,10 @@ class NullCheckPatternHandle extends ParserAstNode {
   final Token question;
 
   NullCheckPatternHandle(ParserAstType type, {required this.question})
-      : super("NullCheckPattern", type);
+    : super("NullCheckPattern", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "question": question,
-      };
+  Map<String, Object?> get deprecatedArguments => {"question": question};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitNullCheckPatternHandle(this);
@@ -7995,12 +8293,10 @@ class AssignedVariablePatternHandle extends ParserAstNode {
   final Token variable;
 
   AssignedVariablePatternHandle(ParserAstType type, {required this.variable})
-      : super("AssignedVariablePattern", type);
+    : super("AssignedVariablePattern", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "variable": variable,
-      };
+  Map<String, Object?> get deprecatedArguments => {"variable": variable};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -8012,16 +8308,19 @@ class DeclaredVariablePatternHandle extends ParserAstNode {
   final Token variable;
   final bool inAssignmentPattern;
 
-  DeclaredVariablePatternHandle(ParserAstType type,
-      {this.keyword, required this.variable, required this.inAssignmentPattern})
-      : super("DeclaredVariablePattern", type);
+  DeclaredVariablePatternHandle(
+    ParserAstType type, {
+    this.keyword,
+    required this.variable,
+    required this.inAssignmentPattern,
+  }) : super("DeclaredVariablePattern", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "keyword": keyword,
-        "variable": variable,
-        "inAssignmentPattern": inAssignmentPattern,
-      };
+    "keyword": keyword,
+    "variable": variable,
+    "inAssignmentPattern": inAssignmentPattern,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -8032,15 +8331,17 @@ class WildcardPatternHandle extends ParserAstNode {
   final Token? keyword;
   final Token wildcard;
 
-  WildcardPatternHandle(ParserAstType type,
-      {this.keyword, required this.wildcard})
-      : super("WildcardPattern", type);
+  WildcardPatternHandle(
+    ParserAstType type, {
+    this.keyword,
+    required this.wildcard,
+  }) : super("WildcardPattern", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "keyword": keyword,
-        "wildcard": wildcard,
-      };
+    "keyword": keyword,
+    "wildcard": wildcard,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitWildcardPatternHandle(this);
@@ -8050,12 +8351,10 @@ class NoNameHandle extends ParserAstNode {
   final Token token;
 
   NoNameHandle(ParserAstType type, {required this.token})
-      : super("NoName", type);
+    : super("NoName", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitNoNameHandle(this);
@@ -8065,12 +8364,10 @@ class RecordTypeBegin extends ParserAstNode {
   final Token leftBracket;
 
   RecordTypeBegin(ParserAstType type, {required this.leftBracket})
-      : super("RecordType", type);
+    : super("RecordType", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "leftBracket": leftBracket,
-      };
+  Map<String, Object?> get deprecatedArguments => {"leftBracket": leftBracket};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitRecordTypeBegin(this);
@@ -8082,20 +8379,21 @@ class RecordTypeEnd extends ParserAstNode {
   final int count;
   final bool hasNamedFields;
 
-  RecordTypeEnd(ParserAstType type,
-      {required this.leftBracket,
-      this.questionMark,
-      required this.count,
-      required this.hasNamedFields})
-      : super("RecordType", type);
+  RecordTypeEnd(
+    ParserAstType type, {
+    required this.leftBracket,
+    this.questionMark,
+    required this.count,
+    required this.hasNamedFields,
+  }) : super("RecordType", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "leftBracket": leftBracket,
-        "questionMark": questionMark,
-        "count": count,
-        "hasNamedFields": hasNamedFields,
-      };
+    "leftBracket": leftBracket,
+    "questionMark": questionMark,
+    "count": count,
+    "hasNamedFields": hasNamedFields,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitRecordTypeEnd(this);
@@ -8125,12 +8423,10 @@ class RecordTypeNamedFieldsBegin extends ParserAstNode {
   final Token leftBracket;
 
   RecordTypeNamedFieldsBegin(ParserAstType type, {required this.leftBracket})
-      : super("RecordTypeNamedFields", type);
+    : super("RecordTypeNamedFields", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "leftBracket": leftBracket,
-      };
+  Map<String, Object?> get deprecatedArguments => {"leftBracket": leftBracket};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitRecordTypeNamedFieldsBegin(this);
@@ -8140,15 +8436,17 @@ class RecordTypeNamedFieldsEnd extends ParserAstNode {
   final int count;
   final Token leftBracket;
 
-  RecordTypeNamedFieldsEnd(ParserAstType type,
-      {required this.count, required this.leftBracket})
-      : super("RecordTypeNamedFields", type);
+  RecordTypeNamedFieldsEnd(
+    ParserAstType type, {
+    required this.count,
+    required this.leftBracket,
+  }) : super("RecordTypeNamedFields", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "count": count,
-        "leftBracket": leftBracket,
-      };
+    "count": count,
+    "leftBracket": leftBracket,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitRecordTypeNamedFieldsEnd(this);
@@ -8158,12 +8456,10 @@ class FunctionTypeBegin extends ParserAstNode {
   final Token beginToken;
 
   FunctionTypeBegin(ParserAstType type, {required this.beginToken})
-      : super("FunctionType", type);
+    : super("FunctionType", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-      };
+  Map<String, Object?> get deprecatedArguments => {"beginToken": beginToken};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitFunctionTypeBegin(this);
@@ -8173,15 +8469,17 @@ class FunctionTypeEnd extends ParserAstNode {
   final Token functionToken;
   final Token? questionMark;
 
-  FunctionTypeEnd(ParserAstType type,
-      {required this.functionToken, this.questionMark})
-      : super("FunctionType", type);
+  FunctionTypeEnd(
+    ParserAstType type, {
+    required this.functionToken,
+    this.questionMark,
+  }) : super("FunctionType", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "functionToken": functionToken,
-        "questionMark": questionMark,
-      };
+    "functionToken": functionToken,
+    "questionMark": questionMark,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitFunctionTypeEnd(this);
@@ -8191,12 +8489,10 @@ class TypeArgumentsBegin extends ParserAstNode {
   final Token token;
 
   TypeArgumentsBegin(ParserAstType type, {required this.token})
-      : super("TypeArguments", type);
+    : super("TypeArguments", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitTypeArgumentsBegin(this);
@@ -8210,16 +8506,19 @@ class TypeArgumentsEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  TypeArgumentsEnd(ParserAstType type,
-      {required this.count, required this.beginToken, required this.endToken})
-      : super("TypeArguments", type);
+  TypeArgumentsEnd(
+    ParserAstType type, {
+    required this.count,
+    required this.beginToken,
+    required this.endToken,
+  }) : super("TypeArguments", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "count": count,
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
+    "count": count,
+    "beginToken": beginToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitTypeArgumentsEnd(this);
@@ -8229,12 +8528,10 @@ class InvalidTypeArgumentsHandle extends ParserAstNode {
   final Token token;
 
   InvalidTypeArgumentsHandle(ParserAstType type, {required this.token})
-      : super("InvalidTypeArguments", type);
+    : super("InvalidTypeArguments", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitInvalidTypeArgumentsHandle(this);
@@ -8244,12 +8541,10 @@ class NoTypeArgumentsHandle extends ParserAstNode {
   final Token token;
 
   NoTypeArgumentsHandle(ParserAstType type, {required this.token})
-      : super("NoTypeArguments", type);
+    : super("NoTypeArguments", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitNoTypeArgumentsHandle(this);
@@ -8259,12 +8554,10 @@ class TypeVariableBegin extends ParserAstNode {
   final Token token;
 
   TypeVariableBegin(ParserAstType type, {required this.token})
-      : super("TypeVariable", type);
+    : super("TypeVariable", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitTypeVariableBegin(this);
@@ -8274,15 +8567,17 @@ class TypeVariablesDefinedHandle extends ParserAstNode {
   final Token token;
   final int count;
 
-  TypeVariablesDefinedHandle(ParserAstType type,
-      {required this.token, required this.count})
-      : super("TypeVariablesDefined", type);
+  TypeVariablesDefinedHandle(
+    ParserAstType type, {
+    required this.token,
+    required this.count,
+  }) : super("TypeVariablesDefined", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-        "count": count,
-      };
+    "token": token,
+    "count": count,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitTypeVariablesDefinedHandle(this);
@@ -8294,20 +8589,21 @@ class TypeVariableEnd extends ParserAstNode {
   final Token? extendsOrSuper;
   final Token? variance;
 
-  TypeVariableEnd(ParserAstType type,
-      {required this.token,
-      required this.index,
-      this.extendsOrSuper,
-      this.variance})
-      : super("TypeVariable", type);
+  TypeVariableEnd(
+    ParserAstType type, {
+    required this.token,
+    required this.index,
+    this.extendsOrSuper,
+    this.variance,
+  }) : super("TypeVariable", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-        "index": index,
-        "extendsOrSuper": extendsOrSuper,
-        "variance": variance,
-      };
+    "token": token,
+    "index": index,
+    "extendsOrSuper": extendsOrSuper,
+    "variance": variance,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitTypeVariableEnd(this);
@@ -8317,12 +8613,10 @@ class TypeVariablesBegin extends ParserAstNode {
   final Token token;
 
   TypeVariablesBegin(ParserAstType type, {required this.token})
-      : super("TypeVariables", type);
+    : super("TypeVariables", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitTypeVariablesBegin(this);
@@ -8335,15 +8629,17 @@ class TypeVariablesEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  TypeVariablesEnd(ParserAstType type,
-      {required this.beginToken, required this.endToken})
-      : super("TypeVariables", type);
+  TypeVariablesEnd(
+    ParserAstType type, {
+    required this.beginToken,
+    required this.endToken,
+  }) : super("TypeVariables", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
+    "beginToken": beginToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitTypeVariablesEnd(this);
@@ -8353,12 +8649,10 @@ class FunctionExpressionBegin extends ParserAstNode {
   final Token token;
 
   FunctionExpressionBegin(ParserAstType type, {required this.token})
-      : super("FunctionExpression", type);
+    : super("FunctionExpression", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitFunctionExpressionBegin(this);
@@ -8371,15 +8665,17 @@ class FunctionExpressionEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  FunctionExpressionEnd(ParserAstType type,
-      {required this.beginToken, required this.endToken})
-      : super("FunctionExpression", type);
+  FunctionExpressionEnd(
+    ParserAstType type, {
+    required this.beginToken,
+    required this.endToken,
+  }) : super("FunctionExpression", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
+    "beginToken": beginToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitFunctionExpressionEnd(this);
@@ -8390,16 +8686,19 @@ class VariablesDeclarationBegin extends ParserAstNode {
   final Token? lateToken;
   final Token? varFinalOrConst;
 
-  VariablesDeclarationBegin(ParserAstType type,
-      {required this.token, this.lateToken, this.varFinalOrConst})
-      : super("VariablesDeclaration", type);
+  VariablesDeclarationBegin(
+    ParserAstType type, {
+    required this.token,
+    this.lateToken,
+    this.varFinalOrConst,
+  }) : super("VariablesDeclaration", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-        "lateToken": lateToken,
-        "varFinalOrConst": varFinalOrConst,
-      };
+    "token": token,
+    "lateToken": lateToken,
+    "varFinalOrConst": varFinalOrConst,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitVariablesDeclarationBegin(this);
@@ -8409,15 +8708,17 @@ class VariablesDeclarationEnd extends ParserAstNode {
   final int count;
   final Token? endToken;
 
-  VariablesDeclarationEnd(ParserAstType type,
-      {required this.count, this.endToken})
-      : super("VariablesDeclaration", type);
+  VariablesDeclarationEnd(
+    ParserAstType type, {
+    required this.count,
+    this.endToken,
+  }) : super("VariablesDeclaration", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "count": count,
-        "endToken": endToken,
-      };
+    "count": count,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitVariablesDeclarationEnd(this);
@@ -8427,12 +8728,10 @@ class WhileStatementBegin extends ParserAstNode {
   final Token token;
 
   WhileStatementBegin(ParserAstType type, {required this.token})
-      : super("WhileStatement", type);
+    : super("WhileStatement", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitWhileStatementBegin(this);
@@ -8442,15 +8741,17 @@ class WhileStatementEnd extends ParserAstNode {
   final Token whileKeyword;
   final Token endToken;
 
-  WhileStatementEnd(ParserAstType type,
-      {required this.whileKeyword, required this.endToken})
-      : super("WhileStatement", type);
+  WhileStatementEnd(
+    ParserAstType type, {
+    required this.whileKeyword,
+    required this.endToken,
+  }) : super("WhileStatement", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "whileKeyword": whileKeyword,
-        "endToken": endToken,
-      };
+    "whileKeyword": whileKeyword,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitWhileStatementEnd(this);
@@ -8460,12 +8761,10 @@ class AsOperatorTypeBegin extends ParserAstNode {
   final Token operator;
 
   AsOperatorTypeBegin(ParserAstType type, {required this.operator})
-      : super("AsOperatorType", type);
+    : super("AsOperatorType", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "operator": operator,
-      };
+  Map<String, Object?> get deprecatedArguments => {"operator": operator};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitAsOperatorTypeBegin(this);
@@ -8475,12 +8774,10 @@ class AsOperatorTypeEnd extends ParserAstNode {
   final Token operator;
 
   AsOperatorTypeEnd(ParserAstType type, {required this.operator})
-      : super("AsOperatorType", type);
+    : super("AsOperatorType", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "operator": operator,
-      };
+  Map<String, Object?> get deprecatedArguments => {"operator": operator};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitAsOperatorTypeEnd(this);
@@ -8490,12 +8787,10 @@ class AsOperatorHandle extends ParserAstNode {
   final Token operator;
 
   AsOperatorHandle(ParserAstType type, {required this.operator})
-      : super("AsOperator", type);
+    : super("AsOperator", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "operator": operator,
-      };
+  Map<String, Object?> get deprecatedArguments => {"operator": operator};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitAsOperatorHandle(this);
@@ -8505,12 +8800,10 @@ class CastPatternHandle extends ParserAstNode {
   final Token operator;
 
   CastPatternHandle(ParserAstType type, {required this.operator})
-      : super("CastPattern", type);
+    : super("CastPattern", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "operator": operator,
-      };
+  Map<String, Object?> get deprecatedArguments => {"operator": operator};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitCastPatternHandle(this);
@@ -8520,30 +8813,88 @@ class AssignmentExpressionHandle extends ParserAstNode {
   final Token token;
   final Token endToken;
 
-  AssignmentExpressionHandle(ParserAstType type,
-      {required this.token, required this.endToken})
-      : super("AssignmentExpression", type);
+  AssignmentExpressionHandle(
+    ParserAstType type, {
+    required this.token,
+    required this.endToken,
+  }) : super("AssignmentExpression", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-        "endToken": endToken,
-      };
+    "token": token,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitAssignmentExpressionHandle(this);
+}
+
+class AnonymousMethodInvocationBegin extends ParserAstNode {
+  final Token token;
+
+  AnonymousMethodInvocationBegin(ParserAstType type, {required this.token})
+    : super("AnonymousMethodInvocation", type);
+
+  @override
+  Map<String, Object?> get deprecatedArguments => {"token": token};
+
+  @override
+  R accept<R>(ParserAstVisitor<R> v) =>
+      v.visitAnonymousMethodInvocationBegin(this);
+}
+
+class AnonymousMethodInvocationEnd extends ParserAstNode
+    implements BeginAndEndTokenParserAstNode {
+  @override
+  final Token beginToken;
+  final Token? functionDefinition;
+  @override
+  final Token endToken;
+  final bool isExpression;
+
+  AnonymousMethodInvocationEnd(
+    ParserAstType type, {
+    required this.beginToken,
+    this.functionDefinition,
+    required this.endToken,
+    required this.isExpression,
+  }) : super("AnonymousMethodInvocation", type);
+
+  @override
+  Map<String, Object?> get deprecatedArguments => {
+    "beginToken": beginToken,
+    "functionDefinition": functionDefinition,
+    "endToken": endToken,
+    "isExpression": isExpression,
+  };
+
+  @override
+  R accept<R>(ParserAstVisitor<R> v) =>
+      v.visitAnonymousMethodInvocationEnd(this);
+}
+
+class ImplicitFormalParametersHandle extends ParserAstNode {
+  final Token token;
+
+  ImplicitFormalParametersHandle(ParserAstType type, {required this.token})
+    : super("ImplicitFormalParameters", type);
+
+  @override
+  Map<String, Object?> get deprecatedArguments => {"token": token};
+
+  @override
+  R accept<R>(ParserAstVisitor<R> v) =>
+      v.visitImplicitFormalParametersHandle(this);
 }
 
 class BinaryExpressionBegin extends ParserAstNode {
   final Token token;
 
   BinaryExpressionBegin(ParserAstType type, {required this.token})
-      : super("BinaryExpression", type);
+    : super("BinaryExpression", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitBinaryExpressionBegin(this);
@@ -8553,15 +8904,17 @@ class BinaryExpressionEnd extends ParserAstNode {
   final Token token;
   final Token endToken;
 
-  BinaryExpressionEnd(ParserAstType type,
-      {required this.token, required this.endToken})
-      : super("BinaryExpression", type);
+  BinaryExpressionEnd(
+    ParserAstType type, {
+    required this.token,
+    required this.endToken,
+  }) : super("BinaryExpression", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-        "endToken": endToken,
-      };
+    "token": token,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitBinaryExpressionEnd(this);
@@ -8571,12 +8924,10 @@ class BinaryPatternBegin extends ParserAstNode {
   final Token token;
 
   BinaryPatternBegin(ParserAstType type, {required this.token})
-      : super("BinaryPattern", type);
+    : super("BinaryPattern", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitBinaryPatternBegin(this);
@@ -8586,46 +8937,69 @@ class BinaryPatternEnd extends ParserAstNode {
   final Token token;
 
   BinaryPatternEnd(ParserAstType type, {required this.token})
-      : super("BinaryPattern", type);
+    : super("BinaryPattern", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitBinaryPatternEnd(this);
 }
 
-class EndingBinaryExpressionHandle extends ParserAstNode {
+class DotAccessHandle extends ParserAstNode {
   final Token token;
   final Token endToken;
+  final bool isNullAware;
 
-  EndingBinaryExpressionHandle(ParserAstType type,
-      {required this.token, required this.endToken})
-      : super("EndingBinaryExpression", type);
+  DotAccessHandle(
+    ParserAstType type, {
+    required this.token,
+    required this.endToken,
+    required this.isNullAware,
+  }) : super("DotAccess", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-        "endToken": endToken,
-      };
+    "token": token,
+    "endToken": endToken,
+    "isNullAware": isNullAware,
+  };
 
   @override
-  R accept<R>(ParserAstVisitor<R> v) =>
-      v.visitEndingBinaryExpressionHandle(this);
+  R accept<R>(ParserAstVisitor<R> v) => v.visitDotAccessHandle(this);
+}
+
+class CascadeAccessHandle extends ParserAstNode {
+  final Token token;
+  final Token endToken;
+  final bool isNullAware;
+
+  CascadeAccessHandle(
+    ParserAstType type, {
+    required this.token,
+    required this.endToken,
+    required this.isNullAware,
+  }) : super("CascadeAccess", type);
+
+  @override
+  Map<String, Object?> get deprecatedArguments => {
+    "token": token,
+    "endToken": endToken,
+    "isNullAware": isNullAware,
+  };
+
+  @override
+  R accept<R>(ParserAstVisitor<R> v) => v.visitCascadeAccessHandle(this);
 }
 
 class ConditionalExpressionBegin extends ParserAstNode {
   final Token question;
 
   ConditionalExpressionBegin(ParserAstType type, {required this.question})
-      : super("ConditionalExpression", type);
+    : super("ConditionalExpression", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "question": question,
-      };
+  Map<String, Object?> get deprecatedArguments => {"question": question};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitConditionalExpressionBegin(this);
@@ -8633,7 +9007,7 @@ class ConditionalExpressionBegin extends ParserAstNode {
 
 class ConditionalExpressionColonHandle extends ParserAstNode {
   ConditionalExpressionColonHandle(ParserAstType type)
-      : super("ConditionalExpressionColon", type);
+    : super("ConditionalExpressionColon", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {};
@@ -8648,16 +9022,19 @@ class ConditionalExpressionEnd extends ParserAstNode {
   final Token colon;
   final Token endToken;
 
-  ConditionalExpressionEnd(ParserAstType type,
-      {required this.question, required this.colon, required this.endToken})
-      : super("ConditionalExpression", type);
+  ConditionalExpressionEnd(
+    ParserAstType type, {
+    required this.question,
+    required this.colon,
+    required this.endToken,
+  }) : super("ConditionalExpression", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "question": question,
-        "colon": colon,
-        "endToken": endToken,
-      };
+    "question": question,
+    "colon": colon,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitConditionalExpressionEnd(this);
@@ -8667,12 +9044,12 @@ class ConstExpressionBegin extends ParserAstNode {
   final Token constKeyword;
 
   ConstExpressionBegin(ParserAstType type, {required this.constKeyword})
-      : super("ConstExpression", type);
+    : super("ConstExpression", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "constKeyword": constKeyword,
-      };
+    "constKeyword": constKeyword,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitConstExpressionBegin(this);
@@ -8682,12 +9059,10 @@ class ConstExpressionEnd extends ParserAstNode {
   final Token token;
 
   ConstExpressionEnd(ParserAstType type, {required this.token})
-      : super("ConstExpression", type);
+    : super("ConstExpression", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitConstExpressionEnd(this);
@@ -8697,12 +9072,12 @@ class ConstFactoryHandle extends ParserAstNode {
   final Token constKeyword;
 
   ConstFactoryHandle(ParserAstType type, {required this.constKeyword})
-      : super("ConstFactory", type);
+    : super("ConstFactory", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "constKeyword": constKeyword,
-      };
+    "constKeyword": constKeyword,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitConstFactoryHandle(this);
@@ -8712,15 +9087,17 @@ class ForControlFlowBegin extends ParserAstNode {
   final Token? awaitToken;
   final Token forToken;
 
-  ForControlFlowBegin(ParserAstType type,
-      {this.awaitToken, required this.forToken})
-      : super("ForControlFlow", type);
+  ForControlFlowBegin(
+    ParserAstType type, {
+    this.awaitToken,
+    required this.forToken,
+  }) : super("ForControlFlow", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "awaitToken": awaitToken,
-        "forToken": forToken,
-      };
+    "awaitToken": awaitToken,
+    "forToken": forToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitForControlFlowBegin(this);
@@ -8730,12 +9107,10 @@ class ForControlFlowEnd extends ParserAstNode {
   final Token token;
 
   ForControlFlowEnd(ParserAstType type, {required this.token})
-      : super("ForControlFlow", type);
+    : super("ForControlFlow", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitForControlFlowEnd(this);
@@ -8745,12 +9120,10 @@ class ForInControlFlowEnd extends ParserAstNode {
   final Token token;
 
   ForInControlFlowEnd(ParserAstType type, {required this.token})
-      : super("ForInControlFlow", type);
+    : super("ForInControlFlow", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitForInControlFlowEnd(this);
@@ -8760,12 +9133,10 @@ class IfControlFlowBegin extends ParserAstNode {
   final Token ifToken;
 
   IfControlFlowBegin(ParserAstType type, {required this.ifToken})
-      : super("IfControlFlow", type);
+    : super("IfControlFlow", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "ifToken": ifToken,
-      };
+  Map<String, Object?> get deprecatedArguments => {"ifToken": ifToken};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitIfControlFlowBegin(this);
@@ -8775,12 +9146,10 @@ class ThenControlFlowHandle extends ParserAstNode {
   final Token token;
 
   ThenControlFlowHandle(ParserAstType type, {required this.token})
-      : super("ThenControlFlow", type);
+    : super("ThenControlFlow", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitThenControlFlowHandle(this);
@@ -8790,12 +9159,10 @@ class ElseControlFlowHandle extends ParserAstNode {
   final Token elseToken;
 
   ElseControlFlowHandle(ParserAstType type, {required this.elseToken})
-      : super("ElseControlFlow", type);
+    : super("ElseControlFlow", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "elseToken": elseToken,
-      };
+  Map<String, Object?> get deprecatedArguments => {"elseToken": elseToken};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitElseControlFlowHandle(this);
@@ -8805,12 +9172,10 @@ class IfControlFlowEnd extends ParserAstNode {
   final Token token;
 
   IfControlFlowEnd(ParserAstType type, {required this.token})
-      : super("IfControlFlow", type);
+    : super("IfControlFlow", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitIfControlFlowEnd(this);
@@ -8820,12 +9185,10 @@ class IfElseControlFlowEnd extends ParserAstNode {
   final Token token;
 
   IfElseControlFlowEnd(ParserAstType type, {required this.token})
-      : super("IfElseControlFlow", type);
+    : super("IfElseControlFlow", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitIfElseControlFlowEnd(this);
@@ -8835,12 +9198,10 @@ class SpreadExpressionHandle extends ParserAstNode {
   final Token spreadToken;
 
   SpreadExpressionHandle(ParserAstType type, {required this.spreadToken})
-      : super("SpreadExpression", type);
+    : super("SpreadExpression", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "spreadToken": spreadToken,
-      };
+  Map<String, Object?> get deprecatedArguments => {"spreadToken": spreadToken};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitSpreadExpressionHandle(this);
@@ -8850,12 +9211,12 @@ class NullAwareElementHandle extends ParserAstNode {
   final Token nullAwareToken;
 
   NullAwareElementHandle(ParserAstType type, {required this.nullAwareToken})
-      : super("NullAwareElement", type);
+    : super("NullAwareElement", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "nullAwareToken": nullAwareToken,
-      };
+    "nullAwareToken": nullAwareToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitNullAwareElementHandle(this);
@@ -8865,15 +9226,17 @@ class RestPatternHandle extends ParserAstNode {
   final Token dots;
   final bool hasSubPattern;
 
-  RestPatternHandle(ParserAstType type,
-      {required this.dots, required this.hasSubPattern})
-      : super("RestPattern", type);
+  RestPatternHandle(
+    ParserAstType type, {
+    required this.dots,
+    required this.hasSubPattern,
+  }) : super("RestPattern", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "dots": dots,
-        "hasSubPattern": hasSubPattern,
-      };
+    "dots": dots,
+    "hasSubPattern": hasSubPattern,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitRestPatternHandle(this);
@@ -8883,12 +9246,10 @@ class FunctionTypedFormalParameterBegin extends ParserAstNode {
   final Token token;
 
   FunctionTypedFormalParameterBegin(ParserAstType type, {required this.token})
-      : super("FunctionTypedFormalParameter", type);
+    : super("FunctionTypedFormalParameter", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -8899,15 +9260,17 @@ class FunctionTypedFormalParameterEnd extends ParserAstNode {
   final Token nameToken;
   final Token? question;
 
-  FunctionTypedFormalParameterEnd(ParserAstType type,
-      {required this.nameToken, this.question})
-      : super("FunctionTypedFormalParameter", type);
+  FunctionTypedFormalParameterEnd(
+    ParserAstType type, {
+    required this.nameToken,
+    this.question,
+  }) : super("FunctionTypedFormalParameter", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "nameToken": nameToken,
-        "question": question,
-      };
+    "nameToken": nameToken,
+    "question": question,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -8918,15 +9281,17 @@ class IdentifierHandle extends ParserAstNode {
   final Token token;
   final IdentifierContext context;
 
-  IdentifierHandle(ParserAstType type,
-      {required this.token, required this.context})
-      : super("Identifier", type);
+  IdentifierHandle(
+    ParserAstType type, {
+    required this.token,
+    required this.context,
+  }) : super("Identifier", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-        "context": context,
-      };
+    "token": token,
+    "context": context,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitIdentifierHandle(this);
@@ -8937,18 +9302,19 @@ class IndexedExpressionHandle extends ParserAstNode {
   final Token openSquareBracket;
   final Token closeSquareBracket;
 
-  IndexedExpressionHandle(ParserAstType type,
-      {this.question,
-      required this.openSquareBracket,
-      required this.closeSquareBracket})
-      : super("IndexedExpression", type);
+  IndexedExpressionHandle(
+    ParserAstType type, {
+    this.question,
+    required this.openSquareBracket,
+    required this.closeSquareBracket,
+  }) : super("IndexedExpression", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "question": question,
-        "openSquareBracket": openSquareBracket,
-        "closeSquareBracket": closeSquareBracket,
-      };
+    "question": question,
+    "openSquareBracket": openSquareBracket,
+    "closeSquareBracket": closeSquareBracket,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitIndexedExpressionHandle(this);
@@ -8958,12 +9324,10 @@ class IsOperatorTypeBegin extends ParserAstNode {
   final Token operator;
 
   IsOperatorTypeBegin(ParserAstType type, {required this.operator})
-      : super("IsOperatorType", type);
+    : super("IsOperatorType", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "operator": operator,
-      };
+  Map<String, Object?> get deprecatedArguments => {"operator": operator};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitIsOperatorTypeBegin(this);
@@ -8973,12 +9337,10 @@ class IsOperatorTypeEnd extends ParserAstNode {
   final Token operator;
 
   IsOperatorTypeEnd(ParserAstType type, {required this.operator})
-      : super("IsOperatorType", type);
+    : super("IsOperatorType", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "operator": operator,
-      };
+  Map<String, Object?> get deprecatedArguments => {"operator": operator};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitIsOperatorTypeEnd(this);
@@ -8989,13 +9351,13 @@ class IsOperatorHandle extends ParserAstNode {
   final Token? not;
 
   IsOperatorHandle(ParserAstType type, {required this.isOperator, this.not})
-      : super("IsOperator", type);
+    : super("IsOperator", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "isOperator": isOperator,
-        "not": not,
-      };
+    "isOperator": isOperator,
+    "not": not,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitIsOperatorHandle(this);
@@ -9005,12 +9367,10 @@ class LiteralBoolHandle extends ParserAstNode {
   final Token token;
 
   LiteralBoolHandle(ParserAstType type, {required this.token})
-      : super("LiteralBool", type);
+    : super("LiteralBool", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitLiteralBoolHandle(this);
@@ -9021,18 +9381,19 @@ class BreakStatementHandle extends ParserAstNode {
   final Token breakKeyword;
   final Token endToken;
 
-  BreakStatementHandle(ParserAstType type,
-      {required this.hasTarget,
-      required this.breakKeyword,
-      required this.endToken})
-      : super("BreakStatement", type);
+  BreakStatementHandle(
+    ParserAstType type, {
+    required this.hasTarget,
+    required this.breakKeyword,
+    required this.endToken,
+  }) : super("BreakStatement", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "hasTarget": hasTarget,
-        "breakKeyword": breakKeyword,
-        "endToken": endToken,
-      };
+    "hasTarget": hasTarget,
+    "breakKeyword": breakKeyword,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitBreakStatementHandle(this);
@@ -9043,18 +9404,19 @@ class ContinueStatementHandle extends ParserAstNode {
   final Token continueKeyword;
   final Token endToken;
 
-  ContinueStatementHandle(ParserAstType type,
-      {required this.hasTarget,
-      required this.continueKeyword,
-      required this.endToken})
-      : super("ContinueStatement", type);
+  ContinueStatementHandle(
+    ParserAstType type, {
+    required this.hasTarget,
+    required this.continueKeyword,
+    required this.endToken,
+  }) : super("ContinueStatement", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "hasTarget": hasTarget,
-        "continueKeyword": continueKeyword,
-        "endToken": endToken,
-      };
+    "hasTarget": hasTarget,
+    "continueKeyword": continueKeyword,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitContinueStatementHandle(this);
@@ -9064,12 +9426,10 @@ class EmptyStatementHandle extends ParserAstNode {
   final Token token;
 
   EmptyStatementHandle(ParserAstType type, {required this.token})
-      : super("EmptyStatement", type);
+    : super("EmptyStatement", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitEmptyStatementHandle(this);
@@ -9079,15 +9439,17 @@ class AssertBegin extends ParserAstNode {
   final Token assertKeyword;
   final Assert kind;
 
-  AssertBegin(ParserAstType type,
-      {required this.assertKeyword, required this.kind})
-      : super("Assert", type);
+  AssertBegin(
+    ParserAstType type, {
+    required this.assertKeyword,
+    required this.kind,
+  }) : super("Assert", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "assertKeyword": assertKeyword,
-        "kind": kind,
-      };
+    "assertKeyword": assertKeyword,
+    "kind": kind,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitAssertBegin(this);
@@ -9100,22 +9462,23 @@ class AssertEnd extends ParserAstNode {
   final Token? commaToken;
   final Token endToken;
 
-  AssertEnd(ParserAstType type,
-      {required this.assertKeyword,
-      required this.kind,
-      required this.leftParenthesis,
-      this.commaToken,
-      required this.endToken})
-      : super("Assert", type);
+  AssertEnd(
+    ParserAstType type, {
+    required this.assertKeyword,
+    required this.kind,
+    required this.leftParenthesis,
+    this.commaToken,
+    required this.endToken,
+  }) : super("Assert", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "assertKeyword": assertKeyword,
-        "kind": kind,
-        "leftParenthesis": leftParenthesis,
-        "commaToken": commaToken,
-        "endToken": endToken,
-      };
+    "assertKeyword": assertKeyword,
+    "kind": kind,
+    "leftParenthesis": leftParenthesis,
+    "commaToken": commaToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitAssertEnd(this);
@@ -9125,12 +9488,10 @@ class LiteralDoubleHandle extends ParserAstNode {
   final Token token;
 
   LiteralDoubleHandle(ParserAstType type, {required this.token})
-      : super("LiteralDouble", type);
+    : super("LiteralDouble", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitLiteralDoubleHandle(this);
@@ -9140,12 +9501,10 @@ class LiteralDoubleWithSeparatorsHandle extends ParserAstNode {
   final Token token;
 
   LiteralDoubleWithSeparatorsHandle(ParserAstType type, {required this.token})
-      : super("LiteralDoubleWithSeparators", type);
+    : super("LiteralDoubleWithSeparators", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -9156,12 +9515,10 @@ class LiteralIntHandle extends ParserAstNode {
   final Token token;
 
   LiteralIntHandle(ParserAstType type, {required this.token})
-      : super("LiteralInt", type);
+    : super("LiteralInt", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitLiteralIntHandle(this);
@@ -9171,12 +9528,10 @@ class LiteralIntWithSeparatorsHandle extends ParserAstNode {
   final Token token;
 
   LiteralIntWithSeparatorsHandle(ParserAstType type, {required this.token})
-      : super("LiteralIntWithSeparators", type);
+    : super("LiteralIntWithSeparators", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -9189,20 +9544,21 @@ class LiteralListHandle extends ParserAstNode {
   final Token? constKeyword;
   final Token rightBracket;
 
-  LiteralListHandle(ParserAstType type,
-      {required this.count,
-      required this.leftBracket,
-      this.constKeyword,
-      required this.rightBracket})
-      : super("LiteralList", type);
+  LiteralListHandle(
+    ParserAstType type, {
+    required this.count,
+    required this.leftBracket,
+    this.constKeyword,
+    required this.rightBracket,
+  }) : super("LiteralList", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "count": count,
-        "leftBracket": leftBracket,
-        "constKeyword": constKeyword,
-        "rightBracket": rightBracket,
-      };
+    "count": count,
+    "leftBracket": leftBracket,
+    "constKeyword": constKeyword,
+    "rightBracket": rightBracket,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitLiteralListHandle(this);
@@ -9213,18 +9569,19 @@ class ListPatternHandle extends ParserAstNode {
   final Token leftBracket;
   final Token rightBracket;
 
-  ListPatternHandle(ParserAstType type,
-      {required this.count,
-      required this.leftBracket,
-      required this.rightBracket})
-      : super("ListPattern", type);
+  ListPatternHandle(
+    ParserAstType type, {
+    required this.count,
+    required this.leftBracket,
+    required this.rightBracket,
+  }) : super("ListPattern", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "count": count,
-        "leftBracket": leftBracket,
-        "rightBracket": rightBracket,
-      };
+    "count": count,
+    "leftBracket": leftBracket,
+    "rightBracket": rightBracket,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitListPatternHandle(this);
@@ -9237,22 +9594,23 @@ class LiteralSetOrMapHandle extends ParserAstNode {
   final Token rightBrace;
   final bool hasSetEntry;
 
-  LiteralSetOrMapHandle(ParserAstType type,
-      {required this.count,
-      required this.leftBrace,
-      this.constKeyword,
-      required this.rightBrace,
-      required this.hasSetEntry})
-      : super("LiteralSetOrMap", type);
+  LiteralSetOrMapHandle(
+    ParserAstType type, {
+    required this.count,
+    required this.leftBrace,
+    this.constKeyword,
+    required this.rightBrace,
+    required this.hasSetEntry,
+  }) : super("LiteralSetOrMap", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "count": count,
-        "leftBrace": leftBrace,
-        "constKeyword": constKeyword,
-        "rightBrace": rightBrace,
-        "hasSetEntry": hasSetEntry,
-      };
+    "count": count,
+    "leftBrace": leftBrace,
+    "constKeyword": constKeyword,
+    "rightBrace": rightBrace,
+    "hasSetEntry": hasSetEntry,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitLiteralSetOrMapHandle(this);
@@ -9263,16 +9621,19 @@ class MapPatternHandle extends ParserAstNode {
   final Token leftBrace;
   final Token rightBrace;
 
-  MapPatternHandle(ParserAstType type,
-      {required this.count, required this.leftBrace, required this.rightBrace})
-      : super("MapPattern", type);
+  MapPatternHandle(
+    ParserAstType type, {
+    required this.count,
+    required this.leftBrace,
+    required this.rightBrace,
+  }) : super("MapPattern", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "count": count,
-        "leftBrace": leftBrace,
-        "rightBrace": rightBrace,
-      };
+    "count": count,
+    "leftBrace": leftBrace,
+    "rightBrace": rightBrace,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitMapPatternHandle(this);
@@ -9282,12 +9643,10 @@ class LiteralNullHandle extends ParserAstNode {
   final Token token;
 
   LiteralNullHandle(ParserAstType type, {required this.token})
-      : super("LiteralNull", type);
+    : super("LiteralNull", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitLiteralNullHandle(this);
@@ -9297,15 +9656,17 @@ class NativeClauseHandle extends ParserAstNode {
   final Token nativeToken;
   final bool hasName;
 
-  NativeClauseHandle(ParserAstType type,
-      {required this.nativeToken, required this.hasName})
-      : super("NativeClause", type);
+  NativeClauseHandle(
+    ParserAstType type, {
+    required this.nativeToken,
+    required this.hasName,
+  }) : super("NativeClause", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "nativeToken": nativeToken,
-        "hasName": hasName,
-      };
+    "nativeToken": nativeToken,
+    "hasName": hasName,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitNativeClauseHandle(this);
@@ -9315,27 +9676,36 @@ class NamedArgumentHandle extends ParserAstNode {
   final Token colon;
 
   NamedArgumentHandle(ParserAstType type, {required this.colon})
-      : super("NamedArgument", type);
+    : super("NamedArgument", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "colon": colon,
-      };
+  Map<String, Object?> get deprecatedArguments => {"colon": colon};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitNamedArgumentHandle(this);
+}
+
+class PositionalArgumentHandle extends ParserAstNode {
+  final Token token;
+
+  PositionalArgumentHandle(ParserAstType type, {required this.token})
+    : super("PositionalArgument", type);
+
+  @override
+  Map<String, Object?> get deprecatedArguments => {"token": token};
+
+  @override
+  R accept<R>(ParserAstVisitor<R> v) => v.visitPositionalArgumentHandle(this);
 }
 
 class PatternFieldHandle extends ParserAstNode {
   final Token? colon;
 
   PatternFieldHandle(ParserAstType type, {this.colon})
-      : super("PatternField", type);
+    : super("PatternField", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "colon": colon,
-      };
+  Map<String, Object?> get deprecatedArguments => {"colon": colon};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitPatternFieldHandle(this);
@@ -9345,27 +9715,37 @@ class NamedRecordFieldHandle extends ParserAstNode {
   final Token colon;
 
   NamedRecordFieldHandle(ParserAstType type, {required this.colon})
-      : super("NamedRecordField", type);
+    : super("NamedRecordField", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "colon": colon,
-      };
+  Map<String, Object?> get deprecatedArguments => {"colon": colon};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitNamedRecordFieldHandle(this);
+}
+
+class PositionalRecordFieldHandle extends ParserAstNode {
+  final Token token;
+
+  PositionalRecordFieldHandle(ParserAstType type, {required this.token})
+    : super("PositionalRecordField", type);
+
+  @override
+  Map<String, Object?> get deprecatedArguments => {"token": token};
+
+  @override
+  R accept<R>(ParserAstVisitor<R> v) =>
+      v.visitPositionalRecordFieldHandle(this);
 }
 
 class NewExpressionBegin extends ParserAstNode {
   final Token token;
 
   NewExpressionBegin(ParserAstType type, {required this.token})
-      : super("NewExpression", type);
+    : super("NewExpression", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitNewExpressionBegin(this);
@@ -9375,12 +9755,10 @@ class NewExpressionEnd extends ParserAstNode {
   final Token token;
 
   NewExpressionEnd(ParserAstType type, {required this.token})
-      : super("NewExpression", type);
+    : super("NewExpression", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitNewExpressionEnd(this);
@@ -9390,12 +9768,10 @@ class NoArgumentsHandle extends ParserAstNode {
   final Token token;
 
   NoArgumentsHandle(ParserAstType type, {required this.token})
-      : super("NoArguments", type);
+    : super("NoArguments", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitNoArgumentsHandle(this);
@@ -9405,31 +9781,49 @@ class NoConstructorReferenceContinuationAfterTypeArgumentsHandle
     extends ParserAstNode {
   final Token token;
 
-  NoConstructorReferenceContinuationAfterTypeArgumentsHandle(ParserAstType type,
-      {required this.token})
-      : super("NoConstructorReferenceContinuationAfterTypeArguments", type);
+  NoConstructorReferenceContinuationAfterTypeArgumentsHandle(
+    ParserAstType type, {
+    required this.token,
+  }) : super("NoConstructorReferenceContinuationAfterTypeArguments", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
       v.visitNoConstructorReferenceContinuationAfterTypeArgumentsHandle(this);
 }
 
-class NoTypeNameInConstructorReferenceHandle extends ParserAstNode {
+class NoIdentifierHandle extends ParserAstNode {
   final Token token;
+  final IdentifierContext identifierContext;
 
-  NoTypeNameInConstructorReferenceHandle(ParserAstType type,
-      {required this.token})
-      : super("NoTypeNameInConstructorReference", type);
+  NoIdentifierHandle(
+    ParserAstType type, {
+    required this.token,
+    required this.identifierContext,
+  }) : super("NoIdentifier", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+    "token": token,
+    "identifierContext": identifierContext,
+  };
+
+  @override
+  R accept<R>(ParserAstVisitor<R> v) => v.visitNoIdentifierHandle(this);
+}
+
+class NoTypeNameInConstructorReferenceHandle extends ParserAstNode {
+  final Token token;
+
+  NoTypeNameInConstructorReferenceHandle(
+    ParserAstType type, {
+    required this.token,
+  }) : super("NoTypeNameInConstructorReference", type);
+
+  @override
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -9440,12 +9834,12 @@ class NoTypeHandle extends ParserAstNode {
   final Token lastConsumed;
 
   NoTypeHandle(ParserAstType type, {required this.lastConsumed})
-      : super("NoType", type);
+    : super("NoType", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "lastConsumed": lastConsumed,
-      };
+    "lastConsumed": lastConsumed,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitNoTypeHandle(this);
@@ -9455,12 +9849,10 @@ class NoTypeVariablesHandle extends ParserAstNode {
   final Token token;
 
   NoTypeVariablesHandle(ParserAstType type, {required this.token})
-      : super("NoTypeVariables", type);
+    : super("NoTypeVariables", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitNoTypeVariablesHandle(this);
@@ -9470,12 +9862,10 @@ class OperatorHandle extends ParserAstNode {
   final Token token;
 
   OperatorHandle(ParserAstType type, {required this.token})
-      : super("Operator", type);
+    : super("Operator", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitOperatorHandle(this);
@@ -9485,12 +9875,10 @@ class SwitchCaseNoWhenClauseHandle extends ParserAstNode {
   final Token token;
 
   SwitchCaseNoWhenClauseHandle(ParserAstType type, {required this.token})
-      : super("SwitchCaseNoWhenClause", type);
+    : super("SwitchCaseNoWhenClause", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -9501,12 +9889,10 @@ class SwitchExpressionCasePatternHandle extends ParserAstNode {
   final Token token;
 
   SwitchExpressionCasePatternHandle(ParserAstType type, {required this.token})
-      : super("SwitchExpressionCasePattern", type);
+    : super("SwitchExpressionCasePattern", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -9517,12 +9903,10 @@ class SymbolVoidHandle extends ParserAstNode {
   final Token token;
 
   SymbolVoidHandle(ParserAstType type, {required this.token})
-      : super("SymbolVoid", type);
+    : super("SymbolVoid", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitSymbolVoidHandle(this);
@@ -9532,15 +9916,17 @@ class OperatorNameHandle extends ParserAstNode {
   final Token operatorKeyword;
   final Token token;
 
-  OperatorNameHandle(ParserAstType type,
-      {required this.operatorKeyword, required this.token})
-      : super("OperatorName", type);
+  OperatorNameHandle(
+    ParserAstType type, {
+    required this.operatorKeyword,
+    required this.token,
+  }) : super("OperatorName", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "operatorKeyword": operatorKeyword,
-        "token": token,
-      };
+    "operatorKeyword": operatorKeyword,
+    "token": token,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitOperatorNameHandle(this);
@@ -9550,15 +9936,17 @@ class InvalidOperatorNameHandle extends ParserAstNode {
   final Token operatorKeyword;
   final Token token;
 
-  InvalidOperatorNameHandle(ParserAstType type,
-      {required this.operatorKeyword, required this.token})
-      : super("InvalidOperatorName", type);
+  InvalidOperatorNameHandle(
+    ParserAstType type, {
+    required this.operatorKeyword,
+    required this.token,
+  }) : super("InvalidOperatorName", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "operatorKeyword": operatorKeyword,
-        "token": token,
-      };
+    "operatorKeyword": operatorKeyword,
+    "token": token,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitInvalidOperatorNameHandle(this);
@@ -9569,16 +9957,19 @@ class ParenthesizedConditionHandle extends ParserAstNode {
   final Token? case_;
   final Token? when;
 
-  ParenthesizedConditionHandle(ParserAstType type,
-      {required this.token, this.case_, this.when})
-      : super("ParenthesizedCondition", type);
+  ParenthesizedConditionHandle(
+    ParserAstType type, {
+    required this.token,
+    this.case_,
+    this.when,
+  }) : super("ParenthesizedCondition", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-        "case_": case_,
-        "when": when,
-      };
+    "token": token,
+    "case_": case_,
+    "when": when,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -9589,12 +9980,10 @@ class PatternBegin extends ParserAstNode {
   final Token token;
 
   PatternBegin(ParserAstType type, {required this.token})
-      : super("Pattern", type);
+    : super("Pattern", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitPatternBegin(this);
@@ -9604,12 +9993,10 @@ class PatternGuardBegin extends ParserAstNode {
   final Token when;
 
   PatternGuardBegin(ParserAstType type, {required this.when})
-      : super("PatternGuard", type);
+    : super("PatternGuard", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "when": when,
-      };
+  Map<String, Object?> get deprecatedArguments => {"when": when};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitPatternGuardBegin(this);
@@ -9618,14 +10005,13 @@ class PatternGuardBegin extends ParserAstNode {
 class ParenthesizedExpressionOrRecordLiteralBegin extends ParserAstNode {
   final Token token;
 
-  ParenthesizedExpressionOrRecordLiteralBegin(ParserAstType type,
-      {required this.token})
-      : super("ParenthesizedExpressionOrRecordLiteral", type);
+  ParenthesizedExpressionOrRecordLiteralBegin(
+    ParserAstType type, {
+    required this.token,
+  }) : super("ParenthesizedExpressionOrRecordLiteral", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -9636,12 +10022,10 @@ class SwitchCaseWhenClauseBegin extends ParserAstNode {
   final Token when;
 
   SwitchCaseWhenClauseBegin(ParserAstType type, {required this.when})
-      : super("SwitchCaseWhenClause", type);
+    : super("SwitchCaseWhenClause", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "when": when,
-      };
+  Map<String, Object?> get deprecatedArguments => {"when": when};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitSwitchCaseWhenClauseBegin(this);
@@ -9652,16 +10036,19 @@ class RecordLiteralEnd extends ParserAstNode {
   final int count;
   final Token? constKeyword;
 
-  RecordLiteralEnd(ParserAstType type,
-      {required this.token, required this.count, this.constKeyword})
-      : super("RecordLiteral", type);
+  RecordLiteralEnd(
+    ParserAstType type, {
+    required this.token,
+    required this.count,
+    this.constKeyword,
+  }) : super("RecordLiteral", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-        "count": count,
-        "constKeyword": constKeyword,
-      };
+    "token": token,
+    "count": count,
+    "constKeyword": constKeyword,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitRecordLiteralEnd(this);
@@ -9671,15 +10058,17 @@ class RecordPatternHandle extends ParserAstNode {
   final Token token;
   final int count;
 
-  RecordPatternHandle(ParserAstType type,
-      {required this.token, required this.count})
-      : super("RecordPattern", type);
+  RecordPatternHandle(
+    ParserAstType type, {
+    required this.token,
+    required this.count,
+  }) : super("RecordPattern", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-        "count": count,
-      };
+    "token": token,
+    "count": count,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitRecordPatternHandle(this);
@@ -9689,12 +10078,10 @@ class PatternEnd extends ParserAstNode {
   final Token token;
 
   PatternEnd(ParserAstType type, {required this.token})
-      : super("Pattern", type);
+    : super("Pattern", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitPatternEnd(this);
@@ -9704,12 +10091,10 @@ class PatternGuardEnd extends ParserAstNode {
   final Token token;
 
   PatternGuardEnd(ParserAstType type, {required this.token})
-      : super("PatternGuard", type);
+    : super("PatternGuard", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitPatternGuardEnd(this);
@@ -9719,12 +10104,10 @@ class ParenthesizedExpressionEnd extends ParserAstNode {
   final Token token;
 
   ParenthesizedExpressionEnd(ParserAstType type, {required this.token})
-      : super("ParenthesizedExpression", type);
+    : super("ParenthesizedExpression", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitParenthesizedExpressionEnd(this);
@@ -9734,12 +10117,10 @@ class SwitchCaseWhenClauseEnd extends ParserAstNode {
   final Token token;
 
   SwitchCaseWhenClauseEnd(ParserAstType type, {required this.token})
-      : super("SwitchCaseWhenClause", type);
+    : super("SwitchCaseWhenClause", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitSwitchCaseWhenClauseEnd(this);
@@ -9749,12 +10130,10 @@ class ParenthesizedPatternHandle extends ParserAstNode {
   final Token token;
 
   ParenthesizedPatternHandle(ParserAstType type, {required this.token})
-      : super("ParenthesizedPattern", type);
+    : super("ParenthesizedPattern", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitParenthesizedPatternHandle(this);
@@ -9764,12 +10143,12 @@ class ConstantPatternBegin extends ParserAstNode {
   final Token? constKeyword;
 
   ConstantPatternBegin(ParserAstType type, {this.constKeyword})
-      : super("ConstantPattern", type);
+    : super("ConstantPattern", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "constKeyword": constKeyword,
-      };
+    "constKeyword": constKeyword,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitConstantPatternBegin(this);
@@ -9779,12 +10158,12 @@ class ConstantPatternEnd extends ParserAstNode {
   final Token? constKeyword;
 
   ConstantPatternEnd(ParserAstType type, {this.constKeyword})
-      : super("ConstantPattern", type);
+    : super("ConstantPattern", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "constKeyword": constKeyword,
-      };
+    "constKeyword": constKeyword,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitConstantPatternEnd(this);
@@ -9795,16 +10174,19 @@ class ObjectPatternHandle extends ParserAstNode {
   final Token? dot;
   final Token? secondIdentifier;
 
-  ObjectPatternHandle(ParserAstType type,
-      {required this.firstIdentifier, this.dot, this.secondIdentifier})
-      : super("ObjectPattern", type);
+  ObjectPatternHandle(
+    ParserAstType type, {
+    required this.firstIdentifier,
+    this.dot,
+    this.secondIdentifier,
+  }) : super("ObjectPattern", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "firstIdentifier": firstIdentifier,
-        "dot": dot,
-        "secondIdentifier": secondIdentifier,
-      };
+    "firstIdentifier": firstIdentifier,
+    "dot": dot,
+    "secondIdentifier": secondIdentifier,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitObjectPatternHandle(this);
@@ -9814,12 +10196,10 @@ class QualifiedHandle extends ParserAstNode {
   final Token period;
 
   QualifiedHandle(ParserAstType type, {required this.period})
-      : super("Qualified", type);
+    : super("Qualified", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "period": period,
-      };
+  Map<String, Object?> get deprecatedArguments => {"period": period};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitQualifiedHandle(this);
@@ -9829,12 +10209,10 @@ class StringPartHandle extends ParserAstNode {
   final Token token;
 
   StringPartHandle(ParserAstType type, {required this.token})
-      : super("StringPart", type);
+    : super("StringPart", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitStringPartHandle(this);
@@ -9844,15 +10222,17 @@ class SuperExpressionHandle extends ParserAstNode {
   final Token token;
   final IdentifierContext context;
 
-  SuperExpressionHandle(ParserAstType type,
-      {required this.token, required this.context})
-      : super("SuperExpression", type);
+  SuperExpressionHandle(
+    ParserAstType type, {
+    required this.token,
+    required this.context,
+  }) : super("SuperExpression", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-        "context": context,
-      };
+    "token": token,
+    "context": context,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitSuperExpressionHandle(this);
@@ -9863,18 +10243,19 @@ class AugmentSuperExpressionHandle extends ParserAstNode {
   final Token superToken;
   final IdentifierContext context;
 
-  AugmentSuperExpressionHandle(ParserAstType type,
-      {required this.augmentToken,
-      required this.superToken,
-      required this.context})
-      : super("AugmentSuperExpression", type);
+  AugmentSuperExpressionHandle(
+    ParserAstType type, {
+    required this.augmentToken,
+    required this.superToken,
+    required this.context,
+  }) : super("AugmentSuperExpression", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "augmentToken": augmentToken,
-        "superToken": superToken,
-        "context": context,
-      };
+    "augmentToken": augmentToken,
+    "superToken": superToken,
+    "context": context,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -9886,18 +10267,19 @@ class SwitchCaseBegin extends ParserAstNode {
   final int expressionCount;
   final Token beginToken;
 
-  SwitchCaseBegin(ParserAstType type,
-      {required this.labelCount,
-      required this.expressionCount,
-      required this.beginToken})
-      : super("SwitchCase", type);
+  SwitchCaseBegin(
+    ParserAstType type, {
+    required this.labelCount,
+    required this.expressionCount,
+    required this.beginToken,
+  }) : super("SwitchCase", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "labelCount": labelCount,
-        "expressionCount": expressionCount,
-        "beginToken": beginToken,
-      };
+    "labelCount": labelCount,
+    "expressionCount": expressionCount,
+    "beginToken": beginToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitSwitchCaseBegin(this);
@@ -9915,26 +10297,27 @@ class SwitchCaseEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  SwitchCaseEnd(ParserAstType type,
-      {required this.labelCount,
-      required this.expressionCount,
-      this.defaultKeyword,
-      this.colonAfterDefault,
-      required this.statementCount,
-      required this.beginToken,
-      required this.endToken})
-      : super("SwitchCase", type);
+  SwitchCaseEnd(
+    ParserAstType type, {
+    required this.labelCount,
+    required this.expressionCount,
+    this.defaultKeyword,
+    this.colonAfterDefault,
+    required this.statementCount,
+    required this.beginToken,
+    required this.endToken,
+  }) : super("SwitchCase", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "labelCount": labelCount,
-        "expressionCount": expressionCount,
-        "defaultKeyword": defaultKeyword,
-        "colonAfterDefault": colonAfterDefault,
-        "statementCount": statementCount,
-        "beginToken": beginToken,
-        "endToken": endToken,
-      };
+    "labelCount": labelCount,
+    "expressionCount": expressionCount,
+    "defaultKeyword": defaultKeyword,
+    "colonAfterDefault": colonAfterDefault,
+    "statementCount": statementCount,
+    "beginToken": beginToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitSwitchCaseEnd(this);
@@ -9942,7 +10325,7 @@ class SwitchCaseEnd extends ParserAstNode
 
 class SwitchExpressionCaseBegin extends ParserAstNode {
   SwitchExpressionCaseBegin(ParserAstType type)
-      : super("SwitchExpressionCase", type);
+    : super("SwitchExpressionCase", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {};
@@ -9960,20 +10343,21 @@ class SwitchExpressionCaseEnd extends ParserAstNode
   @override
   final Token endToken;
 
-  SwitchExpressionCaseEnd(ParserAstType type,
-      {required this.beginToken,
-      this.when,
-      required this.arrow,
-      required this.endToken})
-      : super("SwitchExpressionCase", type);
+  SwitchExpressionCaseEnd(
+    ParserAstType type, {
+    required this.beginToken,
+    this.when,
+    required this.arrow,
+    required this.endToken,
+  }) : super("SwitchExpressionCase", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "when": when,
-        "arrow": arrow,
-        "endToken": endToken,
-      };
+    "beginToken": beginToken,
+    "when": when,
+    "arrow": arrow,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitSwitchExpressionCaseEnd(this);
@@ -9983,15 +10367,17 @@ class ThisExpressionHandle extends ParserAstNode {
   final Token token;
   final IdentifierContext context;
 
-  ThisExpressionHandle(ParserAstType type,
-      {required this.token, required this.context})
-      : super("ThisExpression", type);
+  ThisExpressionHandle(
+    ParserAstType type, {
+    required this.token,
+    required this.context,
+  }) : super("ThisExpression", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-        "context": context,
-      };
+    "token": token,
+    "context": context,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitThisExpressionHandle(this);
@@ -10000,14 +10386,13 @@ class ThisExpressionHandle extends ParserAstNode {
 class UnaryPostfixAssignmentExpressionHandle extends ParserAstNode {
   final Token token;
 
-  UnaryPostfixAssignmentExpressionHandle(ParserAstType type,
-      {required this.token})
-      : super("UnaryPostfixAssignmentExpression", type);
+  UnaryPostfixAssignmentExpressionHandle(
+    ParserAstType type, {
+    required this.token,
+  }) : super("UnaryPostfixAssignmentExpression", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -10018,12 +10403,10 @@ class UnaryPrefixExpressionHandle extends ParserAstNode {
   final Token token;
 
   UnaryPrefixExpressionHandle(ParserAstType type, {required this.token})
-      : super("UnaryPrefixExpression", type);
+    : super("UnaryPrefixExpression", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -10034,12 +10417,10 @@ class RelationalPatternHandle extends ParserAstNode {
   final Token token;
 
   RelationalPatternHandle(ParserAstType type, {required this.token})
-      : super("RelationalPattern", type);
+    : super("RelationalPattern", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitRelationalPatternHandle(this);
@@ -10048,14 +10429,13 @@ class RelationalPatternHandle extends ParserAstNode {
 class UnaryPrefixAssignmentExpressionHandle extends ParserAstNode {
   final Token token;
 
-  UnaryPrefixAssignmentExpressionHandle(ParserAstType type,
-      {required this.token})
-      : super("UnaryPrefixAssignmentExpression", type);
+  UnaryPrefixAssignmentExpressionHandle(
+    ParserAstType type, {
+    required this.token,
+  }) : super("UnaryPrefixAssignmentExpression", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -10064,7 +10444,7 @@ class UnaryPrefixAssignmentExpressionHandle extends ParserAstNode {
 
 class FormalParameterDefaultValueExpressionBegin extends ParserAstNode {
   FormalParameterDefaultValueExpressionBegin(ParserAstType type)
-      : super("FormalParameterDefaultValueExpression", type);
+    : super("FormalParameterDefaultValueExpression", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {};
@@ -10076,7 +10456,7 @@ class FormalParameterDefaultValueExpressionBegin extends ParserAstNode {
 
 class FormalParameterDefaultValueExpressionEnd extends ParserAstNode {
   FormalParameterDefaultValueExpressionEnd(ParserAstType type)
-      : super("FormalParameterDefaultValueExpression", type);
+    : super("FormalParameterDefaultValueExpression", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {};
@@ -10091,16 +10471,19 @@ class ValuedFormalParameterHandle extends ParserAstNode {
   final Token token;
   final FormalParameterKind kind;
 
-  ValuedFormalParameterHandle(ParserAstType type,
-      {required this.equals, required this.token, required this.kind})
-      : super("ValuedFormalParameter", type);
+  ValuedFormalParameterHandle(
+    ParserAstType type, {
+    required this.equals,
+    required this.token,
+    required this.kind,
+  }) : super("ValuedFormalParameter", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "equals": equals,
-        "token": token,
-        "kind": kind,
-      };
+    "equals": equals,
+    "token": token,
+    "kind": kind,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -10111,12 +10494,10 @@ class FormalParameterWithoutValueHandle extends ParserAstNode {
   final Token token;
 
   FormalParameterWithoutValueHandle(ParserAstType type, {required this.token})
-      : super("FormalParameterWithoutValue", type);
+    : super("FormalParameterWithoutValue", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -10127,12 +10508,10 @@ class VoidKeywordHandle extends ParserAstNode {
   final Token token;
 
   VoidKeywordHandle(ParserAstType type, {required this.token})
-      : super("VoidKeyword", type);
+    : super("VoidKeyword", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitVoidKeywordHandle(this);
@@ -10142,12 +10521,10 @@ class VoidKeywordWithTypeArgumentsHandle extends ParserAstNode {
   final Token token;
 
   VoidKeywordWithTypeArgumentsHandle(ParserAstType type, {required this.token})
-      : super("VoidKeywordWithTypeArguments", type);
+    : super("VoidKeywordWithTypeArguments", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -10158,12 +10535,10 @@ class YieldStatementBegin extends ParserAstNode {
   final Token token;
 
   YieldStatementBegin(ParserAstType type, {required this.token})
-      : super("YieldStatement", type);
+    : super("YieldStatement", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitYieldStatementBegin(this);
@@ -10174,16 +10549,19 @@ class YieldStatementEnd extends ParserAstNode {
   final Token? starToken;
   final Token endToken;
 
-  YieldStatementEnd(ParserAstType type,
-      {required this.yieldToken, this.starToken, required this.endToken})
-      : super("YieldStatement", type);
+  YieldStatementEnd(
+    ParserAstType type, {
+    required this.yieldToken,
+    this.starToken,
+    required this.endToken,
+  }) : super("YieldStatement", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "yieldToken": yieldToken,
-        "starToken": starToken,
-        "endToken": endToken,
-      };
+    "yieldToken": yieldToken,
+    "starToken": starToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitYieldStatementEnd(this);
@@ -10198,20 +10576,21 @@ class InvalidYieldStatementEnd extends ParserAstNode
   final Token endToken;
   final MessageCode errorCode;
 
-  InvalidYieldStatementEnd(ParserAstType type,
-      {required this.beginToken,
-      this.starToken,
-      required this.endToken,
-      required this.errorCode})
-      : super("InvalidYieldStatement", type);
+  InvalidYieldStatementEnd(
+    ParserAstType type, {
+    required this.beginToken,
+    this.starToken,
+    required this.endToken,
+    required this.errorCode,
+  }) : super("InvalidYieldStatement", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "beginToken": beginToken,
-        "starToken": starToken,
-        "endToken": endToken,
-        "errorCode": errorCode,
-      };
+    "beginToken": beginToken,
+    "starToken": starToken,
+    "endToken": endToken,
+    "errorCode": errorCode,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitInvalidYieldStatementEnd(this);
@@ -10222,38 +10601,45 @@ class RecoverableErrorHandle extends ParserAstNode {
   final Token startToken;
   final Token endToken;
 
-  RecoverableErrorHandle(ParserAstType type,
-      {required this.message, required this.startToken, required this.endToken})
-      : super("RecoverableError", type);
+  RecoverableErrorHandle(
+    ParserAstType type, {
+    required this.message,
+    required this.startToken,
+    required this.endToken,
+  }) : super("RecoverableError", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "message": message,
-        "startToken": startToken,
-        "endToken": endToken,
-      };
+    "message": message,
+    "startToken": startToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitRecoverableErrorHandle(this);
 }
 
-class ExperimentNotEnabledHandle extends ParserAstNode {
+class ExperimentNotEnabledHandle extends ParserAstNode
+    implements BeginAndEndTokenParserAstNode {
   final ExperimentalFlag experimentalFlag;
-  final Token startToken;
+  @override
+  final Token beginToken;
+  @override
   final Token endToken;
 
-  ExperimentNotEnabledHandle(ParserAstType type,
-      {required this.experimentalFlag,
-      required this.startToken,
-      required this.endToken})
-      : super("ExperimentNotEnabled", type);
+  ExperimentNotEnabledHandle(
+    ParserAstType type, {
+    required this.experimentalFlag,
+    required this.beginToken,
+    required this.endToken,
+  }) : super("ExperimentNotEnabled", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "experimentalFlag": experimentalFlag,
-        "startToken": startToken,
-        "endToken": endToken,
-      };
+    "experimentalFlag": experimentalFlag,
+    "beginToken": beginToken,
+    "endToken": endToken,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitExperimentNotEnabledHandle(this);
@@ -10263,12 +10649,10 @@ class ErrorTokenHandle extends ParserAstNode {
   final ErrorToken token;
 
   ErrorTokenHandle(ParserAstType type, {required this.token})
-      : super("ErrorToken", type);
+    : super("ErrorToken", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitErrorTokenHandle(this);
@@ -10280,20 +10664,21 @@ class UnescapeErrorHandle extends ParserAstNode {
   final int stringOffset;
   final int length;
 
-  UnescapeErrorHandle(ParserAstType type,
-      {required this.message,
-      required this.location,
-      required this.stringOffset,
-      required this.length})
-      : super("UnescapeError", type);
+  UnescapeErrorHandle(
+    ParserAstType type, {
+    required this.message,
+    required this.location,
+    required this.stringOffset,
+    required this.length,
+  }) : super("UnescapeError", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "message": message,
-        "location": location,
-        "stringOffset": stringOffset,
-        "length": length,
-      };
+    "message": message,
+    "location": location,
+    "stringOffset": stringOffset,
+    "length": length,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitUnescapeErrorHandle(this);
@@ -10303,15 +10688,17 @@ class InvalidStatementHandle extends ParserAstNode {
   final Token token;
   final Message message;
 
-  InvalidStatementHandle(ParserAstType type,
-      {required this.token, required this.message})
-      : super("InvalidStatement", type);
+  InvalidStatementHandle(
+    ParserAstType type, {
+    required this.token,
+    required this.message,
+  }) : super("InvalidStatement", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-        "message": message,
-      };
+    "token": token,
+    "message": message,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitInvalidStatementHandle(this);
@@ -10321,12 +10708,10 @@ class ScriptHandle extends ParserAstNode {
   final Token token;
 
   ScriptHandle(ParserAstType type, {required this.token})
-      : super("Script", type);
+    : super("Script", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitScriptHandle(this);
@@ -10335,14 +10720,15 @@ class ScriptHandle extends ParserAstNode {
 class TypeArgumentApplicationHandle extends ParserAstNode {
   final Token openAngleBracket;
 
-  TypeArgumentApplicationHandle(ParserAstType type,
-      {required this.openAngleBracket})
-      : super("TypeArgumentApplication", type);
+  TypeArgumentApplicationHandle(
+    ParserAstType type, {
+    required this.openAngleBracket,
+  }) : super("TypeArgumentApplication", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "openAngleBracket": openAngleBracket,
-      };
+    "openAngleBracket": openAngleBracket,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -10353,12 +10739,10 @@ class NewAsIdentifierHandle extends ParserAstNode {
   final Token token;
 
   NewAsIdentifierHandle(ParserAstType type, {required this.token})
-      : super("NewAsIdentifier", type);
+    : super("NewAsIdentifier", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitNewAsIdentifierHandle(this);
@@ -10369,16 +10753,19 @@ class PatternVariableDeclarationStatementHandle extends ParserAstNode {
   final Token equals;
   final Token semicolon;
 
-  PatternVariableDeclarationStatementHandle(ParserAstType type,
-      {required this.keyword, required this.equals, required this.semicolon})
-      : super("PatternVariableDeclarationStatement", type);
+  PatternVariableDeclarationStatementHandle(
+    ParserAstType type, {
+    required this.keyword,
+    required this.equals,
+    required this.semicolon,
+  }) : super("PatternVariableDeclarationStatement", type);
 
   @override
   Map<String, Object?> get deprecatedArguments => {
-        "keyword": keyword,
-        "equals": equals,
-        "semicolon": semicolon,
-      };
+    "keyword": keyword,
+    "equals": equals,
+    "semicolon": semicolon,
+  };
 
   @override
   R accept<R>(ParserAstVisitor<R> v) =>
@@ -10389,12 +10776,10 @@ class PatternAssignmentHandle extends ParserAstNode {
   final Token equals;
 
   PatternAssignmentHandle(ParserAstType type, {required this.equals})
-      : super("PatternAssignment", type);
+    : super("PatternAssignment", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "equals": equals,
-      };
+  Map<String, Object?> get deprecatedArguments => {"equals": equals};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitPatternAssignmentHandle(this);
@@ -10404,12 +10789,10 @@ class DotShorthandContextHandle extends ParserAstNode {
   final Token token;
 
   DotShorthandContextHandle(ParserAstType type, {required this.token})
-      : super("DotShorthandContext", type);
+    : super("DotShorthandContext", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitDotShorthandContextHandle(this);
@@ -10419,12 +10802,10 @@ class DotShorthandHeadHandle extends ParserAstNode {
   final Token token;
 
   DotShorthandHeadHandle(ParserAstType type, {required this.token})
-      : super("DotShorthandHead", type);
+    : super("DotShorthandHead", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitDotShorthandHeadHandle(this);
@@ -10434,12 +10815,10 @@ class ConstDotShorthandBegin extends ParserAstNode {
   final Token token;
 
   ConstDotShorthandBegin(ParserAstType type, {required this.token})
-      : super("ConstDotShorthand", type);
+    : super("ConstDotShorthand", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitConstDotShorthandBegin(this);
@@ -10449,12 +10828,10 @@ class ConstDotShorthandEnd extends ParserAstNode {
   final Token token;
 
   ConstDotShorthandEnd(ParserAstType type, {required this.token})
-      : super("ConstDotShorthand", type);
+    : super("ConstDotShorthand", type);
 
   @override
-  Map<String, Object?> get deprecatedArguments => {
-        "token": token,
-      };
+  Map<String, Object?> get deprecatedArguments => {"token": token};
 
   @override
   R accept<R>(ParserAstVisitor<R> v) => v.visitConstDotShorthandEnd(this);
@@ -10476,32 +10853,42 @@ abstract class ParserAstVisitor<R> {
   R visitCaseExpressionBegin(CaseExpressionBegin node);
   R visitCaseExpressionEnd(CaseExpressionEnd node);
   R visitClassOrMixinOrExtensionBodyBegin(
-      ClassOrMixinOrExtensionBodyBegin node);
+    ClassOrMixinOrExtensionBodyBegin node,
+  );
   R visitClassOrMixinOrExtensionBodyEnd(ClassOrMixinOrExtensionBodyEnd node);
   R visitClassOrMixinOrNamedMixinApplicationPreludeBegin(
-      ClassOrMixinOrNamedMixinApplicationPreludeBegin node);
+    ClassOrMixinOrNamedMixinApplicationPreludeBegin node,
+  );
   R visitClassDeclarationBegin(ClassDeclarationBegin node);
   R visitClassExtendsHandle(ClassExtendsHandle node);
   R visitImplementsHandle(ImplementsHandle node);
   R visitClassHeaderHandle(ClassHeaderHandle node);
   R visitRecoverDeclarationHeaderHandle(RecoverDeclarationHeaderHandle node);
   R visitClassDeclarationEnd(ClassDeclarationEnd node);
+  R visitNoClassBodyHandle(NoClassBodyHandle node);
+  R visitNoExtensionTypeBodyHandle(NoExtensionTypeBodyHandle node);
   R visitMixinDeclarationBegin(MixinDeclarationBegin node);
   R visitMixinOnHandle(MixinOnHandle node);
   R visitMixinHeaderHandle(MixinHeaderHandle node);
   R visitRecoverMixinHeaderHandle(RecoverMixinHeaderHandle node);
+  R visitNoMixinBodyHandle(NoMixinBodyHandle node);
   R visitMixinDeclarationEnd(MixinDeclarationEnd node);
   R visitUncategorizedTopLevelDeclarationBegin(
-      UncategorizedTopLevelDeclarationBegin node);
+    UncategorizedTopLevelDeclarationBegin node,
+  );
   R visitExtensionDeclarationPreludeBegin(
-      ExtensionDeclarationPreludeBegin node);
+    ExtensionDeclarationPreludeBegin node,
+  );
   R visitExtensionDeclarationBegin(ExtensionDeclarationBegin node);
   R visitExtensionDeclarationEnd(ExtensionDeclarationEnd node);
+  R visitNoExtensionBodyHandle(NoExtensionBodyHandle node);
   R visitExtensionTypeDeclarationBegin(ExtensionTypeDeclarationBegin node);
   R visitExtensionTypeDeclarationEnd(ExtensionTypeDeclarationEnd node);
   R visitPrimaryConstructorBegin(PrimaryConstructorBegin node);
   R visitPrimaryConstructorEnd(PrimaryConstructorEnd node);
   R visitNoPrimaryConstructorHandle(NoPrimaryConstructorHandle node);
+  R visitPrimaryConstructorBodyBegin(PrimaryConstructorBodyBegin node);
+  R visitPrimaryConstructorBodyEnd(PrimaryConstructorBodyEnd node);
   R visitCombinatorsBegin(CombinatorsBegin node);
   R visitCombinatorsEnd(CombinatorsEnd node);
   R visitCompilationUnitBegin(CompilationUnitBegin node);
@@ -10517,41 +10904,39 @@ abstract class ParserAstVisitor<R> {
   R visitDoWhileStatementBodyEnd(DoWhileStatementBodyEnd node);
   R visitWhileStatementBodyBegin(WhileStatementBodyBegin node);
   R visitWhileStatementBodyEnd(WhileStatementBodyEnd node);
-  R visitEnumBegin(EnumBegin node);
-  R visitEnumEnd(EnumEnd node);
-  R visitEnumConstructorEnd(EnumConstructorEnd node);
+  R visitEnumDeclarationPreludeBegin(EnumDeclarationPreludeBegin node);
+  R visitEnumDeclarationBegin(EnumDeclarationBegin node);
+  R visitEnumDeclarationEnd(EnumDeclarationEnd node);
   R visitEnumElementsHandle(EnumElementsHandle node);
   R visitEnumHeaderHandle(EnumHeaderHandle node);
+  R visitEnumBodyBegin(EnumBodyBegin node);
+  R visitEnumBodyEnd(EnumBodyEnd node);
+  R visitNoEnumBodyHandle(NoEnumBodyHandle node);
   R visitEnumElementHandle(EnumElementHandle node);
-  R visitEnumFactoryMethodEnd(EnumFactoryMethodEnd node);
   R visitExportBegin(ExportBegin node);
   R visitExportEnd(ExportEnd node);
   R visitExtraneousExpressionHandle(ExtraneousExpressionHandle node);
   R visitExpressionStatementHandle(ExpressionStatementHandle node);
-  R visitFactoryMethodBegin(FactoryMethodBegin node);
-  R visitClassFactoryMethodEnd(ClassFactoryMethodEnd node);
-  R visitMixinFactoryMethodEnd(MixinFactoryMethodEnd node);
-  R visitExtensionFactoryMethodEnd(ExtensionFactoryMethodEnd node);
-  R visitExtensionTypeFactoryMethodEnd(ExtensionTypeFactoryMethodEnd node);
+  R visitFactoryBegin(FactoryBegin node);
+  R visitFactoryEnd(FactoryEnd node);
   R visitFormalParameterBegin(FormalParameterBegin node);
   R visitFormalParameterEnd(FormalParameterEnd node);
   R visitNoFormalParametersHandle(NoFormalParametersHandle node);
   R visitFormalParametersBegin(FormalParametersBegin node);
   R visitFormalParametersEnd(FormalParametersEnd node);
-  R visitClassFieldsEnd(ClassFieldsEnd node);
-  R visitMixinFieldsEnd(MixinFieldsEnd node);
-  R visitExtensionFieldsEnd(ExtensionFieldsEnd node);
-  R visitExtensionTypeFieldsEnd(ExtensionTypeFieldsEnd node);
-  R visitEnumFieldsEnd(EnumFieldsEnd node);
-  R visitEnumMethodEnd(EnumMethodEnd node);
+  R visitFieldsEnd(FieldsEnd node);
   R visitForInitializerEmptyStatementHandle(
-      ForInitializerEmptyStatementHandle node);
+    ForInitializerEmptyStatementHandle node,
+  );
   R visitForInitializerExpressionStatementHandle(
-      ForInitializerExpressionStatementHandle node);
+    ForInitializerExpressionStatementHandle node,
+  );
   R visitForInitializerLocalVariableDeclarationHandle(
-      ForInitializerLocalVariableDeclarationHandle node);
+    ForInitializerLocalVariableDeclarationHandle node,
+  );
   R visitForInitializerPatternVariableAssignmentHandle(
-      ForInitializerPatternVariableAssignmentHandle node);
+    ForInitializerPatternVariableAssignmentHandle node,
+  );
   R visitForStatementBegin(ForStatementBegin node);
   R visitForLoopPartsHandle(ForLoopPartsHandle node);
   R visitForStatementEnd(ForStatementEnd node);
@@ -10582,7 +10967,8 @@ abstract class ParserAstVisitor<R> {
   R visitMixinWithClauseHandle(MixinWithClauseHandle node);
   R visitNamedMixinApplicationBegin(NamedMixinApplicationBegin node);
   R visitNamedMixinApplicationWithClauseHandle(
-      NamedMixinApplicationWithClauseHandle node);
+    NamedMixinApplicationWithClauseHandle node,
+  );
   R visitNamedMixinApplicationEnd(NamedMixinApplicationEnd node);
   R visitHideBegin(HideBegin node);
   R visitHideEnd(HideEnd node);
@@ -10639,14 +11025,9 @@ abstract class ParserAstVisitor<R> {
   R visitInvalidMemberHandle(InvalidMemberHandle node);
   R visitMemberEnd(MemberEnd node);
   R visitMethodBegin(MethodBegin node);
-  R visitClassMethodEnd(ClassMethodEnd node);
-  R visitMixinMethodEnd(MixinMethodEnd node);
-  R visitExtensionMethodEnd(ExtensionMethodEnd node);
-  R visitExtensionTypeMethodEnd(ExtensionTypeMethodEnd node);
-  R visitClassConstructorEnd(ClassConstructorEnd node);
-  R visitMixinConstructorEnd(MixinConstructorEnd node);
-  R visitExtensionConstructorEnd(ExtensionConstructorEnd node);
-  R visitExtensionTypeConstructorEnd(ExtensionTypeConstructorEnd node);
+  R visitMethodEnd(MethodEnd node);
+  R visitConstructorBegin(ConstructorBegin node);
+  R visitConstructorEnd(ConstructorEnd node);
   R visitMetadataStarBegin(MetadataStarBegin node);
   R visitMetadataStarEnd(MetadataStarEnd node);
   R visitMetadataBegin(MetadataBegin node);
@@ -10684,7 +11065,8 @@ abstract class ParserAstVisitor<R> {
   R visitRethrowStatementEnd(RethrowStatementEnd node);
   R visitTopLevelDeclarationEnd(TopLevelDeclarationEnd node);
   R visitInvalidTopLevelDeclarationHandle(
-      InvalidTopLevelDeclarationHandle node);
+    InvalidTopLevelDeclarationHandle node,
+  );
   R visitTopLevelMemberBegin(TopLevelMemberBegin node);
   R visitFieldsBegin(FieldsBegin node);
   R visitTopLevelFieldsEnd(TopLevelFieldsEnd node);
@@ -10732,14 +11114,19 @@ abstract class ParserAstVisitor<R> {
   R visitAsOperatorHandle(AsOperatorHandle node);
   R visitCastPatternHandle(CastPatternHandle node);
   R visitAssignmentExpressionHandle(AssignmentExpressionHandle node);
+  R visitAnonymousMethodInvocationBegin(AnonymousMethodInvocationBegin node);
+  R visitAnonymousMethodInvocationEnd(AnonymousMethodInvocationEnd node);
+  R visitImplicitFormalParametersHandle(ImplicitFormalParametersHandle node);
   R visitBinaryExpressionBegin(BinaryExpressionBegin node);
   R visitBinaryExpressionEnd(BinaryExpressionEnd node);
   R visitBinaryPatternBegin(BinaryPatternBegin node);
   R visitBinaryPatternEnd(BinaryPatternEnd node);
-  R visitEndingBinaryExpressionHandle(EndingBinaryExpressionHandle node);
+  R visitDotAccessHandle(DotAccessHandle node);
+  R visitCascadeAccessHandle(CascadeAccessHandle node);
   R visitConditionalExpressionBegin(ConditionalExpressionBegin node);
   R visitConditionalExpressionColonHandle(
-      ConditionalExpressionColonHandle node);
+    ConditionalExpressionColonHandle node,
+  );
   R visitConditionalExpressionEnd(ConditionalExpressionEnd node);
   R visitConstExpressionBegin(ConstExpressionBegin node);
   R visitConstExpressionEnd(ConstExpressionEnd node);
@@ -10756,7 +11143,8 @@ abstract class ParserAstVisitor<R> {
   R visitNullAwareElementHandle(NullAwareElementHandle node);
   R visitRestPatternHandle(RestPatternHandle node);
   R visitFunctionTypedFormalParameterBegin(
-      FunctionTypedFormalParameterBegin node);
+    FunctionTypedFormalParameterBegin node,
+  );
   R visitFunctionTypedFormalParameterEnd(FunctionTypedFormalParameterEnd node);
   R visitIdentifierHandle(IdentifierHandle node);
   R visitIndexedExpressionHandle(IndexedExpressionHandle node);
@@ -10771,7 +11159,8 @@ abstract class ParserAstVisitor<R> {
   R visitAssertEnd(AssertEnd node);
   R visitLiteralDoubleHandle(LiteralDoubleHandle node);
   R visitLiteralDoubleWithSeparatorsHandle(
-      LiteralDoubleWithSeparatorsHandle node);
+    LiteralDoubleWithSeparatorsHandle node,
+  );
   R visitLiteralIntHandle(LiteralIntHandle node);
   R visitLiteralIntWithSeparatorsHandle(LiteralIntWithSeparatorsHandle node);
   R visitLiteralListHandle(LiteralListHandle node);
@@ -10781,21 +11170,27 @@ abstract class ParserAstVisitor<R> {
   R visitLiteralNullHandle(LiteralNullHandle node);
   R visitNativeClauseHandle(NativeClauseHandle node);
   R visitNamedArgumentHandle(NamedArgumentHandle node);
+  R visitPositionalArgumentHandle(PositionalArgumentHandle node);
   R visitPatternFieldHandle(PatternFieldHandle node);
   R visitNamedRecordFieldHandle(NamedRecordFieldHandle node);
+  R visitPositionalRecordFieldHandle(PositionalRecordFieldHandle node);
   R visitNewExpressionBegin(NewExpressionBegin node);
   R visitNewExpressionEnd(NewExpressionEnd node);
   R visitNoArgumentsHandle(NoArgumentsHandle node);
   R visitNoConstructorReferenceContinuationAfterTypeArgumentsHandle(
-      NoConstructorReferenceContinuationAfterTypeArgumentsHandle node);
+    NoConstructorReferenceContinuationAfterTypeArgumentsHandle node,
+  );
+  R visitNoIdentifierHandle(NoIdentifierHandle node);
   R visitNoTypeNameInConstructorReferenceHandle(
-      NoTypeNameInConstructorReferenceHandle node);
+    NoTypeNameInConstructorReferenceHandle node,
+  );
   R visitNoTypeHandle(NoTypeHandle node);
   R visitNoTypeVariablesHandle(NoTypeVariablesHandle node);
   R visitOperatorHandle(OperatorHandle node);
   R visitSwitchCaseNoWhenClauseHandle(SwitchCaseNoWhenClauseHandle node);
   R visitSwitchExpressionCasePatternHandle(
-      SwitchExpressionCasePatternHandle node);
+    SwitchExpressionCasePatternHandle node,
+  );
   R visitSymbolVoidHandle(SymbolVoidHandle node);
   R visitOperatorNameHandle(OperatorNameHandle node);
   R visitInvalidOperatorNameHandle(InvalidOperatorNameHandle node);
@@ -10803,7 +11198,8 @@ abstract class ParserAstVisitor<R> {
   R visitPatternBegin(PatternBegin node);
   R visitPatternGuardBegin(PatternGuardBegin node);
   R visitParenthesizedExpressionOrRecordLiteralBegin(
-      ParenthesizedExpressionOrRecordLiteralBegin node);
+    ParenthesizedExpressionOrRecordLiteralBegin node,
+  );
   R visitSwitchCaseWhenClauseBegin(SwitchCaseWhenClauseBegin node);
   R visitRecordLiteralEnd(RecordLiteralEnd node);
   R visitRecordPatternHandle(RecordPatternHandle node);
@@ -10825,21 +11221,27 @@ abstract class ParserAstVisitor<R> {
   R visitSwitchExpressionCaseEnd(SwitchExpressionCaseEnd node);
   R visitThisExpressionHandle(ThisExpressionHandle node);
   R visitUnaryPostfixAssignmentExpressionHandle(
-      UnaryPostfixAssignmentExpressionHandle node);
+    UnaryPostfixAssignmentExpressionHandle node,
+  );
   R visitUnaryPrefixExpressionHandle(UnaryPrefixExpressionHandle node);
   R visitRelationalPatternHandle(RelationalPatternHandle node);
   R visitUnaryPrefixAssignmentExpressionHandle(
-      UnaryPrefixAssignmentExpressionHandle node);
+    UnaryPrefixAssignmentExpressionHandle node,
+  );
   R visitFormalParameterDefaultValueExpressionBegin(
-      FormalParameterDefaultValueExpressionBegin node);
+    FormalParameterDefaultValueExpressionBegin node,
+  );
   R visitFormalParameterDefaultValueExpressionEnd(
-      FormalParameterDefaultValueExpressionEnd node);
+    FormalParameterDefaultValueExpressionEnd node,
+  );
   R visitValuedFormalParameterHandle(ValuedFormalParameterHandle node);
   R visitFormalParameterWithoutValueHandle(
-      FormalParameterWithoutValueHandle node);
+    FormalParameterWithoutValueHandle node,
+  );
   R visitVoidKeywordHandle(VoidKeywordHandle node);
   R visitVoidKeywordWithTypeArgumentsHandle(
-      VoidKeywordWithTypeArgumentsHandle node);
+    VoidKeywordWithTypeArgumentsHandle node,
+  );
   R visitYieldStatementBegin(YieldStatementBegin node);
   R visitYieldStatementEnd(YieldStatementEnd node);
   R visitInvalidYieldStatementEnd(InvalidYieldStatementEnd node);
@@ -10852,7 +11254,8 @@ abstract class ParserAstVisitor<R> {
   R visitTypeArgumentApplicationHandle(TypeArgumentApplicationHandle node);
   R visitNewAsIdentifierHandle(NewAsIdentifierHandle node);
   R visitPatternVariableDeclarationStatementHandle(
-      PatternVariableDeclarationStatementHandle node);
+    PatternVariableDeclarationStatementHandle node,
+  );
   R visitPatternAssignmentHandle(PatternAssignmentHandle node);
   R visitDotShorthandContextHandle(DotShorthandContextHandle node);
   R visitDotShorthandHeadHandle(DotShorthandHeadHandle node);
@@ -10913,18 +11316,18 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
 
   @override
   void visitClassOrMixinOrExtensionBodyBegin(
-          ClassOrMixinOrExtensionBodyBegin node) =>
-      node.visitChildren(this);
+    ClassOrMixinOrExtensionBodyBegin node,
+  ) => node.visitChildren(this);
 
   @override
   void visitClassOrMixinOrExtensionBodyEnd(
-          ClassOrMixinOrExtensionBodyEnd node) =>
-      node.visitChildren(this);
+    ClassOrMixinOrExtensionBodyEnd node,
+  ) => node.visitChildren(this);
 
   @override
   void visitClassOrMixinOrNamedMixinApplicationPreludeBegin(
-          ClassOrMixinOrNamedMixinApplicationPreludeBegin node) =>
-      node.visitChildren(this);
+    ClassOrMixinOrNamedMixinApplicationPreludeBegin node,
+  ) => node.visitChildren(this);
 
   @override
   void visitClassDeclarationBegin(ClassDeclarationBegin node) =>
@@ -10943,11 +11346,19 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
 
   @override
   void visitRecoverDeclarationHeaderHandle(
-          RecoverDeclarationHeaderHandle node) =>
-      node.visitChildren(this);
+    RecoverDeclarationHeaderHandle node,
+  ) => node.visitChildren(this);
 
   @override
   void visitClassDeclarationEnd(ClassDeclarationEnd node) =>
+      node.visitChildren(this);
+
+  @override
+  void visitNoClassBodyHandle(NoClassBodyHandle node) =>
+      node.visitChildren(this);
+
+  @override
+  void visitNoExtensionTypeBodyHandle(NoExtensionTypeBodyHandle node) =>
       node.visitChildren(this);
 
   @override
@@ -10966,18 +11377,22 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
       node.visitChildren(this);
 
   @override
+  void visitNoMixinBodyHandle(NoMixinBodyHandle node) =>
+      node.visitChildren(this);
+
+  @override
   void visitMixinDeclarationEnd(MixinDeclarationEnd node) =>
       node.visitChildren(this);
 
   @override
   void visitUncategorizedTopLevelDeclarationBegin(
-          UncategorizedTopLevelDeclarationBegin node) =>
-      node.visitChildren(this);
+    UncategorizedTopLevelDeclarationBegin node,
+  ) => node.visitChildren(this);
 
   @override
   void visitExtensionDeclarationPreludeBegin(
-          ExtensionDeclarationPreludeBegin node) =>
-      node.visitChildren(this);
+    ExtensionDeclarationPreludeBegin node,
+  ) => node.visitChildren(this);
 
   @override
   void visitExtensionDeclarationBegin(ExtensionDeclarationBegin node) =>
@@ -10985,6 +11400,10 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
 
   @override
   void visitExtensionDeclarationEnd(ExtensionDeclarationEnd node) =>
+      node.visitChildren(this);
+
+  @override
+  void visitNoExtensionBodyHandle(NoExtensionBodyHandle node) =>
       node.visitChildren(this);
 
   @override
@@ -11005,6 +11424,14 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
 
   @override
   void visitNoPrimaryConstructorHandle(NoPrimaryConstructorHandle node) =>
+      node.visitChildren(this);
+
+  @override
+  void visitPrimaryConstructorBodyBegin(PrimaryConstructorBodyBegin node) =>
+      node.visitChildren(this);
+
+  @override
+  void visitPrimaryConstructorBodyEnd(PrimaryConstructorBodyEnd node) =>
       node.visitChildren(this);
 
   @override
@@ -11065,13 +11492,15 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
       node.visitChildren(this);
 
   @override
-  void visitEnumBegin(EnumBegin node) => node.visitChildren(this);
+  void visitEnumDeclarationPreludeBegin(EnumDeclarationPreludeBegin node) =>
+      node.visitChildren(this);
 
   @override
-  void visitEnumEnd(EnumEnd node) => node.visitChildren(this);
+  void visitEnumDeclarationBegin(EnumDeclarationBegin node) =>
+      node.visitChildren(this);
 
   @override
-  void visitEnumConstructorEnd(EnumConstructorEnd node) =>
+  void visitEnumDeclarationEnd(EnumDeclarationEnd node) =>
       node.visitChildren(this);
 
   @override
@@ -11082,11 +11511,16 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
   void visitEnumHeaderHandle(EnumHeaderHandle node) => node.visitChildren(this);
 
   @override
-  void visitEnumElementHandle(EnumElementHandle node) =>
-      node.visitChildren(this);
+  void visitEnumBodyBegin(EnumBodyBegin node) => node.visitChildren(this);
 
   @override
-  void visitEnumFactoryMethodEnd(EnumFactoryMethodEnd node) =>
+  void visitEnumBodyEnd(EnumBodyEnd node) => node.visitChildren(this);
+
+  @override
+  void visitNoEnumBodyHandle(NoEnumBodyHandle node) => node.visitChildren(this);
+
+  @override
+  void visitEnumElementHandle(EnumElementHandle node) =>
       node.visitChildren(this);
 
   @override
@@ -11104,24 +11538,10 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
       node.visitChildren(this);
 
   @override
-  void visitFactoryMethodBegin(FactoryMethodBegin node) =>
-      node.visitChildren(this);
+  void visitFactoryBegin(FactoryBegin node) => node.visitChildren(this);
 
   @override
-  void visitClassFactoryMethodEnd(ClassFactoryMethodEnd node) =>
-      node.visitChildren(this);
-
-  @override
-  void visitMixinFactoryMethodEnd(MixinFactoryMethodEnd node) =>
-      node.visitChildren(this);
-
-  @override
-  void visitExtensionFactoryMethodEnd(ExtensionFactoryMethodEnd node) =>
-      node.visitChildren(this);
-
-  @override
-  void visitExtensionTypeFactoryMethodEnd(ExtensionTypeFactoryMethodEnd node) =>
-      node.visitChildren(this);
+  void visitFactoryEnd(FactoryEnd node) => node.visitChildren(this);
 
   @override
   void visitFormalParameterBegin(FormalParameterBegin node) =>
@@ -11144,44 +11564,27 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
       node.visitChildren(this);
 
   @override
-  void visitClassFieldsEnd(ClassFieldsEnd node) => node.visitChildren(this);
-
-  @override
-  void visitMixinFieldsEnd(MixinFieldsEnd node) => node.visitChildren(this);
-
-  @override
-  void visitExtensionFieldsEnd(ExtensionFieldsEnd node) =>
-      node.visitChildren(this);
-
-  @override
-  void visitExtensionTypeFieldsEnd(ExtensionTypeFieldsEnd node) =>
-      node.visitChildren(this);
-
-  @override
-  void visitEnumFieldsEnd(EnumFieldsEnd node) => node.visitChildren(this);
-
-  @override
-  void visitEnumMethodEnd(EnumMethodEnd node) => node.visitChildren(this);
+  void visitFieldsEnd(FieldsEnd node) => node.visitChildren(this);
 
   @override
   void visitForInitializerEmptyStatementHandle(
-          ForInitializerEmptyStatementHandle node) =>
-      node.visitChildren(this);
+    ForInitializerEmptyStatementHandle node,
+  ) => node.visitChildren(this);
 
   @override
   void visitForInitializerExpressionStatementHandle(
-          ForInitializerExpressionStatementHandle node) =>
-      node.visitChildren(this);
+    ForInitializerExpressionStatementHandle node,
+  ) => node.visitChildren(this);
 
   @override
   void visitForInitializerLocalVariableDeclarationHandle(
-          ForInitializerLocalVariableDeclarationHandle node) =>
-      node.visitChildren(this);
+    ForInitializerLocalVariableDeclarationHandle node,
+  ) => node.visitChildren(this);
 
   @override
   void visitForInitializerPatternVariableAssignmentHandle(
-          ForInitializerPatternVariableAssignmentHandle node) =>
-      node.visitChildren(this);
+    ForInitializerPatternVariableAssignmentHandle node,
+  ) => node.visitChildren(this);
 
   @override
   void visitForStatementBegin(ForStatementBegin node) =>
@@ -11294,8 +11697,8 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
 
   @override
   void visitNamedMixinApplicationWithClauseHandle(
-          NamedMixinApplicationWithClauseHandle node) =>
-      node.visitChildren(this);
+    NamedMixinApplicationWithClauseHandle node,
+  ) => node.visitChildren(this);
 
   @override
   void visitNamedMixinApplicationEnd(NamedMixinApplicationEnd node) =>
@@ -11372,8 +11775,8 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
 
   @override
   void visitImplicitCreationExpressionBegin(
-          ImplicitCreationExpressionBegin node) =>
-      node.visitChildren(this);
+    ImplicitCreationExpressionBegin node,
+  ) => node.visitChildren(this);
 
   @override
   void visitImplicitCreationExpressionEnd(ImplicitCreationExpressionEnd node) =>
@@ -11502,34 +11905,13 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
   void visitMethodBegin(MethodBegin node) => node.visitChildren(this);
 
   @override
-  void visitClassMethodEnd(ClassMethodEnd node) => node.visitChildren(this);
+  void visitMethodEnd(MethodEnd node) => node.visitChildren(this);
 
   @override
-  void visitMixinMethodEnd(MixinMethodEnd node) => node.visitChildren(this);
+  void visitConstructorBegin(ConstructorBegin node) => node.visitChildren(this);
 
   @override
-  void visitExtensionMethodEnd(ExtensionMethodEnd node) =>
-      node.visitChildren(this);
-
-  @override
-  void visitExtensionTypeMethodEnd(ExtensionTypeMethodEnd node) =>
-      node.visitChildren(this);
-
-  @override
-  void visitClassConstructorEnd(ClassConstructorEnd node) =>
-      node.visitChildren(this);
-
-  @override
-  void visitMixinConstructorEnd(MixinConstructorEnd node) =>
-      node.visitChildren(this);
-
-  @override
-  void visitExtensionConstructorEnd(ExtensionConstructorEnd node) =>
-      node.visitChildren(this);
-
-  @override
-  void visitExtensionTypeConstructorEnd(ExtensionTypeConstructorEnd node) =>
-      node.visitChildren(this);
+  void visitConstructorEnd(ConstructorEnd node) => node.visitChildren(this);
 
   @override
   void visitMetadataStarBegin(MetadataStarBegin node) =>
@@ -11582,13 +11964,13 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
 
   @override
   void visitNativeFunctionBodyIgnoredHandle(
-          NativeFunctionBodyIgnoredHandle node) =>
-      node.visitChildren(this);
+    NativeFunctionBodyIgnoredHandle node,
+  ) => node.visitChildren(this);
 
   @override
   void visitNativeFunctionBodySkippedHandle(
-          NativeFunctionBodySkippedHandle node) =>
-      node.visitChildren(this);
+    NativeFunctionBodySkippedHandle node,
+  ) => node.visitChildren(this);
 
   @override
   void visitEmptyFunctionBodyHandle(EmptyFunctionBodyHandle node) =>
@@ -11666,8 +12048,8 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
 
   @override
   void visitInvalidTopLevelDeclarationHandle(
-          InvalidTopLevelDeclarationHandle node) =>
-      node.visitChildren(this);
+    InvalidTopLevelDeclarationHandle node,
+  ) => node.visitChildren(this);
 
   @override
   void visitTopLevelMemberBegin(TopLevelMemberBegin node) =>
@@ -11844,6 +12226,20 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
       node.visitChildren(this);
 
   @override
+  void visitAnonymousMethodInvocationBegin(
+    AnonymousMethodInvocationBegin node,
+  ) => node.visitChildren(this);
+
+  @override
+  void visitAnonymousMethodInvocationEnd(AnonymousMethodInvocationEnd node) =>
+      node.visitChildren(this);
+
+  @override
+  void visitImplicitFormalParametersHandle(
+    ImplicitFormalParametersHandle node,
+  ) => node.visitChildren(this);
+
+  @override
   void visitBinaryExpressionBegin(BinaryExpressionBegin node) =>
       node.visitChildren(this);
 
@@ -11859,7 +12255,10 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
   void visitBinaryPatternEnd(BinaryPatternEnd node) => node.visitChildren(this);
 
   @override
-  void visitEndingBinaryExpressionHandle(EndingBinaryExpressionHandle node) =>
+  void visitDotAccessHandle(DotAccessHandle node) => node.visitChildren(this);
+
+  @override
+  void visitCascadeAccessHandle(CascadeAccessHandle node) =>
       node.visitChildren(this);
 
   @override
@@ -11868,8 +12267,8 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
 
   @override
   void visitConditionalExpressionColonHandle(
-          ConditionalExpressionColonHandle node) =>
-      node.visitChildren(this);
+    ConditionalExpressionColonHandle node,
+  ) => node.visitChildren(this);
 
   @override
   void visitConditionalExpressionEnd(ConditionalExpressionEnd node) =>
@@ -11932,13 +12331,13 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
 
   @override
   void visitFunctionTypedFormalParameterBegin(
-          FunctionTypedFormalParameterBegin node) =>
-      node.visitChildren(this);
+    FunctionTypedFormalParameterBegin node,
+  ) => node.visitChildren(this);
 
   @override
   void visitFunctionTypedFormalParameterEnd(
-          FunctionTypedFormalParameterEnd node) =>
-      node.visitChildren(this);
+    FunctionTypedFormalParameterEnd node,
+  ) => node.visitChildren(this);
 
   @override
   void visitIdentifierHandle(IdentifierHandle node) => node.visitChildren(this);
@@ -11986,16 +12385,16 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
 
   @override
   void visitLiteralDoubleWithSeparatorsHandle(
-          LiteralDoubleWithSeparatorsHandle node) =>
-      node.visitChildren(this);
+    LiteralDoubleWithSeparatorsHandle node,
+  ) => node.visitChildren(this);
 
   @override
   void visitLiteralIntHandle(LiteralIntHandle node) => node.visitChildren(this);
 
   @override
   void visitLiteralIntWithSeparatorsHandle(
-          LiteralIntWithSeparatorsHandle node) =>
-      node.visitChildren(this);
+    LiteralIntWithSeparatorsHandle node,
+  ) => node.visitChildren(this);
 
   @override
   void visitLiteralListHandle(LiteralListHandle node) =>
@@ -12025,11 +12424,19 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
       node.visitChildren(this);
 
   @override
+  void visitPositionalArgumentHandle(PositionalArgumentHandle node) =>
+      node.visitChildren(this);
+
+  @override
   void visitPatternFieldHandle(PatternFieldHandle node) =>
       node.visitChildren(this);
 
   @override
   void visitNamedRecordFieldHandle(NamedRecordFieldHandle node) =>
+      node.visitChildren(this);
+
+  @override
+  void visitPositionalRecordFieldHandle(PositionalRecordFieldHandle node) =>
       node.visitChildren(this);
 
   @override
@@ -12045,13 +12452,17 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
 
   @override
   void visitNoConstructorReferenceContinuationAfterTypeArgumentsHandle(
-          NoConstructorReferenceContinuationAfterTypeArgumentsHandle node) =>
+    NoConstructorReferenceContinuationAfterTypeArgumentsHandle node,
+  ) => node.visitChildren(this);
+
+  @override
+  void visitNoIdentifierHandle(NoIdentifierHandle node) =>
       node.visitChildren(this);
 
   @override
   void visitNoTypeNameInConstructorReferenceHandle(
-          NoTypeNameInConstructorReferenceHandle node) =>
-      node.visitChildren(this);
+    NoTypeNameInConstructorReferenceHandle node,
+  ) => node.visitChildren(this);
 
   @override
   void visitNoTypeHandle(NoTypeHandle node) => node.visitChildren(this);
@@ -12069,8 +12480,8 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
 
   @override
   void visitSwitchExpressionCasePatternHandle(
-          SwitchExpressionCasePatternHandle node) =>
-      node.visitChildren(this);
+    SwitchExpressionCasePatternHandle node,
+  ) => node.visitChildren(this);
 
   @override
   void visitSymbolVoidHandle(SymbolVoidHandle node) => node.visitChildren(this);
@@ -12096,8 +12507,8 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
 
   @override
   void visitParenthesizedExpressionOrRecordLiteralBegin(
-          ParenthesizedExpressionOrRecordLiteralBegin node) =>
-      node.visitChildren(this);
+    ParenthesizedExpressionOrRecordLiteralBegin node,
+  ) => node.visitChildren(this);
 
   @override
   void visitSwitchCaseWhenClauseBegin(SwitchCaseWhenClauseBegin node) =>
@@ -12174,8 +12585,8 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
 
   @override
   void visitUnaryPostfixAssignmentExpressionHandle(
-          UnaryPostfixAssignmentExpressionHandle node) =>
-      node.visitChildren(this);
+    UnaryPostfixAssignmentExpressionHandle node,
+  ) => node.visitChildren(this);
 
   @override
   void visitUnaryPrefixExpressionHandle(UnaryPrefixExpressionHandle node) =>
@@ -12187,18 +12598,18 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
 
   @override
   void visitUnaryPrefixAssignmentExpressionHandle(
-          UnaryPrefixAssignmentExpressionHandle node) =>
-      node.visitChildren(this);
+    UnaryPrefixAssignmentExpressionHandle node,
+  ) => node.visitChildren(this);
 
   @override
   void visitFormalParameterDefaultValueExpressionBegin(
-          FormalParameterDefaultValueExpressionBegin node) =>
-      node.visitChildren(this);
+    FormalParameterDefaultValueExpressionBegin node,
+  ) => node.visitChildren(this);
 
   @override
   void visitFormalParameterDefaultValueExpressionEnd(
-          FormalParameterDefaultValueExpressionEnd node) =>
-      node.visitChildren(this);
+    FormalParameterDefaultValueExpressionEnd node,
+  ) => node.visitChildren(this);
 
   @override
   void visitValuedFormalParameterHandle(ValuedFormalParameterHandle node) =>
@@ -12206,8 +12617,8 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
 
   @override
   void visitFormalParameterWithoutValueHandle(
-          FormalParameterWithoutValueHandle node) =>
-      node.visitChildren(this);
+    FormalParameterWithoutValueHandle node,
+  ) => node.visitChildren(this);
 
   @override
   void visitVoidKeywordHandle(VoidKeywordHandle node) =>
@@ -12215,8 +12626,8 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
 
   @override
   void visitVoidKeywordWithTypeArgumentsHandle(
-          VoidKeywordWithTypeArgumentsHandle node) =>
-      node.visitChildren(this);
+    VoidKeywordWithTypeArgumentsHandle node,
+  ) => node.visitChildren(this);
 
   @override
   void visitYieldStatementBegin(YieldStatementBegin node) =>
@@ -12262,8 +12673,8 @@ class RecursiveParserAstVisitor implements ParserAstVisitor<void> {
 
   @override
   void visitPatternVariableDeclarationStatementHandle(
-          PatternVariableDeclarationStatementHandle node) =>
-      node.visitChildren(this);
+    PatternVariableDeclarationStatementHandle node,
+  ) => node.visitChildren(this);
 
   @override
   void visitPatternAssignmentHandle(PatternAssignmentHandle node) =>
@@ -12330,8 +12741,8 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitInvalidTopLevelBlockHandle(
-          InvalidTopLevelBlockHandle node) =>
-      defaultNode(node);
+    InvalidTopLevelBlockHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitCascadeBegin(CascadeBegin node) => defaultNode(node);
@@ -12349,18 +12760,18 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitClassOrMixinOrExtensionBodyBegin(
-          ClassOrMixinOrExtensionBodyBegin node) =>
-      defaultNode(node);
+    ClassOrMixinOrExtensionBodyBegin node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitClassOrMixinOrExtensionBodyEnd(
-          ClassOrMixinOrExtensionBodyEnd node) =>
-      defaultNode(node);
+    ClassOrMixinOrExtensionBodyEnd node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitClassOrMixinOrNamedMixinApplicationPreludeBegin(
-          ClassOrMixinOrNamedMixinApplicationPreludeBegin node) =>
-      defaultNode(node);
+    ClassOrMixinOrNamedMixinApplicationPreludeBegin node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitClassDeclarationBegin(ClassDeclarationBegin node) =>
@@ -12380,11 +12791,19 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitRecoverDeclarationHeaderHandle(
-          RecoverDeclarationHeaderHandle node) =>
-      defaultNode(node);
+    RecoverDeclarationHeaderHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitClassDeclarationEnd(ClassDeclarationEnd node) =>
+      defaultNode(node);
+
+  @override
+  Future<void> visitNoClassBodyHandle(NoClassBodyHandle node) =>
+      defaultNode(node);
+
+  @override
+  Future<void> visitNoExtensionTypeBodyHandle(NoExtensionTypeBodyHandle node) =>
       defaultNode(node);
 
   @override
@@ -12403,18 +12822,22 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
       defaultNode(node);
 
   @override
+  Future<void> visitNoMixinBodyHandle(NoMixinBodyHandle node) =>
+      defaultNode(node);
+
+  @override
   Future<void> visitMixinDeclarationEnd(MixinDeclarationEnd node) =>
       defaultNode(node);
 
   @override
   Future<void> visitUncategorizedTopLevelDeclarationBegin(
-          UncategorizedTopLevelDeclarationBegin node) =>
-      defaultNode(node);
+    UncategorizedTopLevelDeclarationBegin node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitExtensionDeclarationPreludeBegin(
-          ExtensionDeclarationPreludeBegin node) =>
-      defaultNode(node);
+    ExtensionDeclarationPreludeBegin node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitExtensionDeclarationBegin(ExtensionDeclarationBegin node) =>
@@ -12425,14 +12848,18 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
       defaultNode(node);
 
   @override
-  Future<void> visitExtensionTypeDeclarationBegin(
-          ExtensionTypeDeclarationBegin node) =>
+  Future<void> visitNoExtensionBodyHandle(NoExtensionBodyHandle node) =>
       defaultNode(node);
 
   @override
+  Future<void> visitExtensionTypeDeclarationBegin(
+    ExtensionTypeDeclarationBegin node,
+  ) => defaultNode(node);
+
+  @override
   Future<void> visitExtensionTypeDeclarationEnd(
-          ExtensionTypeDeclarationEnd node) =>
-      defaultNode(node);
+    ExtensionTypeDeclarationEnd node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitPrimaryConstructorBegin(PrimaryConstructorBegin node) =>
@@ -12444,7 +12871,16 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitNoPrimaryConstructorHandle(
-          NoPrimaryConstructorHandle node) =>
+    NoPrimaryConstructorHandle node,
+  ) => defaultNode(node);
+
+  @override
+  Future<void> visitPrimaryConstructorBodyBegin(
+    PrimaryConstructorBodyBegin node,
+  ) => defaultNode(node);
+
+  @override
+  Future<void> visitPrimaryConstructorBodyEnd(PrimaryConstructorBodyEnd node) =>
       defaultNode(node);
 
   @override
@@ -12506,13 +12942,16 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
       defaultNode(node);
 
   @override
-  Future<void> visitEnumBegin(EnumBegin node) => defaultNode(node);
+  Future<void> visitEnumDeclarationPreludeBegin(
+    EnumDeclarationPreludeBegin node,
+  ) => defaultNode(node);
 
   @override
-  Future<void> visitEnumEnd(EnumEnd node) => defaultNode(node);
+  Future<void> visitEnumDeclarationBegin(EnumDeclarationBegin node) =>
+      defaultNode(node);
 
   @override
-  Future<void> visitEnumConstructorEnd(EnumConstructorEnd node) =>
+  Future<void> visitEnumDeclarationEnd(EnumDeclarationEnd node) =>
       defaultNode(node);
 
   @override
@@ -12524,11 +12963,17 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
       defaultNode(node);
 
   @override
-  Future<void> visitEnumElementHandle(EnumElementHandle node) =>
+  Future<void> visitEnumBodyBegin(EnumBodyBegin node) => defaultNode(node);
+
+  @override
+  Future<void> visitEnumBodyEnd(EnumBodyEnd node) => defaultNode(node);
+
+  @override
+  Future<void> visitNoEnumBodyHandle(NoEnumBodyHandle node) =>
       defaultNode(node);
 
   @override
-  Future<void> visitEnumFactoryMethodEnd(EnumFactoryMethodEnd node) =>
+  Future<void> visitEnumElementHandle(EnumElementHandle node) =>
       defaultNode(node);
 
   @override
@@ -12539,33 +12984,18 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitExtraneousExpressionHandle(
-          ExtraneousExpressionHandle node) =>
-      defaultNode(node);
+    ExtraneousExpressionHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitExpressionStatementHandle(ExpressionStatementHandle node) =>
       defaultNode(node);
 
   @override
-  Future<void> visitFactoryMethodBegin(FactoryMethodBegin node) =>
-      defaultNode(node);
+  Future<void> visitFactoryBegin(FactoryBegin node) => defaultNode(node);
 
   @override
-  Future<void> visitClassFactoryMethodEnd(ClassFactoryMethodEnd node) =>
-      defaultNode(node);
-
-  @override
-  Future<void> visitMixinFactoryMethodEnd(MixinFactoryMethodEnd node) =>
-      defaultNode(node);
-
-  @override
-  Future<void> visitExtensionFactoryMethodEnd(ExtensionFactoryMethodEnd node) =>
-      defaultNode(node);
-
-  @override
-  Future<void> visitExtensionTypeFactoryMethodEnd(
-          ExtensionTypeFactoryMethodEnd node) =>
-      defaultNode(node);
+  Future<void> visitFactoryEnd(FactoryEnd node) => defaultNode(node);
 
   @override
   Future<void> visitFormalParameterBegin(FormalParameterBegin node) =>
@@ -12588,44 +13018,27 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
       defaultNode(node);
 
   @override
-  Future<void> visitClassFieldsEnd(ClassFieldsEnd node) => defaultNode(node);
-
-  @override
-  Future<void> visitMixinFieldsEnd(MixinFieldsEnd node) => defaultNode(node);
-
-  @override
-  Future<void> visitExtensionFieldsEnd(ExtensionFieldsEnd node) =>
-      defaultNode(node);
-
-  @override
-  Future<void> visitExtensionTypeFieldsEnd(ExtensionTypeFieldsEnd node) =>
-      defaultNode(node);
-
-  @override
-  Future<void> visitEnumFieldsEnd(EnumFieldsEnd node) => defaultNode(node);
-
-  @override
-  Future<void> visitEnumMethodEnd(EnumMethodEnd node) => defaultNode(node);
+  Future<void> visitFieldsEnd(FieldsEnd node) => defaultNode(node);
 
   @override
   Future<void> visitForInitializerEmptyStatementHandle(
-          ForInitializerEmptyStatementHandle node) =>
-      defaultNode(node);
+    ForInitializerEmptyStatementHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitForInitializerExpressionStatementHandle(
-          ForInitializerExpressionStatementHandle node) =>
-      defaultNode(node);
+    ForInitializerExpressionStatementHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitForInitializerLocalVariableDeclarationHandle(
-          ForInitializerLocalVariableDeclarationHandle node) =>
-      defaultNode(node);
+    ForInitializerLocalVariableDeclarationHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitForInitializerPatternVariableAssignmentHandle(
-          ForInitializerPatternVariableAssignmentHandle node) =>
-      defaultNode(node);
+    ForInitializerPatternVariableAssignmentHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitForStatementBegin(ForStatementBegin node) =>
@@ -12669,23 +13082,23 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitNamedFunctionExpressionBegin(
-          NamedFunctionExpressionBegin node) =>
-      defaultNode(node);
+    NamedFunctionExpressionBegin node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitNamedFunctionExpressionEnd(
-          NamedFunctionExpressionEnd node) =>
-      defaultNode(node);
+    NamedFunctionExpressionEnd node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitLocalFunctionDeclarationBegin(
-          LocalFunctionDeclarationBegin node) =>
-      defaultNode(node);
+    LocalFunctionDeclarationBegin node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitLocalFunctionDeclarationEnd(
-          LocalFunctionDeclarationEnd node) =>
-      defaultNode(node);
+    LocalFunctionDeclarationEnd node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitBlockFunctionBodyBegin(BlockFunctionBodyBegin node) =>
@@ -12738,13 +13151,13 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitNamedMixinApplicationBegin(
-          NamedMixinApplicationBegin node) =>
-      defaultNode(node);
+    NamedMixinApplicationBegin node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitNamedMixinApplicationWithClauseHandle(
-          NamedMixinApplicationWithClauseHandle node) =>
-      defaultNode(node);
+    NamedMixinApplicationWithClauseHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitNamedMixinApplicationEnd(NamedMixinApplicationEnd node) =>
@@ -12825,18 +13238,18 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitImplicitCreationExpressionBegin(
-          ImplicitCreationExpressionBegin node) =>
-      defaultNode(node);
+    ImplicitCreationExpressionBegin node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitImplicitCreationExpressionEnd(
-          ImplicitCreationExpressionEnd node) =>
-      defaultNode(node);
+    ImplicitCreationExpressionEnd node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitInitializedIdentifierBegin(
-          InitializedIdentifierBegin node) =>
-      defaultNode(node);
+    InitializedIdentifierBegin node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitInitializedIdentifierEnd(InitializedIdentifierEnd node) =>
@@ -12864,8 +13277,8 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitNoVariableInitializerHandle(
-          NoVariableInitializerHandle node) =>
-      defaultNode(node);
+    NoVariableInitializerHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitInitializerBegin(InitializerBegin node) =>
@@ -12895,8 +13308,8 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitInvalidTypeReferenceHandle(
-          InvalidTypeReferenceHandle node) =>
-      defaultNode(node);
+    InvalidTypeReferenceHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitLabelHandle(LabelHandle node) => defaultNode(node);
@@ -12938,8 +13351,8 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitInterpolationExpressionHandle(
-          InterpolationExpressionHandle node) =>
-      defaultNode(node);
+    InterpolationExpressionHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitLiteralStringEnd(LiteralStringEnd node) =>
@@ -12947,8 +13360,8 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitAdjacentStringLiteralsHandle(
-          AdjacentStringLiteralsHandle node) =>
-      defaultNode(node);
+    AdjacentStringLiteralsHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitMemberBegin(MemberBegin node) => defaultNode(node);
@@ -12964,35 +13377,14 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
   Future<void> visitMethodBegin(MethodBegin node) => defaultNode(node);
 
   @override
-  Future<void> visitClassMethodEnd(ClassMethodEnd node) => defaultNode(node);
+  Future<void> visitMethodEnd(MethodEnd node) => defaultNode(node);
 
   @override
-  Future<void> visitMixinMethodEnd(MixinMethodEnd node) => defaultNode(node);
-
-  @override
-  Future<void> visitExtensionMethodEnd(ExtensionMethodEnd node) =>
+  Future<void> visitConstructorBegin(ConstructorBegin node) =>
       defaultNode(node);
 
   @override
-  Future<void> visitExtensionTypeMethodEnd(ExtensionTypeMethodEnd node) =>
-      defaultNode(node);
-
-  @override
-  Future<void> visitClassConstructorEnd(ClassConstructorEnd node) =>
-      defaultNode(node);
-
-  @override
-  Future<void> visitMixinConstructorEnd(MixinConstructorEnd node) =>
-      defaultNode(node);
-
-  @override
-  Future<void> visitExtensionConstructorEnd(ExtensionConstructorEnd node) =>
-      defaultNode(node);
-
-  @override
-  Future<void> visitExtensionTypeConstructorEnd(
-          ExtensionTypeConstructorEnd node) =>
-      defaultNode(node);
+  Future<void> visitConstructorEnd(ConstructorEnd node) => defaultNode(node);
 
   @override
   Future<void> visitMetadataStarBegin(MetadataStarBegin node) =>
@@ -13009,13 +13401,13 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitOptionalFormalParametersBegin(
-          OptionalFormalParametersBegin node) =>
-      defaultNode(node);
+    OptionalFormalParametersBegin node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitOptionalFormalParametersEnd(
-          OptionalFormalParametersEnd node) =>
-      defaultNode(node);
+    OptionalFormalParametersEnd node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitPartBegin(PartBegin node) => defaultNode(node);
@@ -13031,8 +13423,8 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitRedirectingFactoryBodyBegin(
-          RedirectingFactoryBodyBegin node) =>
-      defaultNode(node);
+    RedirectingFactoryBodyBegin node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitRedirectingFactoryBodyEnd(RedirectingFactoryBodyEnd node) =>
@@ -13048,13 +13440,13 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitNativeFunctionBodyIgnoredHandle(
-          NativeFunctionBodyIgnoredHandle node) =>
-      defaultNode(node);
+    NativeFunctionBodyIgnoredHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitNativeFunctionBodySkippedHandle(
-          NativeFunctionBodySkippedHandle node) =>
-      defaultNode(node);
+    NativeFunctionBodySkippedHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitEmptyFunctionBodyHandle(EmptyFunctionBodyHandle node) =>
@@ -13062,8 +13454,8 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitExpressionFunctionBodyHandle(
-          ExpressionFunctionBodyHandle node) =>
-      defaultNode(node);
+    ExpressionFunctionBodyHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitReturnStatementEnd(ReturnStatementEnd node) =>
@@ -13103,8 +13495,8 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitSwitchExpressionBlockBegin(
-          SwitchExpressionBlockBegin node) =>
-      defaultNode(node);
+    SwitchExpressionBlockBegin node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitSwitchExpressionBlockEnd(SwitchExpressionBlockEnd node) =>
@@ -13136,8 +13528,8 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitInvalidTopLevelDeclarationHandle(
-          InvalidTopLevelDeclarationHandle node) =>
-      defaultNode(node);
+    InvalidTopLevelDeclarationHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitTopLevelMemberBegin(TopLevelMemberBegin node) =>
@@ -13185,8 +13577,8 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitNonNullAssertExpressionHandle(
-          NonNullAssertExpressionHandle node) =>
-      defaultNode(node);
+    NonNullAssertExpressionHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitNullAssertPatternHandle(NullAssertPatternHandle node) =>
@@ -13198,13 +13590,13 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitAssignedVariablePatternHandle(
-          AssignedVariablePatternHandle node) =>
-      defaultNode(node);
+    AssignedVariablePatternHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitDeclaredVariablePatternHandle(
-          DeclaredVariablePatternHandle node) =>
-      defaultNode(node);
+    DeclaredVariablePatternHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitWildcardPatternHandle(WildcardPatternHandle node) =>
@@ -13229,8 +13621,8 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitRecordTypeNamedFieldsBegin(
-          RecordTypeNamedFieldsBegin node) =>
-      defaultNode(node);
+    RecordTypeNamedFieldsBegin node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitRecordTypeNamedFieldsEnd(RecordTypeNamedFieldsEnd node) =>
@@ -13253,8 +13645,8 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitInvalidTypeArgumentsHandle(
-          InvalidTypeArgumentsHandle node) =>
-      defaultNode(node);
+    InvalidTypeArgumentsHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitNoTypeArgumentsHandle(NoTypeArgumentsHandle node) =>
@@ -13266,8 +13658,8 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitTypeVariablesDefinedHandle(
-          TypeVariablesDefinedHandle node) =>
-      defaultNode(node);
+    TypeVariablesDefinedHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitTypeVariableEnd(TypeVariableEnd node) => defaultNode(node);
@@ -13322,8 +13714,23 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitAssignmentExpressionHandle(
-          AssignmentExpressionHandle node) =>
-      defaultNode(node);
+    AssignmentExpressionHandle node,
+  ) => defaultNode(node);
+
+  @override
+  Future<void> visitAnonymousMethodInvocationBegin(
+    AnonymousMethodInvocationBegin node,
+  ) => defaultNode(node);
+
+  @override
+  Future<void> visitAnonymousMethodInvocationEnd(
+    AnonymousMethodInvocationEnd node,
+  ) => defaultNode(node);
+
+  @override
+  Future<void> visitImplicitFormalParametersHandle(
+    ImplicitFormalParametersHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitBinaryExpressionBegin(BinaryExpressionBegin node) =>
@@ -13342,19 +13749,21 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
       defaultNode(node);
 
   @override
-  Future<void> visitEndingBinaryExpressionHandle(
-          EndingBinaryExpressionHandle node) =>
+  Future<void> visitDotAccessHandle(DotAccessHandle node) => defaultNode(node);
+
+  @override
+  Future<void> visitCascadeAccessHandle(CascadeAccessHandle node) =>
       defaultNode(node);
 
   @override
   Future<void> visitConditionalExpressionBegin(
-          ConditionalExpressionBegin node) =>
-      defaultNode(node);
+    ConditionalExpressionBegin node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitConditionalExpressionColonHandle(
-          ConditionalExpressionColonHandle node) =>
-      defaultNode(node);
+    ConditionalExpressionColonHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitConditionalExpressionEnd(ConditionalExpressionEnd node) =>
@@ -13418,13 +13827,13 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitFunctionTypedFormalParameterBegin(
-          FunctionTypedFormalParameterBegin node) =>
-      defaultNode(node);
+    FunctionTypedFormalParameterBegin node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitFunctionTypedFormalParameterEnd(
-          FunctionTypedFormalParameterEnd node) =>
-      defaultNode(node);
+    FunctionTypedFormalParameterEnd node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitIdentifierHandle(IdentifierHandle node) =>
@@ -13474,8 +13883,8 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitLiteralDoubleWithSeparatorsHandle(
-          LiteralDoubleWithSeparatorsHandle node) =>
-      defaultNode(node);
+    LiteralDoubleWithSeparatorsHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitLiteralIntHandle(LiteralIntHandle node) =>
@@ -13483,8 +13892,8 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitLiteralIntWithSeparatorsHandle(
-          LiteralIntWithSeparatorsHandle node) =>
-      defaultNode(node);
+    LiteralIntWithSeparatorsHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitLiteralListHandle(LiteralListHandle node) =>
@@ -13515,12 +13924,21 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
       defaultNode(node);
 
   @override
+  Future<void> visitPositionalArgumentHandle(PositionalArgumentHandle node) =>
+      defaultNode(node);
+
+  @override
   Future<void> visitPatternFieldHandle(PatternFieldHandle node) =>
       defaultNode(node);
 
   @override
   Future<void> visitNamedRecordFieldHandle(NamedRecordFieldHandle node) =>
       defaultNode(node);
+
+  @override
+  Future<void> visitPositionalRecordFieldHandle(
+    PositionalRecordFieldHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitNewExpressionBegin(NewExpressionBegin node) =>
@@ -13536,13 +13954,17 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitNoConstructorReferenceContinuationAfterTypeArgumentsHandle(
-          NoConstructorReferenceContinuationAfterTypeArgumentsHandle node) =>
+    NoConstructorReferenceContinuationAfterTypeArgumentsHandle node,
+  ) => defaultNode(node);
+
+  @override
+  Future<void> visitNoIdentifierHandle(NoIdentifierHandle node) =>
       defaultNode(node);
 
   @override
   Future<void> visitNoTypeNameInConstructorReferenceHandle(
-          NoTypeNameInConstructorReferenceHandle node) =>
-      defaultNode(node);
+    NoTypeNameInConstructorReferenceHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitNoTypeHandle(NoTypeHandle node) => defaultNode(node);
@@ -13556,13 +13978,13 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitSwitchCaseNoWhenClauseHandle(
-          SwitchCaseNoWhenClauseHandle node) =>
-      defaultNode(node);
+    SwitchCaseNoWhenClauseHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitSwitchExpressionCasePatternHandle(
-          SwitchExpressionCasePatternHandle node) =>
-      defaultNode(node);
+    SwitchExpressionCasePatternHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitSymbolVoidHandle(SymbolVoidHandle node) =>
@@ -13578,8 +14000,8 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitParenthesizedConditionHandle(
-          ParenthesizedConditionHandle node) =>
-      defaultNode(node);
+    ParenthesizedConditionHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitPatternBegin(PatternBegin node) => defaultNode(node);
@@ -13590,8 +14012,8 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitParenthesizedExpressionOrRecordLiteralBegin(
-          ParenthesizedExpressionOrRecordLiteralBegin node) =>
-      defaultNode(node);
+    ParenthesizedExpressionOrRecordLiteralBegin node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitSwitchCaseWhenClauseBegin(SwitchCaseWhenClauseBegin node) =>
@@ -13613,8 +14035,8 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitParenthesizedExpressionEnd(
-          ParenthesizedExpressionEnd node) =>
-      defaultNode(node);
+    ParenthesizedExpressionEnd node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitSwitchCaseWhenClauseEnd(SwitchCaseWhenClauseEnd node) =>
@@ -13622,8 +14044,8 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitParenthesizedPatternHandle(
-          ParenthesizedPatternHandle node) =>
-      defaultNode(node);
+    ParenthesizedPatternHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitConstantPatternBegin(ConstantPatternBegin node) =>
@@ -13650,8 +14072,8 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitAugmentSuperExpressionHandle(
-          AugmentSuperExpressionHandle node) =>
-      defaultNode(node);
+    AugmentSuperExpressionHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitSwitchCaseBegin(SwitchCaseBegin node) => defaultNode(node);
@@ -13673,13 +14095,13 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitUnaryPostfixAssignmentExpressionHandle(
-          UnaryPostfixAssignmentExpressionHandle node) =>
-      defaultNode(node);
+    UnaryPostfixAssignmentExpressionHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitUnaryPrefixExpressionHandle(
-          UnaryPrefixExpressionHandle node) =>
-      defaultNode(node);
+    UnaryPrefixExpressionHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitRelationalPatternHandle(RelationalPatternHandle node) =>
@@ -13687,28 +14109,28 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitUnaryPrefixAssignmentExpressionHandle(
-          UnaryPrefixAssignmentExpressionHandle node) =>
-      defaultNode(node);
+    UnaryPrefixAssignmentExpressionHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitFormalParameterDefaultValueExpressionBegin(
-          FormalParameterDefaultValueExpressionBegin node) =>
-      defaultNode(node);
+    FormalParameterDefaultValueExpressionBegin node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitFormalParameterDefaultValueExpressionEnd(
-          FormalParameterDefaultValueExpressionEnd node) =>
-      defaultNode(node);
+    FormalParameterDefaultValueExpressionEnd node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitValuedFormalParameterHandle(
-          ValuedFormalParameterHandle node) =>
-      defaultNode(node);
+    ValuedFormalParameterHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitFormalParameterWithoutValueHandle(
-          FormalParameterWithoutValueHandle node) =>
-      defaultNode(node);
+    FormalParameterWithoutValueHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitVoidKeywordHandle(VoidKeywordHandle node) =>
@@ -13716,8 +14138,8 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitVoidKeywordWithTypeArgumentsHandle(
-          VoidKeywordWithTypeArgumentsHandle node) =>
-      defaultNode(node);
+    VoidKeywordWithTypeArgumentsHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitYieldStatementBegin(YieldStatementBegin node) =>
@@ -13737,8 +14159,8 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitExperimentNotEnabledHandle(
-          ExperimentNotEnabledHandle node) =>
-      defaultNode(node);
+    ExperimentNotEnabledHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitErrorTokenHandle(ErrorTokenHandle node) =>
@@ -13757,8 +14179,8 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitTypeArgumentApplicationHandle(
-          TypeArgumentApplicationHandle node) =>
-      defaultNode(node);
+    TypeArgumentApplicationHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitNewAsIdentifierHandle(NewAsIdentifierHandle node) =>
@@ -13766,8 +14188,8 @@ class RecursiveParserAstVisitorWithDefaultNodeAsync
 
   @override
   Future<void> visitPatternVariableDeclarationStatementHandle(
-          PatternVariableDeclarationStatementHandle node) =>
-      defaultNode(node);
+    PatternVariableDeclarationStatementHandle node,
+  ) => defaultNode(node);
 
   @override
   Future<void> visitPatternAssignmentHandle(PatternAssignmentHandle node) =>
