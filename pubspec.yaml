@@ -1,0 +1,28 @@
+name: aopd
+description: A Flutter/Dart AOP and compiler-extension framework with app-local frontend-server snapshots and SDK-mirror-friendly compiler integration.
+version: 0.1.0
+repository: https://github.com/fluttercandies/aopd
+issue_tracker: https://github.com/fluttercandies/aopd/issues
+topics:
+  - aop
+  - aspect
+  - aspectd
+  - kernel
+  - compiler
+
+environment:
+  # The Dart SDK upper bound is the real compatibility gate: AOPD's compiler
+  # workspace mirrors a specific SDK's frontend_server/kernel/vm sources, and
+  # Flutter 3.35.x ships Dart 3.9.x. pub.dev deprecates Flutter upper bounds
+  # (https://dart.dev/go/flutter-upper-bound-deprecation), so we pin Dart only.
+  sdk: ">=3.9.2 <3.10.0"
+  flutter: ">=3.35.7"
+dependencies:
+  flutter:
+    sdk: flutter
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+flutter:
+  uses-material-design: true

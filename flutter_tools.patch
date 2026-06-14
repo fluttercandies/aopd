@@ -1,0 +1,350 @@
+diff --git a/packages/flutter_tools/lib/src/aop/aopd_hook.dart b/packages/flutter_tools/lib/src/aop/aopd_hook.dart
+new file mode 100644
+index 00000000000..f6b6ee904b2
+--- /dev/null
++++ b/packages/flutter_tools/lib/src/aop/aopd_hook.dart
+@@ -0,0 +1,232 @@
++import 'package:file/file.dart' as file;
++import 'package:package_config/package_config.dart';
++import 'package:yaml/yaml.dart';
++
++import '../artifacts.dart';
++import '../base/common.dart';
++import '../base/io.dart';
++import '../cache.dart';
++import '../dart/package_map.dart';
++import '../globals.dart' as globals;
++
++const _pubspecName = 'pubspec.yaml';
++const _keyAopd = 'aopd';
++const _keyEnabled = 'enabled';
++const _keyTrackWidgetCreation = 'track_widget_creation';
++const _aopdPackageName = 'aopd';
++const _prepareSnapshotScript = 'prepare_frontend_server_snapshot.dart';
++const _snapshotPathMarker = 'AOPD_SNAPSHOT_PATH=';
++
++class AopdHookConfig {
++  const AopdHookConfig({
++    required this.enabled,
++    this.frontendServerSnapshotPath,
++    this.trackWidgetCreation = false,
++  });
++
++  final bool enabled;
++  final String? frontendServerSnapshotPath;
++  final bool trackWidgetCreation;
++}
++
++class _AopdPubspecConfig {
++  const _AopdPubspecConfig({
++    required this.enabled,
++    required this.trackWidgetCreation,
++  });
++
++  final bool enabled;
++  final bool trackWidgetCreation;
++}
++
++class AopdHook {
++  static Future<AopdHookConfig> resolve() async {
++    // Resolve the Flutter app/package root by walking up from the current
++    // directory to the nearest pubspec.yaml, rather than assuming cwd IS the
++    // app root. This keeps AOPD enabled when the tool is invoked from a
++    // subdirectory (e.g. android/ via Gradle, or an IDE build cwd). In a pub
++    // workspace the nearest pubspec.yaml is the app member's (which holds the
++    // `aopd:` config); the shared package_config.json is still located by
++    // walking up (see _findPackagePath).
++    final file.Directory appRoot = _findAppRoot();
++    final file.File pubspecFile = globals.fs.file(
++      globals.fs.path.join(appRoot.path, _pubspecName),
++    );
++    if (!pubspecFile.existsSync()) {
++      return const AopdHookConfig(enabled: false);
++    }
++
++    final _AopdPubspecConfig? pubspecConfig = _readPubspecConfig(pubspecFile);
++    if (pubspecConfig == null || !pubspecConfig.enabled) {
++      return const AopdHookConfig(enabled: false);
++    }
++
++    final String? packagePath = await _findPackagePath(appRoot, _aopdPackageName);
++    if (packagePath == null) {
++      throwToolExit(
++        '[AOPD] pubspec.yaml enables AOPD, but package "$_aopdPackageName" was not found. '
++        'Run "flutter pub get" and make sure "$_aopdPackageName" is a dependency.',
++      );
++    }
++
++    final String snapshotPath = await _prepareFrontendServerSnapshot(
++      appRoot,
++      packagePath,
++    );
++    return AopdHookConfig(
++      enabled: true,
++      frontendServerSnapshotPath: snapshotPath,
++      trackWidgetCreation: pubspecConfig.trackWidgetCreation,
++    );
++  }
++
++  /// Walks up from the current directory to the nearest ancestor (inclusive)
++  /// containing a pubspec.yaml. Falls back to the current directory when none
++  /// is found.
++  static file.Directory _findAppRoot() {
++    file.Directory dir = globals.fs.currentDirectory;
++    while (true) {
++      final file.File pubspec = globals.fs.file(
++        globals.fs.path.join(dir.path, _pubspecName),
++      );
++      if (pubspec.existsSync()) {
++        return dir;
++      }
++      final file.Directory parent = dir.parent;
++      if (parent.path == dir.path) {
++        // Reached the filesystem root without finding a pubspec.
++        return globals.fs.currentDirectory;
++      }
++      dir = parent;
++    }
++  }
++
++
++  static _AopdPubspecConfig? _readPubspecConfig(file.File pubspecFile) {
++    final Object? yamlInfo = loadYaml(pubspecFile.readAsStringSync());
++    if (yamlInfo is! YamlMap) {
++      return null;
++    }
++    final Object? aopdConfig = yamlInfo[_keyAopd];
++    if (aopdConfig == null) {
++      return null;
++    }
++    if (aopdConfig is! YamlMap) {
++      throwToolExit('[AOPD] pubspec.yaml "aopd" must be a map.');
++    }
++    final Object? enabled = aopdConfig[_keyEnabled];
++    final Object? trackWidgetCreation = aopdConfig[_keyTrackWidgetCreation];
++    return _AopdPubspecConfig(
++      enabled: enabled == true,
++      trackWidgetCreation: trackWidgetCreation == true,
++    );
++  }
++
++  static Future<String?> _findPackagePath(
++    file.Directory appRoot,
++    String packageName,
++  ) async {
++    try {
++      final file.File packageFile = findPackageConfigFileOrDefault(appRoot);
++      final PackageConfig packageConfig = await loadPackageConfigWithLogging(
++        packageFile,
++        logger: globals.logger,
++        throwOnError: false,
++      );
++      for (final Package package in packageConfig.packages) {
++        if (package.name == packageName) {
++          return package.root.toFilePath();
++        }
++      }
++    } on Exception catch (error) {
++      globals.printTrace('[AOPD] Invalid package config file: $error');
++    }
++    return null;
++  }
++
++  static Future<String> _prepareFrontendServerSnapshot(
++    file.Directory appRoot,
++    String packagePath,
++  ) async {
++    final file.File prepareScript = globals.fs.file(
++      globals.fs.path.join(packagePath, 'bin', _prepareSnapshotScript),
++    );
++    if (!prepareScript.existsSync()) {
++      throwToolExit('[AOPD] Snapshot prepare script not found: ${prepareScript.path}');
++    }
++
++    final String dartPath = globals.artifacts!.getArtifactPath(Artifact.engineDartBinary);
++    if (!globals.processManager.canRun(dartPath)) {
++      throwToolExit('[AOPD] Unable to find Dart binary at $dartPath');
++    }
++
++    final command = <String>[
++      dartPath,
++      prepareScript.path,
++      '--app-root',
++      appRoot.path,
++      '--aopd-root',
++      packagePath,
++      '--flutter-root',
++      Cache.flutterRoot!,
++      '--dart',
++      dartPath,
++    ];
++    globals.printTrace('[AOPD] prepare snapshot command: ${command.join(' ')}');
++
++    final ProcessResult result = await globals.processManager.run(
++      command,
++      workingDirectory: appRoot.path,
++      environment: <String, String>{
++        ...globals.platform.environment,
++        'DART_SUPPRESS_ANALYTICS': 'true',
++        'FLUTTER_SUPPRESS_ANALYTICS': 'true',
++      },
++    );
++
++    final stdoutText = result.stdout.toString();
++    final stderrText = result.stderr.toString();
++    _printPrepareOutput(stdoutText, isError: false);
++    _printPrepareOutput(stderrText, isError: true);
++
++    if (result.exitCode != 0) {
++      throwToolExit(
++        '[AOPD] Failed to prepare frontend_server snapshot. Exit code: ${result.exitCode}',
++      );
++    }
++
++    final String? snapshotPath = _extractSnapshotPath(stdoutText);
++    if (snapshotPath == null || snapshotPath.isEmpty) {
++      throwToolExit('[AOPD] Snapshot prepare script did not return a snapshot path.');
++    }
++    if (!globals.fs.file(snapshotPath).existsSync()) {
++      throwToolExit('[AOPD] Prepared frontend_server snapshot does not exist: $snapshotPath');
++    }
++    return snapshotPath;
++  }
++
++  static void _printPrepareOutput(String output, {required bool isError}) {
++    if (output.trim().isEmpty) {
++      return;
++    }
++    for (final String line in output.split(RegExp(r'\r?\n'))) {
++      if (line.isEmpty || line.startsWith(_snapshotPathMarker)) {
++        continue;
++      }
++      if (isError) {
++        globals.printError(line);
++      } else {
++        globals.printStatus(line);
++      }
++    }
++  }
++
++  static String? _extractSnapshotPath(String stdoutText) {
++    for (final String line in stdoutText.split(RegExp(r'\r?\n'))) {
++      if (line.startsWith(_snapshotPathMarker)) {
++        return line.substring(_snapshotPathMarker.length).trim();
++      }
++    }
++    return null;
++  }
++}
+diff --git a/packages/flutter_tools/lib/src/compile.dart b/packages/flutter_tools/lib/src/compile.dart
+index ca04cfb345a..eca8b8b9589 100644
+--- a/packages/flutter_tools/lib/src/compile.dart
++++ b/packages/flutter_tools/lib/src/compile.dart
+@@ -10,6 +10,7 @@ import 'package:package_config/package_config.dart';
+ import 'package:process/process.dart';
+ import 'package:usage/uuid/uuid.dart';
+ 
++import 'aop/aopd_hook.dart';
+ import 'artifacts.dart';
+ import 'base/common.dart';
+ import 'base/file_system.dart';
+@@ -255,6 +256,8 @@ class KernelCompiler {
+     required PackageConfig packageConfig,
+     String? nativeAssets,
+   }) async {
++    final AopdHookConfig aopdHookConfig = await AopdHook.resolve();
++
+     final TargetPlatform? platform = targetModel == TargetModel.dartdevc
+         ? TargetPlatform.web_javascript
+         : null;
+@@ -319,10 +322,11 @@ class KernelCompiler {
+       }
+       commandToStartFrontendServer = <String>[
+         engineDartAotRuntimePath,
+-        _artifacts.getArtifactPath(
+-          Artifact.frontendServerSnapshotForEngineDartSdk,
+-          platform: platform,
+-        ),
++        aopdHookConfig.frontendServerSnapshotPath ??
++            _artifacts.getArtifactPath(
++              Artifact.frontendServerSnapshotForEngineDartSdk,
++              platform: platform,
++            ),
+       ];
+     }
+ 
+@@ -358,6 +362,11 @@ class KernelCompiler {
+             '--initialize-from-dill',
+             initializeFromDill,
+           ],
++          if (aopdHookConfig.enabled) ...<String>[
++            '--aop',
++            '1',
++            if (aopdHookConfig.trackWidgetCreation) ...<String>['--aop-track-widget-creation', '1'],
++          ],
+           if (platformDill != null) ...<String>['--platform', platformDill],
+           if (dartPluginRegistrantUri != null) ...<String>[
+             '--source',
+@@ -374,6 +383,12 @@ class KernelCompiler {
+         ];
+ 
+     _logger.printTrace(command.join(' '));
++    if (aopdHookConfig.enabled) {
++      _logger.printStatus(
++        '[AOPD] Using frontend_server snapshot: ${aopdHookConfig.frontendServerSnapshotPath}',
++      );
++      _logger.printTrace('[AOPD] frontend_server start args: ${command.skip(1).join(' ')}');
++    }
+     final Process server = await _processManager.start(command);
+ 
+     server.stderr.transform<String>(utf8.decoder).listen(_logger.printError);
+@@ -819,6 +834,8 @@ class DefaultResidentCompiler implements ResidentCompiler {
+     String? additionalSourceUri,
+     String? nativeAssetsUri,
+   }) async {
++    final AopdHookConfig aopdHookConfig = await AopdHook.resolve();
++
+     final TargetPlatform? platform = (targetModel == TargetModel.dartdevc)
+         ? TargetPlatform.web_javascript
+         : null;
+@@ -831,10 +848,11 @@ class DefaultResidentCompiler implements ResidentCompiler {
+     } else {
+       commandToStartFrontendServer = <String>[
+         artifacts.getArtifactPath(Artifact.engineDartAotRuntime, platform: platform),
+-        artifacts.getArtifactPath(
+-          Artifact.frontendServerSnapshotForEngineDartSdk,
+-          platform: platform,
+-        ),
++        aopdHookConfig.frontendServerSnapshotPath ??
++            artifacts.getArtifactPath(
++              Artifact.frontendServerSnapshotForEngineDartSdk,
++              platform: platform,
++            ),
+       ];
+     }
+ 
+@@ -876,6 +894,11 @@ class DefaultResidentCompiler implements ResidentCompiler {
+             '-Dflutter.dart_plugin_registrant=$additionalSourceUri',
+           ],
+           if (nativeAssetsUri != null) ...<String>['--native-assets', nativeAssetsUri],
++          if (aopdHookConfig.enabled) ...<String>[
++            '--aop',
++            '1',
++            if (aopdHookConfig.trackWidgetCreation) ...<String>['--aop-track-widget-creation', '1'],
++          ],
+           if (platformDill != null) ...<String>['--platform', platformDill!],
+           if (unsafePackageSerialization) '--unsafe-package-serialization',
+           // See: https://github.com/flutter/flutter/issues/103994
+@@ -883,6 +906,12 @@ class DefaultResidentCompiler implements ResidentCompiler {
+           ...?extraFrontEndOptions,
+         ];
+     _logger.printTrace(command.join(' '));
++    if (aopdHookConfig.enabled) {
++      _logger.printStatus(
++        '[AOPD] Using frontend_server snapshot: ${aopdHookConfig.frontendServerSnapshotPath}',
++      );
++      _logger.printTrace('[AOPD] frontend_server start args: ${command.skip(1).join(' ')}');
++    }
+     _server = await _processManager.start(command);
+     _server?.stdout
+         .transform<String>(utf8.decoder)

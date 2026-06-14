@@ -1,0 +1,19 @@
+include: package:lints/recommended.yaml
+
+analyzer:
+  exclude:
+    # `pkg/` is an upstream Dart/Flutter SDK mirror used to build the
+    # frontend_server snapshot. Keep it pristine and do not lint it as AOPD code.
+    - pkg/**
+    # This file is derived from the upstream kernel widget-location tracker and
+    # is periodically re-synced with SDK changes. Keep lint noise out of syncs.
+    - transformer/widget_location/track_widget_constructor_locations.dart
+
+linter:
+  rules:
+    # Compiler tooling may intentionally print progress while preparing snapshots.
+    avoid_print: false
+
+    # AOPD's compiler layer integrates with SDK-internal packages such as
+    # frontend_server, vm, and kernel. Public-only imports are not always enough.
+    implementation_imports: false

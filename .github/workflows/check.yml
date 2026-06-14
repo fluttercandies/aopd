@@ -1,0 +1,107 @@
+name: AOPD check
+
+# Verifies an AOPD branch against a specific Flutter SDK version.
+#
+# - push / pull_request: auto-runs the FULL check (analyze + unit tests +
+#   root flutter tests + clean example flutter tests).
+# - workflow_dispatch: manual run where you pick the branch/tag (`ref`) and the
+#   Flutter version (`flutter_version`) and the mode (fast/full). This is how you
+#   verify a future version branch, e.g. ref=flutter-3.44.1, flutter_version=3.44.1.
+#
+# IMPORTANT: the Flutter version MUST match the branch's compiler/pkg/* mirror
+# (that mirror is a specific Dart SDK's sources). Each supported Flutter version
+# lives on its own branch/tag with its own pkg mirror + flutter_tools.patch.
+# This workflow is version-agnostic and is driven by pubspec.yaml's
+# environment.flutter lower bound (or the dispatch input).
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch or tag to check out (blank = the dispatched branch)'
+        required: false
+        default: ''
+      flutter_version:
+        description: 'Flutter version (blank = read pubspec.yaml environment.flutter lower bound)'
+        required: false
+        default: ''
+      mode:
+        description: 'Check mode'
+        required: false
+        default: 'full'
+        type: choice
+        options:
+          - fast
+          - full
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - name: Resolve Flutter version
+        id: ver
+        run: |
+          V="${{ github.event.inputs.flutter_version }}"
+          if [ -z "$V" ]; then
+            V="$(
+              awk '
+                /^environment:/ { in_env = 1; next }
+                in_env && /^[^[:space:]]/ { in_env = 0 }
+                in_env && /^[[:space:]]*flutter:/ { print; exit }
+              ' pubspec.yaml |
+              sed -E 's/.*>= *([0-9]+\.[0-9]+\.[0-9]+).*/\1/'
+            )"
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Using Flutter $V"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.ver.outputs.version }}
+          channel: stable
+          cache: true
+
+      - name: Apply AOPD flutter_tools patch
+        run: |
+          set -e
+          FLUTTER_ROOT="$(dirname "$(dirname "$(command -v flutter)")")"
+          echo "FLUTTER_ROOT=$FLUTTER_ROOT"
+          PATCH="$GITHUB_WORKSPACE/flutter_tools.patch"
+          cd "$FLUTTER_ROOT"
+          # The action installs Flutter from an archive (not a git repo), so use
+          # `patch` (handles git-format diffs with -p1, and creates new files).
+          # Idempotent: if it already reverse-applies, it's already applied.
+          if patch -p1 -R --dry-run < "$PATCH" >/dev/null 2>&1; then
+            echo "flutter_tools.patch already applied"
+          else
+            patch -p1 < "$PATCH"
+            echo "flutter_tools.patch applied"
+          fi
+          rm -f bin/cache/flutter_tools.stamp
+          flutter --version
+
+      - name: Resolve dependencies
+        run: |
+          set -e
+          flutter pub get                       # root package (lib analyze)
+          (cd compiler && dart pub get)         # compiler workspace (analyze + unit tests)
+          (cd example && flutter pub get)       # example (full-mode runtime test)
+
+      - name: Run AOPD check (${{ github.event.inputs.mode || 'full' }})
+        run: |
+          set -e
+          if [ "${{ github.event.inputs.mode || 'full' }}" = "full" ]; then
+            dart bin/check.dart --full
+          else
+            dart bin/check.dart
+          fi

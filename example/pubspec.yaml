@@ -1,0 +1,34 @@
+name: example
+description: A polished Flutter showcase for AOPD annotations and compiler-time weaving.
+publish_to: "none"
+version: 1.0.0+1
+
+aopd:
+  enabled: true
+  track_widget_creation: true
+
+environment:
+  sdk: ">=3.9.2 <3.10.0"
+  flutter: ">=3.35.7 <3.35.8"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  aopd:
+    path: ../
+  ff_annotation_route_library: ^3.2.3
+  flutter_animate: ^4.5.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  generate: true
+  uses-material-design: true
+
+  assets:
+    - assets/images/performance_tile.png

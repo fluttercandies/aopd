@@ -1,0 +1,263 @@
+{
+  "@@locale": "en",
+  "appTitle": "AOPD Example",
+  "routeNotFound": "Route not found",
+  "commonRun": "Run",
+  "commonReset": "Reset",
+  "commonClear": "Clear",
+  "commonTarget": "Target",
+  "commonAspect": "Aspect",
+  "resultLogTitle": "Result log",
+  "resultLogEmpty": "Run a demo to see target and aspect events here.",
+  "homeSubtitle": "A focused Flutter showcase for AOPD annotations and compiler-time weaving.",
+  "homeHeroPill": "Compiler extension showcase",
+  "homeHeroTitle": "See AOPD weaving happen through visible app behavior.",
+  "homeHeroBody": "Each demo has a target, an aspect, a run button, and a live result log. That makes the example easy to extend without hiding the AOP mechanics.",
+  "languageSystem": "System",
+  "languageEnglish": "EN",
+  "languageChinese": "中文",
+  "languageTooltip": "Language",
+  "basicPageSubtitle": "Choose one annotation at a time. Each detail page keeps the demo and result log together.",
+  "basicExecuteDescription": "Wraps the target method body and can change its return value.",
+  "basicExecuteDetail": "The aspect runs around the original method body and then calls proceed.",
+  "basicCallDescription": "Rewrites a callsite so the aspect can inspect arguments before proceed.",
+  "basicCallDetail": "The target method stays unchanged; the callsite is redirected through the aspect.",
+  "basicFieldGetDescription": "Intercepts reads of a field and replaces the observed value.",
+  "basicFieldGetDetail": "The field remains original, but reads from matching callsites see the aspect value.",
+  "basicInjectDescription": "Inserts statements at a stable line inside a target function.",
+  "basicInjectDetail": "The injected statement appears at the marker line inside the target function.",
+  "basicInjectClassTitle": "@Inject (class field)",
+  "basicInjectClassDescription": "Injects a statement into a class method; the injected code references the target class field, which is remapped on inject.",
+  "basicInjectClassDetail": "InjectClassTarget.compute() gets value = value + 100 injected before its return; the value reference is remapped to the target field.",
+  "basicInjectScopeTitle": "@Inject (library-scoped)",
+  "basicInjectScopeDescription": "Two libraries declare the same class and method; @Inject targets only one and respects importUri.",
+  "basicInjectScopeDetail": "inject_dedup_a and inject_dedup_b both declare DedupTarget.compute; only inject_dedup_a is targeted, so only it is woven.",
+  "basicAddDescription": "Adds a new method to a target class and calls it through dynamic dispatch.",
+  "basicAddDetail": "The method does not exist in source code; AOPD adds it during compilation.",
+  "basicExecuteResult": "Execute result",
+  "basicCallResult": "Call result",
+  "basicFieldGetResult": "FieldGet result",
+  "basicInjectResult": "Inject result",
+  "basicInjectClassResult": "Inject (class field) result",
+  "basicInjectScopeResult": "Inject (library-scoped) result",
+  "basicAddResult": "Add result",
+  "advancedMatrixTitle": "PointCut matrix",
+  "advancedMatrixDescription": "Runs every pointcut flavor and logs source, target, members, annotations, and arguments.",
+  "advancedMatrixResult": "Advanced result",
+  "argSendDirtyInput": "Send dirty input",
+  "argSendDirtyInputBody": "Each button calls a method with raw input. The advice rewrites the arguments before the method body sees them.",
+  "argLogPii": "Log line with PII",
+  "argRegisterMessy": "Register messy input",
+  "argNoRewrites": "No rewrites yet.",
+  "argBefore": "before",
+  "argAfter": "after",
+  "argReceivedTitle": "What the method actually received",
+  "argReceivedBody": "Proof the inputs were changed, not just logged: the body reports the post-rewrite value.",
+  "argNothingReceived": "Nothing received yet.",
+  "coverageExerciseUnits": "Exercise units",
+  "coverageExerciseUnitsBody": "Each button runs real catalog code. The woven advice records the hit before proceeding; behavior is unchanged.",
+  "coverageUseCart": "Use cart",
+  "coverageRunCheckout": "Run checkout",
+  "coverageOnboardingStart": "Onboarding start",
+  "coverageOnboardingFinish": "Onboarding finish",
+  "coverageFormatPrice": "Format price",
+  "coverageRunAll": "Run all reachable",
+  "coverageExportJson": "Export JSON",
+  "coverageUploadPayload": "Upload payload",
+  "coverageClose": "Close",
+  "coverageCatalogUnits": "Catalog units",
+  "coverageNeverInvoked": "never invoked - dead-code candidate",
+  "coverageCovered": "covered",
+  "coverageUnitsHit": "units hit",
+  "aroundTimingTitle": "Timing + slow-call alert",
+  "aroundTimingSubtitle": "A Stopwatch wraps proceed(). Bigger input crosses the {thresholdMs} ms threshold and is flagged - no timing code in ReportService itself.",
+  "@aroundTimingSubtitle": {
+    "placeholders": {
+      "thresholdMs": {
+        "type": "int"
+      }
+    }
+  },
+  "aroundFastReport": "Fast report (1)",
+  "aroundHeavyReport": "Heavy report (12)",
+  "aroundTimingEmpty": "Run a report to see its measured duration.",
+  "aroundSlowBadge": "SLOW",
+  "aroundCacheTitle": "Cache by short-circuit",
+  "aroundCacheSubtitle": "On a cache hit the advice returns without proceed(), so the real quote() never runs. The counter is the proof: it only moves when the original body executes.",
+  "aroundQuoteSkuA": "Quote SKU-A",
+  "aroundQuoteSkuB": "Quote SKU-B",
+  "aroundCacheEmpty": "Quote a SKU twice: first MISS runs the body, second HIT skips it.",
+  "aroundRealComputations": "Real computations",
+  "guardTriggerTitle": "Trigger a failure",
+  "guardTriggerBody": "Each button calls a method that throws. Without the guard the tap handler would throw; with it you get a fallback value below.",
+  "guardParseThrows": "Parse \"12x\" -> throws",
+  "guardDivideThrows": "Divide by 0 -> throws",
+  "guardFeedThrows": "Flaky feed -> throws once",
+  "guardParseOk": "Parse \"42\" -> ok",
+  "guardReturnedValue": "Value returned to the UI: {value}",
+  "@guardReturnedValue": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "guardCaughtTitle": "Caught & recovered",
+  "guardCaughtEmpty": "No failures yet. Trigger one - it will be caught here, not thrown to the UI.",
+  "guardThrew": "threw",
+  "guardFallback": "fallback",
+  "jsonModelPanelTitle": "The model (no toJson logic)",
+  "jsonOutputTitle": "sampleUser.toJson() - produced by AOP",
+  "jsonWovenStatus": "Woven: {count} fields serialized from the stub.",
+  "@jsonWovenStatus": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "jsonUnwovenStatus": "Un-woven: toJson() returned an empty map (run a full build).",
+  "jsonNote": "Deserialization (writing fields) is the complementary direction; AOPD's members capture is read-oriented, so fromJson would use a factory or a write-capable transformer. The read side - the part that usually needs mirrors or codegen - is fully automatic here.",
+  "patchEnableTitle": "Enable framework patch",
+  "patchActiveSubtitle": "Active: scaled size capped at {factor}x font size.",
+  "@patchActiveSubtitle": {
+    "placeholders": {
+      "factor": {
+        "type": "String"
+      }
+    }
+  },
+  "patchOffSubtitle": "Off: advice proceeds untouched - pure Flutter behavior.",
+  "patchSystemScale": "System text scale: {scale}x",
+  "@patchSystemScale": {
+    "placeholders": {
+      "scale": {
+        "type": "String"
+      }
+    }
+  },
+  "patchCap": "Patch cap: {scale}x (max accessible enlargement before layouts break)",
+  "@patchCap": {
+    "placeholders": {
+      "scale": {
+        "type": "String"
+      }
+    }
+  },
+  "patchPreviewTitle": "Live preview",
+  "patchPreviewBody": "The same Text rendered through the woven scaler. Crank the system scale up: without the patch it overflows; with it on, it stops at the cap.",
+  "patchPreviewText": "Checkout",
+  "patchNoClamps": "No clamps yet.",
+  "patchClampsApplied": "Clamps applied (from the woven SDK method): {count}",
+  "@patchClampsApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "patchScaleReturned": "scale({size}) returned",
+  "@patchScaleReturned": {
+    "placeholders": {
+      "size": {
+        "type": "double"
+      }
+    }
+  },
+  "patchPatched": "patched",
+  "patchPureFlutter": "pure Flutter",
+  "analyticsBriefTitle": "Full tracking without business-code logging",
+  "analyticsBriefBody": "The aspect hooks HitTestTarget.handleEvent and GestureRecognizer.invokeCallback. Tap any card, button, or dialog action to generate a unified analytics event with AOPD widget creation locations.",
+  "analyticsClearLog": "Clear log",
+  "analyticsProductNotesSubtitle": "A compact notebook for compiler experiments",
+  "analyticsProductMugSubtitle": "Warm drinks for long dill-dump sessions",
+  "analyticsConfirmPurchase": "Confirm purchase",
+  "analyticsDialogBody": "This dialog also has no analytics code. Tap actions and watch the log.",
+  "analyticsCancel": "Cancel",
+  "analyticsConfirmOrder": "Confirm order",
+  "analyticsBuyNow": "Buy now",
+  "analyticsApplyCoupon": "Apply coupon",
+  "analyticsContactSupport": "Contact support",
+  "wildcardDemoTitle": "One pointcut, three classes",
+  "wildcardDemoDescription": "Each button runs real code in a different class. None of them is annotated; a single @Execute regex covers them all.",
+  "wildcardWhyTitle": "Why no percentage here?",
+  "wildcardWhyBody": "A wildcard pointcut can weave classes never declared up front, and Flutter has no runtime reflection to enumerate them. So this demo discovers units as they run. In production the denominator comes from a build-time class list; coverage is computed offline from uploaded hits and that list.",
+  "wildcardCollectorNote": "The collector lives outside the matched folder on purpose; otherwise the advice would weave itself and recurse.",
+  "wildcardDiscoveredUnits": "Discovered units ({count})",
+  "@wildcardDiscoveredUnits": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "wildcardEmpty": "Nothing yet. Run the demo to see units appear as their woven advice records them.",
+  "sectionCoreTitle": "Core annotations",
+  "sectionCoreSubtitle": "Small loops for each weaving primitive.",
+  "sectionObservabilityTitle": "Observability",
+  "sectionObservabilitySubtitle": "Analytics, tracing, performance, and coverage.",
+  "sectionBehaviorTitle": "Runtime behavior",
+  "sectionBehaviorSubtitle": "Guards, flags, caching, and input control.",
+  "sectionCompilerTitle": "Compiler recipes",
+  "sectionCompilerSubtitle": "Patch and generation-style examples.",
+  "sectionOtherTitle": "Other demos",
+  "sectionOtherSubtitle": "Additional AOPD examples.",
+  "routeAdvancedRecipesTitle": "Advanced recipes",
+  "routeAdvancedRecipesDescription": "Instance, static, constructor, library, regex pointcuts, and PointCut data.",
+  "routeArgumentRewriteTitle": "Argument rewrite",
+  "routeArgumentRewriteDescription": "Advice rewrites a method's inputs before it runs - PII redaction and input sanitizing.",
+  "routeAroundAdviceTitle": "Around advice",
+  "routeAroundAdviceDescription": "Time a method, flag slow calls, and cache another by skipping the original body.",
+  "routeAutoAnalyticsTitle": "Auto analytics",
+  "routeAutoAnalyticsDescription": "A practical full-tracking demo inspired by real click analytics instrumentation.",
+  "routeBasicAnnotationsTitle": "Basic annotations",
+  "routeBasicAnnotationsDescription": "Aspect, Execute, Call, FieldGet, Inject, and Add in small loops.",
+  "routeCodeCoverageTitle": "Code coverage",
+  "routeCodeCoverageDescription": "Method-level coverage via woven hit-recording advice.",
+  "routeExceptionGuardTitle": "Exception guard",
+  "routeExceptionGuardDescription": "Woven try/catch turns a throwing method into a safe fallback so the app never crashes.",
+  "routeFeatureFlagsTitle": "Feature flags",
+  "routeFeatureFlagsDescription": "Route gray-release behavior through advice while business methods stay stable.",
+  "routeFrameworkPatchTitle": "Framework patch",
+  "routeFrameworkPatchDescription": "Patch a private Flutter SDK method to clamp font scaling without an SDK fork.",
+  "routeJsonModelTitle": "JSON model",
+  "routeJsonModelDescription": "Auto-serialize models with AOP instead of dart:mirrors; toJson has no field code.",
+  "routeNetworkTracingTitle": "Network tracing",
+  "routeNetworkTracingDescription": "Trace API calls with ids, latency, and status without request-code logging.",
+  "routePerformanceBuildTitle": "Build tracking",
+  "routePerformanceBuildDescription": "Measure slow widget rebuilds produced by performRebuild.",
+  "routePerformanceFrameTitle": "Frame phases",
+  "routePerformanceFrameDescription": "Measure frame timing and build/layout/paint phase costs.",
+  "routePerformanceImageTitle": "Image loading",
+  "routePerformanceImageDescription": "Measure image cache miss and decode behavior.",
+  "routePerformanceMonitoringTitle": "Performance monitoring",
+  "routePerformanceMonitoringDescription": "A practical AOP demo for widget rebuilds, frame phases, and image loading.",
+  "routeWildcardCoverageTitle": "Wildcard coverage",
+  "routeWildcardCoverageDescription": "One regex pointcut instruments a whole package subtree with no per-class annotation.",
+  "networkTitle": "Network tracing",
+  "networkSubtitle": "A practical observability pattern: API methods return business data, while woven advice adds trace id, latency, status, and result logs.",
+  "networkRunApiCalls": "Run API calls",
+  "networkRunApiCallsBody": "Each button calls a plain service method. The trace appears because @Execute wraps the method, not because the target logs it.",
+  "networkFetchOrder": "Fetch order",
+  "networkSubmitPayment": "Submit payment",
+  "networkPaymentReview": "Payment review",
+  "networkSearch": "Search",
+  "networkTraceRecords": "Trace records",
+  "networkTraceEmpty": "No traces yet. Run an API call to see woven metadata.",
+  "featureTitle": "Feature flags",
+  "featureSubtitle": "AOP is often used for gray releases: keep stable business methods in place, then layer experiments, routing, or short-circuits in advice.",
+  "featureToggleExperiments": "Toggle experiments",
+  "featureToggleExperimentsBody": "The target service contains only legacy rules. Advice reads the flags and decides whether to proceed, decorate, or short-circuit.",
+  "featureCheckoutV2Title": "checkout_v2 discount",
+  "featureCheckoutV2Subtitle": "Decorates proceed() result",
+  "featureGatewayV2Title": "gateway_v2 routing",
+  "featureGatewayV2Subtitle": "Can return without proceed()",
+  "featureVipDiscount": "VIP discount",
+  "featureLargeCart": "Large cart",
+  "featureEuGateway": "EU gateway",
+  "featureUsGateway": "US gateway",
+  "featureFlagDecisions": "Flag decisions",
+  "featureFlagEmpty": "No decisions yet. Toggle a flag and run a service method.",
+  "featureFlagOn": "ON",
+  "featureFlagOff": "OFF"
+}

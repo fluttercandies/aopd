@@ -1,0 +1,67 @@
+name: aopd_compiler
+description: Internal compiler workspace for AOPD frontend server snapshot generation.
+version: 0.1.0
+homepage: https://github.com/fluttercandies/aopd
+publish_to: none
+
+environment:
+  sdk: ">=3.9.2 <3.10.0"
+
+dev_dependencies:
+  args: any
+  lints: any
+  path: any
+  yaml: any
+
+dependencies:
+  _fe_analyzer_shared: any
+  _js_interop_checks: any
+  build_integration: any
+  compiler: any
+  dart2js_info: any
+  dart2wasm: any
+  dev_compiler: any
+  front_end: any
+  frontend_server: any
+  js_ast: any
+  js_runtime: any
+  js_shared: any
+  kernel: any
+  shell_arg_splitter: any
+  vm: any
+  wasm_builder: any
+
+dependency_overrides:
+  package_config: 2.1.0
+  frontend_server:
+    path: pkg/frontend_server
+  _fe_analyzer_shared:
+    path: pkg/_fe_analyzer_shared
+  vm:
+    path: pkg/vm
+  kernel:
+    path: pkg/kernel
+  build_integration:
+    path: pkg/build_integration
+  compiler:
+    path: pkg/compiler
+  js_shared:
+    path: pkg/js_shared
+  js_runtime:
+    path: pkg/js_runtime
+  js_ast:
+    path: pkg/js_ast
+  _js_interop_checks:
+    path: pkg/_js_interop_checks
+  dev_compiler:
+    path: pkg/dev_compiler
+  front_end:
+    path: pkg/front_end
+  dart2js_info:
+    path: pkg/dart2js_info
+  dart2wasm:
+    path: pkg/dart2wasm
+  wasm_builder:
+    path: pkg/wasm_builder
+  shell_arg_splitter:
+    path: pkg/shell_arg_splitter

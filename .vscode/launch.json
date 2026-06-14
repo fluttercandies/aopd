@@ -1,0 +1,20 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug debug_server.dart (example)",
+            "type": "dart",
+            "request": "launch",
+            "program": "${workspaceFolder}/bin/debug_server.dart",
+            // Keep cwd aligned with the demo project because Flutter build
+            // arguments can contain relative paths such as build/... dill files.
+            "cwd": "${workspaceFolder}/example",
+            "vmAdditionalArgs": [
+                "--packages=${workspaceFolder}/compiler/.dart_tool/package_config.json"
+            ],
+            "args": [
+                "example"
+            ]
+        }
+    ]
+}

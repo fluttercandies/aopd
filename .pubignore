@@ -1,0 +1,86 @@
+.dart_tool/
+**/.dart_tool/
+.pub/
+.packages
+pubspec.lock
+**/pubspec.lock
+
+.idea/
+.vscode/
+*.iml
+**/*.iml
+
+# Common OS / editor / generated junk that should never ship to pub. Patterns
+# without a slash match at any depth (like .gitignore). doc/api/ is the generated
+# dartdoc output -- it does NOT touch the doc/*.md sources.
+.DS_Store
+Thumbs.db
+*.log
+.metadata
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec_overrides.yaml
+**/pubspec_overrides.yaml
+doc/api/
+coverage/
+.fvm/
+
+# Repository-only debug tools. They import compiler/pkg sources (frontend_server,
+# dump_kernel) that are not runnable from the published package, so shipping them
+# would only give users broken `dart run aopd:...` entrypoints. (M2.3)
+bin/debug_server.dart
+bin/dump.dart
+bin/validate_example_dill.dart
+bin/check.dart
+
+build/
+**/build/
+*.dill
+*.dill.txt
+*.snapshot
+*.snapshot.tmp
+
+compiler/frontend_server/frontend_server_aot.dart.snapshot
+example/.dart_tool/
+
+# example/ is published on purpose (pub.dev renders example/lib on the Example
+# tab, and pana scores "provides an example"), but ship only the SOURCE --
+# lib/test/assets/pubspec/README. The platform scaffolding and generator marker
+# files are dead weight on pub.dev: nobody reads gradlew/Info.plist there, and
+# the example can't be `flutter run` without AOPD's patched Flutter tool anyway.
+# (build/ and *.dill.txt are already excluded above.)
+example/android/
+example/ios/
+example/web/
+example/macos/
+example/windows/
+example/linux/
+example/assets_generator_arguments
+example/ff_annotation_route_commands
+
+# AOPD only needs the compiler package sources used by snapshot generation.
+compiler/pkg/*/test/
+compiler/pkg/*/testcases/
+compiler/pkg/*/parser_testcases/
+compiler/pkg/*/outline_extraction_testcases/
+compiler/pkg/*/testing/
+compiler/pkg/*/benchmark/
+compiler/pkg/*/benchmarks/
+compiler/pkg/*/example/
+compiler/pkg/*/examples/
+compiler/pkg/*/doc/
+compiler/pkg/*/docs/
+compiler/pkg/*/bin/
+compiler/pkg/*/tool/
+compiler/pkg/*/web/
+compiler/pkg/*/.dart_tool/
+compiler/pkg/*/.gitignore
+compiler/pkg/*/analysis_options*.yaml
+compiler/pkg/*/OWNERS
+compiler/pkg/*/PRESUBMIT.py
+compiler/pkg/*/codereview.settings
+compiler/pkg/*/testing.json
+compiler/pkg/*/testing_with_lints.json
+compiler/pkg/*/messages.status
+compiler/pkg/*/presubmit_helper*.dart
+compiler/pkg/*/error_recovery.yaml

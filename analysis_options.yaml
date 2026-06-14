@@ -1,0 +1,18 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - compiler/pkg/*/test/**
+    - compiler/pkg/*/testcases/**
+    - compiler/pkg/*/parser_testcases/**
+    - compiler/pkg/*/outline_extraction_testcases/**
+    - compiler/pkg/*/testing/**
+    - compiler/pkg/*/benchmark/**
+    - compiler/pkg/*/benchmarks/**
+    - compiler/pkg/*/example/**
+    - compiler/pkg/*/examples/**
+    - compiler/pkg/*/doc/**
+    - compiler/pkg/*/docs/**
+    - compiler/pkg/*/bin/**
+    - compiler/pkg/*/tool/**
+    - compiler/pkg/*/web/**

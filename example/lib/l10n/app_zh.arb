@@ -1,0 +1,263 @@
+{
+  "@@locale": "zh",
+  "appTitle": "AOPD 示例",
+  "routeNotFound": "未找到页面",
+  "commonRun": "运行",
+  "commonReset": "重置",
+  "commonClear": "清空",
+  "commonTarget": "目标代码",
+  "commonAspect": "切面代码",
+  "resultLogTitle": "结果日志",
+  "resultLogEmpty": "运行一个示例后，这里会显示目标代码和切面的事件。",
+  "homeSubtitle": "面向 AOPD 注解和编译期织入的 Flutter 示例。",
+  "homeHeroPill": "编译扩展示例",
+  "homeHeroTitle": "通过可见的应用行为观察 AOPD 织入。",
+  "homeHeroBody": "每个示例都有目标代码、切面、运行按钮和实时结果日志，方便继续扩展示例，也不会隐藏 AOP 的运行机制。",
+  "languageSystem": "系统",
+  "languageEnglish": "EN",
+  "languageChinese": "中文",
+  "languageTooltip": "语言",
+  "basicPageSubtitle": "一次选择一个注解。每个详情页会把示例和结果日志放在一起。",
+  "basicExecuteDescription": "包裹目标方法体，并且可以修改返回值。",
+  "basicExecuteDetail": "切面运行在原方法体周围，然后调用 proceed。",
+  "basicCallDescription": "改写调用点，让切面能在 proceed 前检查参数。",
+  "basicCallDetail": "目标方法保持不变，调用点会被重定向到切面。",
+  "basicFieldGetDescription": "拦截字段读取，并替换观察到的值。",
+  "basicFieldGetDetail": "字段本身仍是原始值，但匹配调用点读取时会看到切面返回的值。",
+  "basicInjectDescription": "在目标函数的稳定行号处插入语句。",
+  "basicInjectDetail": "插入语句会出现在目标函数的标记行。",
+  "basicInjectClassTitle": "@Inject（类字段）",
+  "basicInjectClassDescription": "向类方法注入语句；注入代码引用目标类字段，并在注入时完成重映射。",
+  "basicInjectClassDetail": "InjectClassTarget.compute() 会在 return 前注入 value = value + 100；value 引用会映射到目标字段。",
+  "basicInjectScopeTitle": "@Inject（库范围）",
+  "basicInjectScopeDescription": "两个库声明同名类和方法；@Inject 只命中其中一个，并遵守 importUri。",
+  "basicInjectScopeDetail": "inject_dedup_a 和 inject_dedup_b 都声明 DedupTarget.compute；只有 inject_dedup_a 被指定，所以只有它会被织入。",
+  "basicAddDescription": "向目标类追加新方法，并通过 dynamic dispatch 调用它。",
+  "basicAddDetail": "这个方法在源码里不存在；AOPD 会在编译期间添加它。",
+  "basicExecuteResult": "Execute 结果",
+  "basicCallResult": "Call 结果",
+  "basicFieldGetResult": "FieldGet 结果",
+  "basicInjectResult": "Inject 结果",
+  "basicInjectClassResult": "Inject（类字段）结果",
+  "basicInjectScopeResult": "Inject（库范围）结果",
+  "basicAddResult": "Add 结果",
+  "advancedMatrixTitle": "PointCut 矩阵",
+  "advancedMatrixDescription": "运行每一种切点形式，并记录 source、target、members、annotations 和 arguments。",
+  "advancedMatrixResult": "进阶结果",
+  "argSendDirtyInput": "发送脏输入",
+  "argSendDirtyInputBody": "每个按钮都会用原始输入调用方法。切面会在方法体看到参数之前改写它们。",
+  "argLogPii": "记录含 PII 的日志",
+  "argRegisterMessy": "注册混乱输入",
+  "argNoRewrites": "还没有改写记录。",
+  "argBefore": "改写前",
+  "argAfter": "改写后",
+  "argReceivedTitle": "方法实际收到的内容",
+  "argReceivedBody": "证明输入真的被改了，而不只是被记录：方法体会报告改写后的值。",
+  "argNothingReceived": "还没有收到内容。",
+  "coverageExerciseUnits": "运行覆盖单元",
+  "coverageExerciseUnitsBody": "每个按钮都会运行真实 catalog 代码。织入的切面会先记录命中，再继续执行，行为不变。",
+  "coverageUseCart": "使用购物车",
+  "coverageRunCheckout": "运行结账",
+  "coverageOnboardingStart": "开始引导",
+  "coverageOnboardingFinish": "完成引导",
+  "coverageFormatPrice": "格式化价格",
+  "coverageRunAll": "运行所有可达项",
+  "coverageExportJson": "导出 JSON",
+  "coverageUploadPayload": "上传载荷",
+  "coverageClose": "关闭",
+  "coverageCatalogUnits": "Catalog 单元",
+  "coverageNeverInvoked": "从未调用 - 可能是死代码",
+  "coverageCovered": "已覆盖",
+  "coverageUnitsHit": "个单元命中",
+  "aroundTimingTitle": "耗时统计 + 慢调用告警",
+  "aroundTimingSubtitle": "Stopwatch 包裹 proceed()。更大的输入会超过 {thresholdMs} ms 阈值并被标记；ReportService 自己没有任何计时代码。",
+  "@aroundTimingSubtitle": {
+    "placeholders": {
+      "thresholdMs": {
+        "type": "int"
+      }
+    }
+  },
+  "aroundFastReport": "快速报表（1）",
+  "aroundHeavyReport": "重型报表（12）",
+  "aroundTimingEmpty": "运行一个报表后，这里会显示测量到的耗时。",
+  "aroundSlowBadge": "慢",
+  "aroundCacheTitle": "短路缓存",
+  "aroundCacheSubtitle": "缓存命中时，切面不调用 proceed() 直接返回，所以真正的 quote() 不会执行。计数器就是证明：只有原方法体执行时才会增加。",
+  "aroundQuoteSkuA": "报价 SKU-A",
+  "aroundQuoteSkuB": "报价 SKU-B",
+  "aroundCacheEmpty": "连续报价同一个 SKU：第一次 MISS 会运行方法体，第二次 HIT 会跳过它。",
+  "aroundRealComputations": "真实计算次数",
+  "guardTriggerTitle": "触发失败",
+  "guardTriggerBody": "每个按钮都会调用一个会抛异常的方法。没有 guard 时点击处理会抛出；有 guard 时会得到下面的 fallback 值。",
+  "guardParseThrows": "解析 \"12x\" -> 抛异常",
+  "guardDivideThrows": "除以 0 -> 抛异常",
+  "guardFeedThrows": "不稳定 feed -> 首次抛异常",
+  "guardParseOk": "解析 \"42\" -> 成功",
+  "guardReturnedValue": "返回给 UI 的值：{value}",
+  "@guardReturnedValue": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "guardCaughtTitle": "已捕获并恢复",
+  "guardCaughtEmpty": "还没有失败。触发一个失败后，它会在这里被捕获，而不是抛到 UI。",
+  "guardThrew": "抛出",
+  "guardFallback": "fallback",
+  "jsonModelPanelTitle": "模型（没有 toJson 逻辑）",
+  "jsonOutputTitle": "sampleUser.toJson() - 由 AOP 生成",
+  "jsonWovenStatus": "已织入：从 stub 序列化了 {count} 个字段。",
+  "@jsonWovenStatus": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "jsonUnwovenStatus": "未织入：toJson() 返回了空 map（请运行一次完整构建）。",
+  "jsonNote": "反序列化（写字段）是相反方向；AOPD 的 members 捕获偏向读取，所以 fromJson 通常会使用 factory 或支持写入的 transformer。这里已经自动完成了读取侧，也就是通常需要 mirrors 或代码生成的部分。",
+  "patchEnableTitle": "启用框架 Patch",
+  "patchActiveSubtitle": "已启用：缩放尺寸被限制在字体大小的 {factor}x。",
+  "@patchActiveSubtitle": {
+    "placeholders": {
+      "factor": {
+        "type": "String"
+      }
+    }
+  },
+  "patchOffSubtitle": "关闭：切面直接 proceed，保持纯 Flutter 行为。",
+  "patchSystemScale": "系统字体缩放：{scale}x",
+  "@patchSystemScale": {
+    "placeholders": {
+      "scale": {
+        "type": "String"
+      }
+    }
+  },
+  "patchCap": "Patch 上限：{scale}x（布局开始崩坏前允许的最大无障碍放大）",
+  "@patchCap": {
+    "placeholders": {
+      "scale": {
+        "type": "String"
+      }
+    }
+  },
+  "patchPreviewTitle": "实时预览",
+  "patchPreviewBody": "同一个 Text 会经过织入后的 scaler 渲染。把系统缩放调高：没有 patch 时会溢出；打开后会停在上限。",
+  "patchPreviewText": "结账",
+  "patchNoClamps": "还没有发生限制。",
+  "patchClampsApplied": "限制次数（来自织入的 SDK 方法）：{count}",
+  "@patchClampsApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "patchScaleReturned": "scale({size}) 返回",
+  "@patchScaleReturned": {
+    "placeholders": {
+      "size": {
+        "type": "double"
+      }
+    }
+  },
+  "patchPatched": "已 patch",
+  "patchPureFlutter": "纯 Flutter",
+  "analyticsBriefTitle": "业务代码零埋点的完整追踪",
+  "analyticsBriefBody": "切面会 hook HitTestTarget.handleEvent 和 GestureRecognizer.invokeCallback。点击任意卡片、按钮或弹窗动作，就能生成带 AOPD widget 创建位置的统一埋点事件。",
+  "analyticsClearLog": "清空日志",
+  "analyticsProductNotesSubtitle": "用于编译器实验的便携笔记本",
+  "analyticsProductMugSubtitle": "陪伴 dill dump 长夜的热饮杯",
+  "analyticsConfirmPurchase": "确认购买",
+  "analyticsDialogBody": "这个弹窗里也没有埋点代码。点击动作后观察日志即可。",
+  "analyticsCancel": "取消",
+  "analyticsConfirmOrder": "确认下单",
+  "analyticsBuyNow": "立即购买",
+  "analyticsApplyCoupon": "使用优惠券",
+  "analyticsContactSupport": "联系支持",
+  "wildcardDemoTitle": "一个切点，三个类",
+  "wildcardDemoDescription": "每个按钮都会运行不同类里的真实代码。它们都没有单独标注；一个 @Execute 正则就能全部覆盖。",
+  "wildcardWhyTitle": "为什么这里没有百分比？",
+  "wildcardWhyBody": "通配切点可以织入预先没有声明的类，而 Flutter 运行时又没有反射可以枚举它们。所以这个示例会在代码运行时发现单元。生产环境里的分母来自构建期类列表；覆盖率由上传的命中和那份列表离线计算。",
+  "wildcardCollectorNote": "收集器故意放在被匹配目录之外；否则切面会织入自己并递归。",
+  "wildcardDiscoveredUnits": "已发现单元（{count}）",
+  "@wildcardDiscoveredUnits": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "wildcardEmpty": "还没有记录。运行示例后，织入的切面会记录并显示命中的单元。",
+  "sectionCoreTitle": "核心注解",
+  "sectionCoreSubtitle": "用小闭环展示每一种织入原语。",
+  "sectionObservabilityTitle": "可观测性",
+  "sectionObservabilitySubtitle": "埋点、链路追踪、性能监控和覆盖率。",
+  "sectionBehaviorTitle": "运行时行为",
+  "sectionBehaviorSubtitle": "异常保护、灰度开关、缓存和输入控制。",
+  "sectionCompilerTitle": "编译期方案",
+  "sectionCompilerSubtitle": "框架 patch 和生成式能力示例。",
+  "sectionOtherTitle": "其它示例",
+  "sectionOtherSubtitle": "更多 AOPD 示例。",
+  "routeAdvancedRecipesTitle": "进阶用法",
+  "routeAdvancedRecipesDescription": "实例、静态、构造函数、库函数、正则切点和 PointCut 数据。",
+  "routeArgumentRewriteTitle": "参数改写",
+  "routeArgumentRewriteDescription": "切面在方法执行前改写输入，可用于 PII 脱敏和输入清洗。",
+  "routeAroundAdviceTitle": "环绕增强",
+  "routeAroundAdviceDescription": "统计方法耗时、标记慢调用，并通过跳过原方法实现缓存。",
+  "routeAutoAnalyticsTitle": "自动埋点",
+  "routeAutoAnalyticsDescription": "贴近真实点击埋点的完整追踪示例。",
+  "routeBasicAnnotationsTitle": "基础注解",
+  "routeBasicAnnotationsDescription": "用小闭环展示 Aspect、Execute、Call、FieldGet、Inject 和 Add。",
+  "routeCodeCoverageTitle": "代码覆盖率",
+  "routeCodeCoverageDescription": "通过织入命中记录实现方法级覆盖率。",
+  "routeExceptionGuardTitle": "异常保护",
+  "routeExceptionGuardDescription": "织入 try/catch，把抛异常的方法降级为安全 fallback，避免应用崩溃。",
+  "routeFeatureFlagsTitle": "灰度开关",
+  "routeFeatureFlagsDescription": "通过切面承载灰度行为，业务方法保持稳定。",
+  "routeFrameworkPatchTitle": "框架 Patch",
+  "routeFrameworkPatchDescription": "无需 fork SDK，直接 patch Flutter 私有方法来限制字体缩放。",
+  "routeJsonModelTitle": "JSON 模型",
+  "routeJsonModelDescription": "不用 dart:mirrors，通过 AOP 自动序列化模型，toJson 不写字段代码。",
+  "routeNetworkTracingTitle": "网络追踪",
+  "routeNetworkTracingDescription": "不在请求代码里写日志，也能记录 traceId、耗时和状态码。",
+  "routePerformanceBuildTitle": "构建追踪",
+  "routePerformanceBuildDescription": "统计 performRebuild 产生的慢 widget rebuild。",
+  "routePerformanceFrameTitle": "帧阶段",
+  "routePerformanceFrameDescription": "统计帧耗时以及 build/layout/paint 阶段成本。",
+  "routePerformanceImageTitle": "图片加载",
+  "routePerformanceImageDescription": "统计图片缓存 miss 和解码行为。",
+  "routePerformanceMonitoringTitle": "性能监控",
+  "routePerformanceMonitoringDescription": "展示 widget rebuild、帧阶段和图片加载监控的实用 AOP 示例。",
+  "routeWildcardCoverageTitle": "通配覆盖率",
+  "routeWildcardCoverageDescription": "一个正则切点覆盖整个包子树，不需要逐类标注。",
+  "networkTitle": "网络追踪",
+  "networkSubtitle": "一个实用的可观测性模式：API 方法只返回业务数据，织入的切面负责追加 traceId、耗时、状态码和结果日志。",
+  "networkRunApiCalls": "运行 API 调用",
+  "networkRunApiCallsBody": "每个按钮都会调用一个普通 service 方法。trace 来自 @Execute 的包裹，而不是目标方法自己写日志。",
+  "networkFetchOrder": "查询订单",
+  "networkSubmitPayment": "提交支付",
+  "networkPaymentReview": "支付复核",
+  "networkSearch": "搜索",
+  "networkTraceRecords": "追踪记录",
+  "networkTraceEmpty": "还没有 trace。运行一次 API 调用后会看到织入的元数据。",
+  "featureTitle": "灰度开关",
+  "featureSubtitle": "AOP 常用于灰度发布：业务方法保持稳定，实验、路由或短路逻辑放到切面里。",
+  "featureToggleExperiments": "切换实验",
+  "featureToggleExperimentsBody": "目标 service 里只有 legacy 规则。切面读取开关，然后决定 proceed、增强返回值或直接短路。",
+  "featureCheckoutV2Title": "checkout_v2 折扣",
+  "featureCheckoutV2Subtitle": "增强 proceed() 的结果",
+  "featureGatewayV2Title": "gateway_v2 路由",
+  "featureGatewayV2Subtitle": "可以不执行 proceed() 直接返回",
+  "featureVipDiscount": "VIP 折扣",
+  "featureLargeCart": "大额购物车",
+  "featureEuGateway": "欧盟网关",
+  "featureUsGateway": "美国网关",
+  "featureFlagDecisions": "开关决策",
+  "featureFlagEmpty": "还没有决策。切换开关并运行一个 service 方法。",
+  "featureFlagOn": "开启",
+  "featureFlagOff": "关闭"
+}
