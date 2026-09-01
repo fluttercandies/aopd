@@ -38,15 +38,29 @@ class ParameterInfo {
 
   int get paramCount => positional.length + named.length;
 
-  static Constant? _defaultValue(VariableDeclaration param) {
-    Expression? initializer = param.initializer;
-    if (initializer is ConstantExpression) {
-      return initializer.constant;
-    } else if (initializer == null) {
-      return null;
-    } else {
-      throw "Non-constant default value";
+  static Constant? defaultValue(FunctionParameter param, [Member? member]) {
+    Expression? defaultValue = param.defaultValue;
+    if (defaultValue is ConstantExpression) {
+      return defaultValue.constant;
     }
+
+    if (defaultValue == null) {
+      if (member is Procedure && member.isNoSuchMethodForwarder) {
+        // Optional parameters may not be supplied by the caller (they are
+        // optional) but the CFE-inserted no-such-method-forwarders may not
+        // have default values (even for non-nullable parameters). In that case
+        // we use `null` as the default value. The `noSuchMethod` will then be
+        // given an `Invocation` object with `null` for the parameter.
+        //
+        // See
+        //   * https://github.com/dart-lang/language/issues/3331
+        //   * https://github.com/dart-lang/sdk/issues/63958
+        return NullConstant();
+      }
+      return null;
+    }
+
+    throw "Non-constant default value";
   }
 
   ParameterInfo._(
@@ -86,17 +100,17 @@ class ParameterInfo {
         // A required parameter has no default value.
         if (i < function.requiredParameterCount) return null;
         if (useDefaultValueSentinel) return defaultValueSentinel;
-        return _defaultValue(function.positionalParameters[i])!;
+        return defaultValue(function.positionalParameters[i], member)!;
       });
 
       final named = {
-        for (VariableDeclaration param in function.namedParameters)
+        for (NamedParameter param in function.namedParameters)
           if (param.isRequired)
-            param.name!: null
+            param.parameterName: null
           else
-            param.name!: useDefaultValueSentinel
+            param.parameterName: useDefaultValueSentinel
                 ? defaultValueSentinel
-                : _defaultValue(param)!,
+                : defaultValue(param, member)!,
       };
 
       return ParameterInfo._(
@@ -117,11 +131,11 @@ class ParameterInfo {
     final positional = List.generate(function.positionalParameters.length, (i) {
       // A required parameter has no default value.
       if (i < function.requiredParameterCount) return null;
-      return _defaultValue(function.positionalParameters[i]);
+      return defaultValue(function.positionalParameters[i]);
     });
     final named = {
-      for (VariableDeclaration param in function.namedParameters)
-        param.name!: _defaultValue(param),
+      for (NamedParameter param in function.namedParameters)
+        param.parameterName: param.isRequired ? null : defaultValue(param),
     };
     return ParameterInfo._(true, typeParamCount, positional, named);
   }

@@ -237,27 +237,26 @@ index 00000000000..f6b6ee904b2
 +  }
 +}
 diff --git a/packages/flutter_tools/lib/src/compile.dart b/packages/flutter_tools/lib/src/compile.dart
-index 1e8f435351a..94e67bbd13d 100644
+index 32022a24837..e16d78912b5 100644
 --- a/packages/flutter_tools/lib/src/compile.dart
 +++ b/packages/flutter_tools/lib/src/compile.dart
 @@ -10,6 +10,7 @@ import 'package:package_config/package_config.dart';
  import 'package:process/process.dart';
- import 'package:usage/uuid/uuid.dart';
+ import 'package:uuid/uuid.dart';
  
 +import 'aop/aopd_hook.dart';
  import 'artifacts.dart';
  import 'base/common.dart';
  import 'base/config.dart';
-@@ -270,6 +271,8 @@ class KernelCompiler {
+@@ -280,6 +281,7 @@ class KernelCompiler {
      required PackageConfig packageConfig,
      String? nativeAssets,
    }) async {
 +    final AopdHookConfig aopdHookConfig = await AopdHook.resolve();
-+
      final TargetPlatform? platform = targetModel == TargetModel.dartdevc
          ? TargetPlatform.web_javascript
          : null;
-@@ -334,10 +337,11 @@ class KernelCompiler {
+@@ -344,10 +346,11 @@ class KernelCompiler {
        }
        commandToStartFrontendServer = <String>[
          engineDartAotRuntimePath,
@@ -273,7 +272,7 @@ index 1e8f435351a..94e67bbd13d 100644
        ];
      }
  
-@@ -382,6 +386,11 @@ class KernelCompiler {
+@@ -392,6 +395,11 @@ class KernelCompiler {
              '-Dflutter.dart_plugin_registrant=$dartPluginRegistrantUri',
            ],
            if (nativeAssets != null) ...<String>['--native-assets', nativeAssets],
@@ -285,7 +284,7 @@ index 1e8f435351a..94e67bbd13d 100644
            // See: https://github.com/flutter/flutter/issues/103994
            '--verbosity=error',
            ...?_filterExtraFrontEndOptions(extraFrontEndOptions),
-@@ -389,6 +398,12 @@ class KernelCompiler {
+@@ -399,6 +407,12 @@ class KernelCompiler {
          ];
  
      _logger.printTrace(command.join(' '));
@@ -297,17 +296,16 @@ index 1e8f435351a..94e67bbd13d 100644
 +    }
      final Process server = await _processManager.start(command);
  
-     server.stderr.transform<String>(utf8.decoder).listen(_logger.printError);
-@@ -923,6 +938,8 @@ class DefaultResidentCompiler implements ResidentCompiler {
+     // Use permissive decoder for compiler stderr which may contain invalid UTF-8
+@@ -937,6 +951,7 @@ class DefaultResidentCompiler implements ResidentCompiler {
      String? additionalSourceUri,
      String? nativeAssetsUri,
    }) async {
 +    final AopdHookConfig aopdHookConfig = await AopdHook.resolve();
-+
      final TargetPlatform? platform = (targetModel == TargetModel.dartdevc)
          ? TargetPlatform.web_javascript
          : null;
-@@ -935,10 +952,11 @@ class DefaultResidentCompiler implements ResidentCompiler {
+@@ -949,10 +964,11 @@ class DefaultResidentCompiler implements ResidentCompiler {
      } else {
        commandToStartFrontendServer = <String>[
          artifacts.getArtifactPath(Artifact.engineDartAotRuntime, platform: platform),
@@ -323,7 +321,7 @@ index 1e8f435351a..94e67bbd13d 100644
        ];
      }
  
-@@ -978,11 +996,22 @@ class DefaultResidentCompiler implements ResidentCompiler {
+@@ -992,11 +1008,22 @@ class DefaultResidentCompiler implements ResidentCompiler {
        ],
        if (nativeAssetsUri != null) ...<String>['--native-assets', nativeAssetsUri],
        if (platformDill != null) ...<String>['--platform', platformDill!],

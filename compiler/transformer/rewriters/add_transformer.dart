@@ -83,11 +83,11 @@ class AopAddImplTransformer extends RecursiveVisitor {
     final CloneVisitorNotMembers paramCloner = AopUtils.erasingCloner(
       originFunctionNode,
     );
-    final List<VariableDeclaration> positionalParameters = AopUtils.cloneParams(
+    final List<PositionalParameter> positionalParameters = AopUtils.clonePositionalParams(
       paramCloner,
       originFunctionNode.positionalParameters,
     );
-    final List<VariableDeclaration> namedParameters = AopUtils.cloneParams(
+    final List<NamedParameter> namedParameters = AopUtils.cloneNamedParams(
       paramCloner,
       originFunctionNode.namedParameters,
     );

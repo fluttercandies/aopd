@@ -214,7 +214,7 @@ class AopUtils {
     final FunctionNode fn = aspectClass.constructors.first.function;
     final bool noArgs =
         fn.requiredParameterCount == 0 &&
-        !fn.namedParameters.any((VariableDeclaration p) => p.isRequired);
+        !fn.namedParameters.any((NamedParameter p) => p.isRequired);
     if (!noArgs) {
       diagnostics?.unsupported(
         aopItemInfo,
@@ -417,8 +417,8 @@ class AopUtils {
     Source source,
     Statement statement,
   ) {
-    if (statement is VariableDeclaration) {
-      final VariableDeclaration variableDeclaration = statement;
+    if (statement is VariableStatement) {
+      final VariableDeclaration variableDeclaration = statement.declaration;
 
       final int lineNum = AopUtils.getLineNumBySourceAndOffset(
         source,
@@ -706,7 +706,7 @@ class AopUtils {
   static Arguments concatArguments4PointcutStubCall(
     Member member,
     AopItemInfo aopItemInfo, {
-    VariableDeclaration? pointCutParam,
+    Variable? pointCutParam,
   }) {
     // The generated arguments read each value from the PointCut's
     // positionalParams/namedParams so advice can mutate them before proceed.
@@ -721,7 +721,7 @@ class AopUtils {
     final Field positionalParamsField = pointCutPositionalParamsField;
     final Field namedParams = pointCutNamedParamsField;
 
-    for (VariableDeclaration variableDeclaration
+    for (PositionalParameter variableDeclaration
         in member.function!.positionalParameters) {
       final Arguments getArguments = Arguments.empty();
       getArguments.positional.add(IntLiteral(i));
@@ -748,10 +748,10 @@ class AopUtils {
     }
     final List<NamedExpression> namedEntries = <NamedExpression>[];
 
-    for (VariableDeclaration variableDeclaration
+    for (NamedParameter variableDeclaration
         in member.function!.namedParameters) {
       final Arguments getArguments = Arguments.empty();
-      getArguments.positional.add(StringLiteral(variableDeclaration.name!));
+      getArguments.positional.add(StringLiteral(variableDeclaration.parameterName));
 
       final DynamicInvocation methodInvocation = DynamicInvocation(
         DynamicAccessKind.Dynamic,
@@ -771,7 +771,7 @@ class AopUtils {
         deepCopyASTNode(variableDeclaration.type, ignoreGenerics: true),
       );
       namedEntries.add(
-        NamedExpression(variableDeclaration.name!, asExpression),
+        NamedExpression(variableDeclaration.parameterName, asExpression),
       );
     }
     if (namedEntries.isNotEmpty) {
@@ -830,14 +830,13 @@ class AopUtils {
     required int closureFileOffset,
     required Library hostLibrary,
     required Expression Function(
-      VariableDeclaration pcParam,
+      Variable pcParam,
       Arguments stubArgs,
     )
     buildInvocation,
   }) {
     final Class pointCutClass = pointCutProceedProcedure!.parent as Class;
-    final VariableDeclaration pcParam = VariableDeclaration(
-      'pc',
+    final PositionalParameter pcParam = PositionalParameter(
       type: InterfaceType(pointCutClass, Nullability.nonNullable),
     );
     final Arguments stubArgs = concatArguments4PointcutStubCall(
@@ -855,7 +854,7 @@ class AopUtils {
     ]);
     final FunctionNode functionNode = FunctionNode(
       body,
-      positionalParameters: <VariableDeclaration>[pcParam],
+      positionalParameters: <PositionalParameter>[pcParam],
       returnType: const DynamicType(),
     );
 
@@ -904,7 +903,7 @@ class AopUtils {
 
   /// Read `(pc.target as [castClass])` for instance-mode proceed closures.
   static Expression pointCutTargetCast(
-    VariableDeclaration pcParam,
+    Variable pcParam,
     Class castClass,
   ) {
     final Field targetField = pointCutTargetField;
@@ -937,7 +936,7 @@ class AopUtils {
       // library, alongside the moved-out stub it invokes.
       closureFileOffset: originalMember.fileOffset,
       hostLibrary: originalMember.enclosingLibrary,
-      buildInvocation: (VariableDeclaration pcParam, Arguments args) {
+      buildInvocation: (Variable pcParam, Arguments args) {
         if (isInstance) {
           return DynamicInvocation(
             DynamicAccessKind.Dynamic,
@@ -1098,12 +1097,22 @@ class AopUtils {
   /// the SAME [cloner] remaps its `VariableGet`/`VariableSet` to the fresh
   /// declarations. This is what stops a single parameter node from being parented
   /// under two functions at once (the original method AND its stub).
-  static List<VariableDeclaration> cloneParams(
+  static List<PositionalParameter> clonePositionalParams(
     CloneVisitorNotMembers cloner,
-    List<VariableDeclaration> params,
+    List<PositionalParameter> params,
   ) {
-    return <VariableDeclaration>[
-      for (final VariableDeclaration p in params) cloner.clone(p),
+    return <PositionalParameter>[
+      for (final PositionalParameter p in params)
+        cloner.clone(p),
+    ];
+  }
+
+  static List<NamedParameter> cloneNamedParams(
+    CloneVisitorNotMembers cloner,
+    List<NamedParameter> params,
+  ) {
+    return <NamedParameter>[
+      for (final NamedParameter p in params) cloner.clone(p),
     ];
   }
 
@@ -1118,11 +1127,11 @@ class AopUtils {
     required bool shouldReturn,
   }) {
     final CloneVisitorNotMembers cloner = erasingCloner(fn);
-    final List<VariableDeclaration> positional = cloneParams(
+    final List<PositionalParameter> positional = clonePositionalParams(
       cloner,
       fn.positionalParameters,
     );
-    final List<VariableDeclaration> named = cloneParams(
+    final List<NamedParameter> named = cloneNamedParams(
       cloner,
       fn.namedParameters,
     );
@@ -1203,7 +1212,6 @@ class AopUtils {
       isExternal: referConstructor.isExternal,
       isSynthetic: referConstructor.isSynthetic,
       initializers: deepCopyASTNodes(referConstructor.initializers),
-      transformerFlags: referConstructor.transformerFlags,
       fileUri: referConstructor.fileUri,
       reference: Reference()..node = referConstructor.reference.node,
     );
@@ -1225,18 +1233,34 @@ class AopUtils {
         return TypeParameter(node.name, node.bound, node.defaultType);
       }
     }
-    if (node is VariableDeclaration) {
-      return VariableDeclaration(
-        node.name,
-        initializer: node.initializer,
+    if (node is NamedParameter) {
+      final NamedParameter copy = NamedParameter(
+        parameterName: node.parameterName,
         type: deepCopyASTNode(node.type),
-        flags: node.flags,
-        isFinal: node.isFinal,
-        isConst: node.isConst,
-        isLate: node.isLate,
+        defaultValue: node.defaultValue,
         isRequired: node.isRequired,
-        isLowered: node.isLowered,
       );
+      copy.flags = node.flags;
+      return copy;
+    }
+    if (node is PositionalParameter) {
+      final PositionalParameter copy = PositionalParameter(
+        type: deepCopyASTNode(node.type),
+        defaultValue: node.defaultValue,
+      );
+      copy.flags = node.flags;
+      return copy;
+    }
+    if (node is VariableDeclaration) {
+      final Variable variable = node.variable;
+      final LocalVariable copyVariable = LocalVariable(
+        name: variable.cosmeticName ?? '',
+        type: deepCopyASTNode(variable.type),
+        initializer: variable.initializer,
+        isFinal: variable.isFinal,
+      );
+      copyVariable.flags = variable.flags;
+      return VariableDeclaration(copyVariable);
     }
     if (node is TypeParameterType) {
       if (isReturnType || ignoreGenerics) {
@@ -1295,18 +1319,18 @@ class AopUtils {
   /// [namedParameters] directly. Lets a caller forward FRESH (cloned) parameters
   /// instead of the source method's nodes (see [cloneParams]).
   static Arguments argumentsFromParams(
-    List<VariableDeclaration> positionalParameters,
-    List<VariableDeclaration> namedParameters,
+    List<Variable> positionalParameters,
+    List<Variable> namedParameters,
   ) {
     final List<Expression> positional = <Expression>[];
     final List<NamedExpression> named = <NamedExpression>[];
-    for (VariableDeclaration variableDeclaration in positionalParameters) {
+    for (Variable variableDeclaration in positionalParameters) {
       positional.add(VariableGet(variableDeclaration));
     }
-    for (VariableDeclaration variableDeclaration in namedParameters) {
+    for (Variable variableDeclaration in namedParameters) {
       named.add(
         NamedExpression(
-          variableDeclaration.name!,
+          variableDeclaration.cosmeticName!,
           VariableGet(variableDeclaration),
         ),
       );
