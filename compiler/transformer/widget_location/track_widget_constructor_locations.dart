@@ -22,7 +22,7 @@ const String _locationFieldName = r'aopLocation';
 
 bool _hasNamedParameter(FunctionNode function, String name) {
   return function.namedParameters
-      .any((VariableDeclaration parameter) => parameter.name == name);
+      .any((NamedParameter parameter) => parameter.parameterName == name);
 }
 
 bool _hasNamedArgument(Arguments arguments, String argumentName) {
@@ -30,12 +30,12 @@ bool _hasNamedArgument(Arguments arguments, String argumentName) {
       .any((NamedExpression argument) => argument.name == argumentName);
 }
 
-VariableDeclaration? _getNamedParameter(
+NamedParameter? _getNamedParameter(
   FunctionNode function,
   String parameterName,
 ) {
-  for (VariableDeclaration parameter in function.namedParameters) {
-    if (parameter.name == parameterName) {
+  for (NamedParameter parameter in function.namedParameters) {
+    if (parameter.parameterName == parameterName) {
       return parameter;
     }
   }
@@ -84,7 +84,7 @@ void _maybeAddCreationLocationArgument(
 /// a named parameter with the name or optional positional parameters.
 bool _maybeAddNamedParameter(
   FunctionNode function,
-  VariableDeclaration variable,
+  NamedParameter variable,
 ) {
   if (_hasNamedParameter(function, _creationLocationParameterName)) {
     // Gracefully handle if this method is called on a function that has already
@@ -187,9 +187,10 @@ class _WidgetCallSiteTransformer extends Transformer {
   @override
   Procedure visitProcedure(Procedure node) {
     if (_isWidgetFactory(node)) {
-      final VariableDeclaration locationParameter =
+      final NamedParameter locationParameter =
           node.function.namedParameters.firstWhere(
-        (parameter) => parameter.name == _creationLocationParameterName,
+        (parameter) =>
+            parameter.parameterName == _creationLocationParameterName,
       );
       _currentExtensionFactoryLocationParameter =
           VariableGet(locationParameter);
@@ -301,7 +302,7 @@ class _WidgetCallSiteTransformer extends Transformer {
         // location parameter of the surrounding factory since it isn't a
         // constant expression.
         !isConst) {
-      final VariableDeclaration? creationLocationParameter = _getNamedParameter(
+      final NamedParameter? creationLocationParameter = _getNamedParameter(
         _currentFactory!.function,
         _creationLocationParameterName,
       );
@@ -456,11 +457,15 @@ class WidgetCreatorTracker {
         constructor.function,
         _creationLocationParameterName,
       ));
-      final VariableDeclaration variable = new VariableDeclaration(
-          _creationLocationParameterName,
-          type: new InterfaceType(
-              _locationClass, clazz.enclosingLibrary.nullable),
-          initializer: new NullLiteral());
+      final NamedParameter variable = new NamedParameter(
+        parameterName: _creationLocationParameterName,
+        type: new InterfaceType(
+          _locationClass,
+          clazz.enclosingLibrary.nullable,
+        ),
+        defaultValue: new NullLiteral(),
+        hasDeclaredDefaultValue: true,
+      );
       if (!_maybeAddNamedParameter(constructor.function, variable)) {
         return;
       }
@@ -639,10 +644,15 @@ class WidgetCreatorTracker {
       if (procedure.isFactory) {
         _maybeAddNamedParameter(
           procedure.function,
-          new VariableDeclaration(_creationLocationParameterName,
-              type: new InterfaceType(
-                  _locationClass, clazz.enclosingLibrary.nullable),
-              initializer: new NullLiteral()),
+          new NamedParameter(
+            parameterName: _creationLocationParameterName,
+            type: new InterfaceType(
+              _locationClass,
+              clazz.enclosingLibrary.nullable,
+            ),
+            defaultValue: new NullLiteral(),
+            hasDeclaredDefaultValue: true,
+          ),
         );
       }
     }
@@ -662,11 +672,15 @@ class WidgetCreatorTracker {
         return;
       }
 
-      final VariableDeclaration variable = new VariableDeclaration(
-          _creationLocationParameterName,
-          type: new InterfaceType(
-              _locationClass, clazz.enclosingLibrary.nullable),
-          initializer: new NullLiteral());
+      final NamedParameter variable = new NamedParameter(
+        parameterName: _creationLocationParameterName,
+        type: new InterfaceType(
+          _locationClass,
+          clazz.enclosingLibrary.nullable,
+        ),
+        defaultValue: new NullLiteral(),
+        hasDeclaredDefaultValue: true,
+      );
       if (_hasNamedParameter(
           constructor.function, _creationLocationParameterName)) {
         // Constructor was already rewritten.
@@ -730,13 +744,14 @@ class WidgetCreatorTracker {
       if (method != null && _hasWidgetFactoryAnnotation(method)) {
         _maybeAddNamedParameter(
           method.function,
-          new VariableDeclaration(
-            _creationLocationParameterName,
+          new NamedParameter(
+            parameterName: _creationLocationParameterName,
             type: new InterfaceType(
               _locationClass,
               extension.enclosingLibrary.nullable,
             ),
-            initializer: new NullLiteral(),
+            defaultValue: new NullLiteral(),
+            hasDeclaredDefaultValue: true,
           ),
         );
       }
@@ -744,13 +759,14 @@ class WidgetCreatorTracker {
       if (tearOff != null && _hasWidgetFactoryAnnotation(tearOff)) {
         _maybeAddNamedParameter(
           tearOff.function,
-          new VariableDeclaration(
-            _creationLocationParameterName,
+          new NamedParameter(
+            parameterName: _creationLocationParameterName,
             type: new InterfaceType(
               _locationClass,
               extension.enclosingLibrary.nullable,
             ),
-            initializer: new NullLiteral(),
+            defaultValue: new NullLiteral(),
+            hasDeclaredDefaultValue: true,
           ),
         );
       }

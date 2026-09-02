@@ -55,7 +55,9 @@ void main() {
     Name('advice'),
     ProcedureKind.Method,
     FunctionNode(EmptyStatement(),
-        positionalParameters: <VariableDeclaration>[VariableDeclaration('pc')],
+        positionalParameters: <PositionalParameter>[
+          PositionalParameter(cosmeticName: 'pc'),
+        ],
         returnType: const DynamicType()),
     fileUri: aspectFile,
   );
@@ -80,8 +82,10 @@ void main() {
   final Uri callFile = Uri.parse('file:///call.dart');
   final Library callLib =
       Library(Uri.parse('package:t/call.dart'), fileUri: callFile);
-  final VariableDeclaration tParam = VariableDeclaration('t',
-      type: InterfaceType(target, Nullability.nonNullable));
+  final PositionalParameter tParam = PositionalParameter(
+    cosmeticName: 't',
+    type: InterfaceType(target, Nullability.nonNullable),
+  );
   final InstanceInvocation fooCall = InstanceInvocation(
     InstanceAccessKind.Instance,
     VariableGet(tParam),
@@ -94,7 +98,7 @@ void main() {
     Name('run'),
     ProcedureKind.Method,
     FunctionNode(Block(<Statement>[ReturnStatement(fooCall)]),
-        positionalParameters: <VariableDeclaration>[tParam],
+        positionalParameters: <PositionalParameter>[tParam],
         returnType: const DynamicType()),
     isStatic: true,
     fileUri: callFile,

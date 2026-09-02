@@ -37,8 +37,8 @@ void main() {
         Name('extra'),
         ProcedureKind.Method,
         FunctionNode(EmptyStatement(),
-            positionalParameters: <VariableDeclaration>[
-              VariableDeclaration('pc')
+            positionalParameters: <PositionalParameter>[
+              PositionalParameter(cosmeticName: 'pc')
             ]),
         fileUri: aspectFile);
     aspectCls.addProcedure(extra);

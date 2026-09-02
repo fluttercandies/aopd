@@ -32,7 +32,9 @@ void main() {
     Name('advice'),
     ProcedureKind.Method,
     FunctionNode(EmptyStatement(),
-        positionalParameters: <VariableDeclaration>[VariableDeclaration('pc')]),
+        positionalParameters: <PositionalParameter>[
+          PositionalParameter(cosmeticName: 'pc'),
+        ]),
     isStatic: true,
     fileUri: targetFile,
   );

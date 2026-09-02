@@ -51,7 +51,9 @@ void main() {
     Name('run'),
     ProcedureKind.Method,
     FunctionNode(Block(<Statement>[ReturnStatement(NullLiteral())]),
-        positionalParameters: <VariableDeclaration>[VariableDeclaration('x')]),
+        positionalParameters: <PositionalParameter>[
+          PositionalParameter(cosmeticName: 'x'),
+        ]),
     isStatic: false,
     fileUri: targetFile,
   );
@@ -197,12 +199,16 @@ void main() {
 
     // The mock var declaration sits on a line ending with the Ignore marker so
     // checkIfSkipableVarDeclaration recognizes it (offset 0 => line 0).
-    final VariableDeclaration mockX = VariableDeclaration('x')..fileOffset = 0;
-    final ExpressionStatement useX = ExpressionStatement(VariableGet(mockX));
+    final VariableDeclaration mockX =
+        VariableDeclaration(LocalVariable(name: 'x'))..fileOffset = 0;
+    final ExpressionStatement useX = ExpressionStatement(
+      VariableGet(mockX.variable),
+    );
     final Procedure advice = Procedure(
       Name('inj'),
       ProcedureKind.Method,
-      FunctionNode(Block(<Statement>[mockX, useX]))..fileOffset = 0,
+      FunctionNode(Block(<Statement>[VariableStatement(mockX), useX]))
+        ..fileOffset = 0,
       isStatic: true,
       fileUri: aFile,
     )..fileOffset = 0;
@@ -214,12 +220,12 @@ void main() {
         Library(Uri.parse('package:t/ignore_target.dart'), fileUri: tFile);
     final Class tCls = Class(name: 'T', fileUri: tFile);
     tLib.addClass(tCls);
-    final VariableDeclaration targetX = VariableDeclaration('x');
+    final PositionalParameter targetX = PositionalParameter(cosmeticName: 'x');
     final Procedure tProc = Procedure(
       Name('run'),
       ProcedureKind.Method,
       FunctionNode(Block(<Statement>[ReturnStatement(NullLiteral())]),
-          positionalParameters: <VariableDeclaration>[targetX]),
+          positionalParameters: <PositionalParameter>[targetX]),
       isStatic: false,
       fileUri: tFile,
     );
@@ -275,9 +281,13 @@ void main() {
     bool threw = false;
     try {
       // An unnamed local (name == null), as kernel emits for compiler temps.
-      t.visitVariableDeclaration(VariableDeclaration(null));
+      t.visitVariableDeclaration(
+        VariableDeclaration(LocalVariable(name: '')),
+      );
       // A named one still works alongside it.
-      t.visitVariableDeclaration(VariableDeclaration('kept'));
+      t.visitVariableDeclaration(
+        VariableDeclaration(LocalVariable(name: 'kept')),
+      );
     } on Object {
       threw = true;
     }

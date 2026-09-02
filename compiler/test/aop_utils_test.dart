@@ -559,7 +559,9 @@ void main() {
       Constructor(
         FunctionNode(
           EmptyStatement(),
-          positionalParameters: <VariableDeclaration>[VariableDeclaration('x')],
+          positionalParameters: <PositionalParameter>[
+            PositionalParameter(cosmeticName: 'x'),
+          ],
           requiredParameterCount: 1,
         ),
         name: Name(''),
