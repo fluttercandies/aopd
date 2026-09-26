@@ -1,3 +1,7 @@
+## 0.3.0
+
+- Support Flutter 3.47.2 / Dart 3.13.2.
+
 ## 0.2.0
 
 - Support Flutter 3.44.1.

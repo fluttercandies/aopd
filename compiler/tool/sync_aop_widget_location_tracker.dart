@@ -34,6 +34,27 @@ void main(List<String> args) {
   }
 
   final String upstream = upstreamFile.readAsStringSync();
+  // Flutter 3.47.2 (Dart 3.13) introduced the new dart:developer creation
+  // location tracker in the upstream file. That implementation has a
+  // different class hierarchy and cannot be text-patched into AOPD's
+  // package:aopd location runtime. Keep the AOPD tracker as a deliberate
+  // custom fork, but validate that it follows the upstream Kernel API shape.
+  if (_isModernUpstreamTracker(upstream)) {
+    final String current = targetFile.readAsStringSync();
+    _validateModernAopdTracker(current);
+    if (checkOnly) {
+      stdout.writeln(
+        'AOPD widget-location tracker is valid for the modern upstream API.',
+      );
+    } else {
+      stdout.writeln(
+        'AOPD widget-location tracker uses the maintained modern API fork; '
+        'no generation needed.',
+      );
+    }
+    return;
+  }
+
   final String generated = _generateAopdTracker(upstream);
 
   if (checkOnly) {
@@ -52,6 +73,36 @@ void main(List<String> args) {
 
   targetFile.writeAsStringSync(generated);
   stdout.writeln('Generated ${targetFile.path}');
+}
+
+bool _isModernUpstreamTracker(String source) {
+  return source.contains('required Class locationClass') &&
+      source.contains('_developerCreationLocationClass');
+}
+
+void _validateModernAopdTracker(String source) {
+  final List<String> requiredFragments = <String>[
+    "import 'package:kernel/ast.dart';",
+    "r'\$creationLocationAopd_0dea112b090073317d4'",
+    "r'aopLocation'",
+    'NamedParameter',
+    'parameter.parameterName',
+    'defaultValue: new NullLiteral()',
+  ];
+  for (final String fragment in requiredFragments) {
+    if (!source.contains(fragment)) {
+      throw StateError(
+        'Modern AOPD tracker is missing required API/customization: $fragment',
+      );
+    }
+  }
+  if (RegExp(r'List<VariableDeclaration>').hasMatch(source) ||
+      RegExp(r'VariableDeclaration parameter in function\.namedParameters')
+          .hasMatch(source)) {
+    throw StateError(
+      'Modern AOPD tracker still uses the pre-Dart-3.13 parameter model.',
+    );
+  }
 }
 
 Directory _findCompilerRoot() {
@@ -102,6 +153,7 @@ String _generateAopdTracker(String source) {
     text,
     oldText: '  ConstructorInvocation _constructLocation(\n'
         '    Location location, {\n'
+        '    required Class locationClass,\n'
         '    String? name,\n'
         '  }) {',
     newText: '  ConstructorInvocation _constructLocation(\n'
@@ -127,7 +179,9 @@ String _generateAopdTracker(String source) {
     text,
     oldText: '    return _constructLocation(\n'
         '      node.location!,\n'
-        '      name: constructedClass?.name ??\n'
+        '      locationClass: locationClass,\n'
+        '      name:\n'
+        '          constructedClass?.name ??\n'
         '          // For extension factory methods we use the name of the method.\n'
         '          (function.parent! as Procedure).name.text,\n'
         '    );',
@@ -143,6 +197,7 @@ String _generateAopdTracker(String source) {
         '\n'
         '    return _constructLocation(\n'
         '      node.location!,\n'
+        '      locationClass: locationClass,\n'
         '      name: constructedClass?.name ??\n'
         '          // For extension factory methods we use the name of the method.\n'
         '          (function.parent! as Procedure).name.text,\n'

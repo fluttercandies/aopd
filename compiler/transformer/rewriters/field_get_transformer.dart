@@ -141,8 +141,7 @@ class AopFieldGetImplTransformer extends Transformer {
       // than via buildProceedClosure (which reconstructs an arg list).
       final Class pointCutClass =
           AopUtils.pointCutProceedProcedure!.parent as Class;
-      final VariableDeclaration pcParam = VariableDeclaration(
-        'pc',
+      final PositionalParameter pcParam = PositionalParameter(
         type: InterfaceType(pointCutClass, Nullability.nonNullable),
       );
       final Expression read = isStatic
@@ -157,7 +156,7 @@ class AopFieldGetImplTransformer extends Transformer {
       proceedClosure = FunctionExpression(
         FunctionNode(
           Block(<Statement>[ReturnStatement(read)]),
-          positionalParameters: <VariableDeclaration>[pcParam],
+          positionalParameters: <PositionalParameter>[pcParam],
           returnType: const DynamicType(),
         ),
       );

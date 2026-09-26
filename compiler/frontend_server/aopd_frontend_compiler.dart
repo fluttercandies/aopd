@@ -74,6 +74,11 @@ class AopdFrontendCompiler implements frontend.CompilerInterface {
   }
 
   @override
+  Future<void> setRecordedUses(String recordedUses) {
+    return _compiler.setRecordedUses(recordedUses);
+  }
+
+  @override
   void invalidate(Uri uri) {
     _compiler.invalidate(uri);
   }

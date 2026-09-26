@@ -570,7 +570,7 @@ class AopCallImplTransformer extends Transformer {
       shouldReturn: shouldReturn,
       closureFileOffset: closureFileOffset,
       hostLibrary: _curLibrary,
-      buildInvocation: (VariableDeclaration pcParam, Arguments args) =>
+      buildInvocation: (Variable pcParam, Arguments args) =>
           ConstructorInvocation(originalMember, args),
     );
   }
@@ -588,7 +588,7 @@ class AopCallImplTransformer extends Transformer {
       shouldReturn: shouldReturn,
       closureFileOffset: closureFileOffset,
       hostLibrary: _curLibrary,
-      buildInvocation: (VariableDeclaration pcParam, Arguments args) =>
+      buildInvocation: (Variable pcParam, Arguments args) =>
           StaticInvocation(originalMember, args),
     );
   }
@@ -610,7 +610,7 @@ class AopCallImplTransformer extends Transformer {
       shouldReturn: shouldReturn,
       closureFileOffset: closureFileOffset,
       hostLibrary: _curLibrary,
-      buildInvocation: (VariableDeclaration pcParam, Arguments args) {
+      buildInvocation: (Variable pcParam, Arguments args) {
         return InstanceInvocation(
           InstanceAccessKind.Instance,
           AopUtils.pointCutTargetCast(pcParam, procedureImpl),

@@ -26,7 +26,7 @@ import '_harness.dart';
 /// Collects the [VariableDeclaration]s referenced by every `VariableGet` under
 /// a node, so we can check they all belong to the expected parameter set.
 class _VarGetCollector extends RecursiveVisitor {
-  final Set<VariableDeclaration> vars = <VariableDeclaration>{};
+  final Set<Variable> vars = <Variable>{};
 
   @override
   void visitVariableGet(VariableGet node) {
@@ -35,7 +35,7 @@ class _VarGetCollector extends RecursiveVisitor {
   }
 }
 
-Set<VariableDeclaration> _varGetsIn(TreeNode node) {
+Set<Variable> _varGetsIn(TreeNode node) {
   final _VarGetCollector collector = _VarGetCollector();
   node.accept(collector);
   return collector.vars;
@@ -96,7 +96,9 @@ void main() {
       Name('advice'),
       ProcedureKind.Method,
       FunctionNode(EmptyStatement(),
-          positionalParameters: <VariableDeclaration>[VariableDeclaration('pc')]),
+          positionalParameters: <PositionalParameter>[
+            PositionalParameter(cosmeticName: 'pc'),
+          ]),
       isStatic: true,
       fileUri: aspectFile,
     );
@@ -109,10 +111,15 @@ void main() {
     targetLib.addClass(svc);
 
     final TypeParameter typeParam = TypeParameter('T', const DynamicType());
-    final VariableDeclaration paramA = VariableDeclaration('a',
-        type: TypeParameterType(typeParam, Nullability.nonNullable));
-    final VariableDeclaration paramB =
-        VariableDeclaration('b', type: const DynamicType(), isRequired: true);
+    final PositionalParameter paramA = PositionalParameter(
+      cosmeticName: 'a',
+      type: TypeParameterType(typeParam, Nullability.nonNullable),
+    );
+    final NamedParameter paramB = NamedParameter(
+      parameterName: 'b',
+      type: const DynamicType(),
+      isRequired: true,
+    );
     final Procedure compute = Procedure(
       Name('compute'),
       ProcedureKind.Method,
@@ -122,8 +129,8 @@ void main() {
           ReturnStatement(VariableGet(paramA)),
         ]),
         typeParameters: <TypeParameter>[typeParam],
-        positionalParameters: <VariableDeclaration>[paramA],
-        namedParameters: <VariableDeclaration>[paramB],
+        positionalParameters: <PositionalParameter>[paramA],
+        namedParameters: <NamedParameter>[paramB],
         requiredParameterCount: 1,
         returnType: const DynamicType(),
       ),
@@ -151,8 +158,8 @@ void main() {
     );
 
     // Capture the ORIGINAL parameter identities before weaving.
-    final VariableDeclaration origA = paramA;
-    final VariableDeclaration origB = paramB;
+    final Variable origA = paramA;
+    final Variable origB = paramB;
 
     AopExecuteImplTransformer(<AopItemInfo>[info], libraryMap, uriToSource)
         .aopTransform();
@@ -168,11 +175,11 @@ void main() {
     check(identical(compute.function.namedParameters.first, origB),
         'original method keeps its named param node');
 
-    final Set<VariableDeclaration> origParams = <VariableDeclaration>{
+    final Set<Variable> origParams = <Variable>{
       ...compute.function.positionalParameters,
       ...compute.function.namedParameters,
     };
-    final Set<VariableDeclaration> stubParams = <VariableDeclaration>{
+    final Set<Variable> stubParams = <Variable>{
       ...stub.function.positionalParameters,
       ...stub.function.namedParameters,
     };
@@ -182,7 +189,7 @@ void main() {
         'stub params are DISJOINT from original params (no shared nodes)');
 
     // Every VariableGet in the stub body resolves to the stub's own params.
-    final Set<VariableDeclaration> stubBodyVars =
+    final Set<Variable> stubBodyVars =
         _varGetsIn(stub.function.body!);
     check(stubBodyVars.isNotEmpty, 'stub body reads its parameters');
     check(stubBodyVars.difference(stubParams).isEmpty,
@@ -194,7 +201,7 @@ void main() {
     // (forwarded into the PointCut). It also contains the proceedClosure, whose
     // own `pc` parameter is declared in-scope -- so the meaningful invariant is:
     // it references the original params and NEVER leaks into the stub's params.
-    final Set<VariableDeclaration> origBodyVars =
+    final Set<Variable> origBodyVars =
         _varGetsIn(compute.function.body!);
     check(origBodyVars.containsAll(origParams),
         'rewritten original body forwards the original params');
@@ -233,15 +240,16 @@ void main() {
     aspectCls.addConstructor(Constructor(FunctionNode(EmptyStatement()),
         name: Name(''), fileUri: aspectFile));
 
-    final VariableDeclaration advicePc = VariableDeclaration('pc');
-    final VariableDeclaration adviceX =
-        VariableDeclaration('x', type: const DynamicType());
+    final PositionalParameter advicePc =
+        PositionalParameter(cosmeticName: 'pc');
+    final PositionalParameter adviceX =
+        PositionalParameter(cosmeticName: 'x', type: const DynamicType());
     final Procedure added = Procedure(
       Name('added'),
       ProcedureKind.Method,
       FunctionNode(
         Block(<Statement>[ReturnStatement(VariableGet(adviceX))]),
-        positionalParameters: <VariableDeclaration>[advicePc, adviceX],
+        positionalParameters: <PositionalParameter>[advicePc, adviceX],
         returnType: const DynamicType(),
       ),
       isStatic: false,
@@ -277,11 +285,11 @@ void main() {
     check(addedOnTarget.length == 1, 'method added to the target class');
     final Procedure addedMethod = addedOnTarget.first;
 
-    final Set<VariableDeclaration> adviceParams = <VariableDeclaration>{
+    final Set<Variable> adviceParams = <Variable>{
       advicePc,
       adviceX,
     };
-    final Set<VariableDeclaration> addedParams = <VariableDeclaration>{
+    final Set<Variable> addedParams = <Variable>{
       ...addedMethod.function.positionalParameters,
       ...addedMethod.function.namedParameters,
     };
@@ -290,7 +298,7 @@ void main() {
     check(adviceParams.intersection(addedParams).isEmpty,
         'added method params are DISJOINT from advice params (no shared nodes)');
 
-    final Set<VariableDeclaration> addedBodyVars =
+    final Set<Variable> addedBodyVars =
         _varGetsIn(addedMethod.function.body!);
     check(addedBodyVars.difference(addedParams).isEmpty,
         'added body only references the added method\'s own params');
@@ -299,7 +307,7 @@ void main() {
 
     check(
         addedMethod.function.positionalParameters
-            .every((VariableDeclaration v) => v.parent == addedMethod.function),
+            .every((Variable v) => v.parent == addedMethod.function),
         'added params are parented under the added method');
 
     // The advice method is untouched -- it keeps its own params.
@@ -323,7 +331,9 @@ void main() {
       Name('advice'),
       ProcedureKind.Method,
       FunctionNode(EmptyStatement(),
-          positionalParameters: <VariableDeclaration>[VariableDeclaration('pc')]),
+          positionalParameters: <PositionalParameter>[
+            PositionalParameter(cosmeticName: 'pc'),
+          ]),
       isStatic: true,
       fileUri: aspectFile,
     );

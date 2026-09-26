@@ -37,10 +37,8 @@ class AopInjectImplTransformer extends Transformer {
   late final List<AopItemInfo> _aopItemInfoList;
   late final Map<String, Library> _libraryMap;
   late final Map<Uri, Source> _uriToSource;
-  final Set<VariableDeclaration> _mockedVariableDeclaration =
-      <VariableDeclaration>{};
-  final Map<String, VariableDeclaration> _originalVariableDeclaration =
-      <String, VariableDeclaration>{};
+  final Set<Variable> _mockedVariableDeclaration = <Variable>{};
+  final Map<String, Variable> _originalVariableDeclaration = <String, Variable>{};
   // A2 (#15): same-inject-point items folded by [mergeTransform]. Keyed by the
   // SURVIVING item; the value lists its merged siblings (newest-first, matching
   // the previous front-insertion order). onPrepareTransform clones each
@@ -59,9 +57,9 @@ class AopInjectImplTransformer extends Transformer {
     // for-loop desugaring temporaries, let-binders). They are never //AOPD
     // Ignore mock-var targets, so skip them -- `node.name!` would throw and
     // abort the whole inject item on any method containing such temps.
-    final String? name = node.name;
+    final String? name = node.variable.cosmeticName;
     if (name != null) {
-      _originalVariableDeclaration.putIfAbsent(name, () => node);
+      _originalVariableDeclaration.putIfAbsent(name, () => node.variable);
     }
     return node;
   }
@@ -71,7 +69,7 @@ class AopInjectImplTransformer extends Transformer {
     node.transformChildren(this);
     if (_mockedVariableDeclaration.contains(node.variable)) {
       final VariableGet variableGet = VariableGet(
-        _originalVariableDeclaration[node.variable.name]!,
+        _originalVariableDeclaration[node.variable.cosmeticName]!,
       );
       return variableGet;
     }
@@ -127,9 +125,9 @@ class AopInjectImplTransformer extends Transformer {
             // Only a VariableGet receiver can map to a target variable by name.
             final Expression receiver = node.receiver;
             final String? firstEle = receiver is VariableGet
-                ? receiver.variable.name
+                ? receiver.variable.cosmeticName
                 : null;
-            final VariableDeclaration? variableDeclaration = firstEle == null
+            final Variable? variableDeclaration = firstEle == null
                 ? null
                 : _originalVariableDeclaration[firstEle];
 
@@ -572,7 +570,7 @@ class AopInjectImplTransformer extends Transformer {
     // Preserve prior behavior for any reference to the advice's OWN params:
     // map them to themselves (the body is no longer cleared, so this shares no
     // more than the previous move did) and avoid a missing-clone failure.
-    for (final VariableDeclaration p in <VariableDeclaration>[
+    for (final Variable p in <Variable>[
       ...adviceFn.positionalParameters,
       ...adviceFn.namedParameters,
     ]) {
@@ -590,7 +588,7 @@ class AopInjectImplTransformer extends Transformer {
         // Skipped (//AOPD Ignore) mock var: clone+register it so the cloned kept
         // statements resolve their references to this node, which visitVariableGet
         // then remaps by name to the target's variable. The clone is not inserted.
-        final VariableDeclaration mockClone = cloner.clone(variableDeclaration);
+        final Variable mockClone = cloner.clone(variableDeclaration).variable;
         _mockedVariableDeclaration.add(mockClone);
       } else {
         final Statement cloned = cloner.clone(statement);
@@ -610,32 +608,32 @@ class AopInjectImplTransformer extends Transformer {
 
   void _recordOriginalVariables(Node methodNode) {
     if (methodNode is Procedure) {
-      for (VariableDeclaration variableDeclaration
+      for (Variable variableDeclaration
           in methodNode.function.namedParameters) {
         _originalVariableDeclaration.putIfAbsent(
-          variableDeclaration.name!,
+          variableDeclaration.cosmeticName!,
           () => variableDeclaration,
         );
       }
-      for (VariableDeclaration variableDeclaration
+      for (Variable variableDeclaration
           in methodNode.function.positionalParameters) {
         _originalVariableDeclaration.putIfAbsent(
-          variableDeclaration.name!,
+          variableDeclaration.cosmeticName!,
           () => variableDeclaration,
         );
       }
     } else if (methodNode is Constructor) {
-      for (VariableDeclaration variableDeclaration
+      for (Variable variableDeclaration
           in methodNode.function.namedParameters) {
         _originalVariableDeclaration.putIfAbsent(
-          variableDeclaration.name!,
+          variableDeclaration.cosmeticName!,
           () => variableDeclaration,
         );
       }
-      for (VariableDeclaration variableDeclaration
+      for (Variable variableDeclaration
           in methodNode.function.positionalParameters) {
         _originalVariableDeclaration.putIfAbsent(
-          variableDeclaration.name!,
+          variableDeclaration.cosmeticName!,
           () => variableDeclaration,
         );
       }
